@@ -7,3 +7,4 @@ lib/
 # (see internal/memory/store.go DefaultIndex); never seed or commit it.
 MEMORY.md
 memories/
+demo

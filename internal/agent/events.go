@@ -164,6 +164,9 @@ func (a *Agent) solveBatchWithRecoveryEvents(ctx context.Context, batch []Task, 
 // solveBatchEvents mirrors solveBatch but emits per-call and per-tool events.
 func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCallback) (map[string]string, int, int, error) {
 	a.metrics.BatchCount++
+	a.exec.ResetSubmit()
+	sessionID := "batch-" + strings.Join(taskIDs(batch), "-")
+
 	// Select model for this batch (may differ from default if routing is configured)
 	batchModel := a.model
 	if len(batch) > 0 {
@@ -177,16 +180,17 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 	if g := a.categoryGuidance(batch); g != "" {
 		sys += "\n\nTechnique hints for these task types:\n" + g
 	}
+	taskJSON := a.ctx.BuildBatchPrompt(batch, a.memory.LoadForTasks(batch), a.skills.LoadForPrompt(a.cfg.MemoryRoot, taskText(batch), 8000), a.categories)
 	messages := []llm.Message{
 		{Role: "system", Content: sys},
-		{Role: "user", Content: a.ctx.BuildBatchPrompt(batch, a.memory.LoadForTasks(batch), a.skills.LoadForPrompt(a.cfg.MemoryRoot, taskText(batch), 8000), a.categories)},
+		{Role: "user", Content: taskJSON},
 	}
 	var calls int
 	var tools int
 	var lastText string
 	effort := a.effortForBatch(batch)
 
-	for turn := 0; turn < 3; turn++ {
+	for turn := 0; ; turn++ {
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
 		text, usage, err := llmClient.Chat(ctx, messages, maxTokens, effort)
@@ -229,29 +233,47 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 			"output_full":       lastText,
 		}})
 
-		if answers, ok := parseAnswers(lastText, batch); ok {
-			return answers, calls, tools, nil
+		// Check if the model called submit() during code execution.
+		if a.exec.IsSubmitted() {
+			result := a.exec.SubmitResult()
+			cb(Event{Type: "submit", Timestamp: time.Now(), Data: map[string]any{
+				"turn":     turn,
+				"task_ids": taskIDs(batch),
+				"answers":  result,
+			}})
+			return result, calls, tools, nil
 		}
 
-		// If the model hit max_tokens without producing parseable output,
-		// the batch is too large for the token budget. Return an error so
-		// solveBatchWithRecovery splits it in half (much cheaper than retrying).
+		// If the model hit max_tokens without producing output, the batch is
+		// too large for the token budget. Return an error so
+		// solveBatchWithRecovery splits it in half.
 		if lastText == "" && usage.CompletionTokens >= maxTokens*9/10 {
 			return nil, calls, tools, fmt.Errorf("batch truncated at max_tokens=%d (completion=%d), needs split", maxTokens, usage.CompletionTokens)
 		}
 
 		blocks := markdown.ExtractActionBlocks(lastText)
 		if len(blocks) == 0 {
+			// No code blocks. Try to parse as JSON (backward compat).
+			if answers, ok := parseAnswers(lastText, batch); ok {
+				cb(Event{Type: "submit", Timestamp: time.Now(), Data: map[string]any{
+					"turn":     turn,
+					"task_ids": taskIDs(batch),
+					"answers":  answers,
+					"via":      "json_fallback",
+				}})
+				return answers, calls, tools, nil
+			}
+			// Ask the model to use the action space.
 			messages = append(messages,
 				llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
-				llm.Message{Role: "user", Content: "Return only valid JSON in the required schema. Do not include markdown."},
+				llm.Message{Role: "user", Content: "Use the action space. Emit a micropy code block that computes any needed answers and calls submit(answers=[...]). Do not return raw JSON."},
 			)
 			continue
 		}
 
 		observations := make([]map[string]any, 0, len(blocks))
 		for i, block := range blocks {
-			res, err := a.exec.Run(ctx, "batch-"+strings.Join(taskIDs(batch), "-"), block.Code, map[string]any{"tasks": batch})
+			res, err := a.exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
 			tools++
 			a.mu.Lock()
 			a.metrics.ToolRuns++
@@ -271,17 +293,24 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 				"error":      errString(err),
 			}})
 		}
+
+		// Check if submit() was called during this round of code execution.
+		if a.exec.IsSubmitted() {
+			result := a.exec.SubmitResult()
+			cb(Event{Type: "submit", Timestamp: time.Now(), Data: map[string]any{
+				"turn":     turn,
+				"task_ids": taskIDs(batch),
+				"answers":  result,
+			}})
+			return result, calls, tools, nil
+		}
+
 		obsBytes, _ := json.Marshal(observations)
 		messages = append(messages,
 			llm.Message{Role: "assistant", Content: lastText},
-			llm.Message{Role: "user", Content: "MicroPython observation: " + string(obsBytes) + "\nNow return the final JSON object only."},
+			llm.Message{Role: "user", Content: "Observation: " + string(obsBytes) + "\nIf you have all answers, call submit(answers=[{...}]). Otherwise emit more code."},
 		)
 	}
-
-	if answers, ok := parseAnswers(lastText, batch); ok {
-		return answers, calls, tools, nil
-	}
-	return nil, calls, tools, fmt.Errorf("model did not return parseable answers")
 }
 
 func truncateForEvent(s string, max int) string {

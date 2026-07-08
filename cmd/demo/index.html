@@ -3,58 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>yassai - Demo Console</title>
+<title>yassai - Action Space Console</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; }
-.header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
-.header h1 { font-size: 20px; color: #58a6ff; }
-.header .sub { color: #8b949e; font-size: 13px; }
-.main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 53px); }
-.sidebar { background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; overflow-x: hidden; }
-.content { padding: 16px; overflow-y: auto; }
-.section { margin-bottom: 16px; }
-.section h3 { font-size: 12px; text-transform: uppercase; color: #8b949e; margin-bottom: 6px; letter-spacing: 0.3px; }
-label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 3px; }
-select, input[type=text], input[type=number] { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 5px 8px; border-radius: 5px; font-size: 12px; margin-bottom: 8px; }
+.header { background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 20px; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 18px; color: #58a6ff; }
+.header .sub { color: #8b949e; font-size: 12px; }
+.header .spacer { flex: 1; }
+.main { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 47px); }
+.sidebar { background: #161b22; border-right: 1px solid #30363d; padding: 14px; overflow-y: auto; }
+.content { padding: 14px; overflow-y: auto; }
+.section { margin-bottom: 14px; }
+.section h3 { font-size: 11px; text-transform: uppercase; color: #8b949e; margin-bottom: 5px; letter-spacing: 0.3px; }
+label { display: block; font-size: 10px; color: #8b949e; margin-bottom: 2px; }
+select, input[type=text], input[type=number] { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 7px; border-radius: 5px; font-size: 12px; margin-bottom: 6px; }
 select:focus, input:focus { border-color: #58a6ff; outline: none; }
 .btn { background: #238636; color: #fff; border: none; padding: 7px 14px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 600; width: 100%; }
 .btn:hover { background: #2ea043; }
 .btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
 .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
 .btn-secondary:hover { background: #30363d; }
-.checkbox { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.checkbox { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
 .checkbox input { width: auto; margin: 0; }
-.checkbox label { margin: 0; color: #c9d1d9; font-size: 12px; }
+.checkbox label { margin: 0; color: #c9d1d9; font-size: 11px; }
 .collapsible { cursor: pointer; user-select: none; }
 .collapsible::before { content: '\25B6 '; font-size: 9px; }
 .collapsible.open::before { content: '\25BC '; }
-.collapsible-content { display: none; margin-top: 8px; }
+.collapsible-content { display: none; margin-top: 6px; }
 .collapsible.open + .collapsible-content { display: block; }
-.metric-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; display: inline-block; margin-right: 6px; margin-bottom: 6px; min-width: 90px; }
-.metric-card .label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
-.metric-card .value { font-size: 20px; font-weight: 700; color: #58a6ff; }
-.metric-card .value.green { color: #3fb950; }
-.metric-card .value.orange { color: #d29922; }
-.metric-card .value.red { color: #f85149; }
-.event-item { padding: 7px 10px; border-left: 3px solid #30363d; margin-bottom: 3px; background: #161b22; border-radius: 0 5px 5px 0; font-size: 12px; }
-.event-item.classify { border-color: #58a6ff; }
-.event-item.batch { border-color: #d29922; }
-.event-item.call { border-color: #3fb950; }
-.event-item.tool { border-color: #bc8cff; }
-.event-item.result { border-color: #3fb950; }
-.event-item.error { border-color: #f85149; }
-.event-item.judge { border-color: #bc8cff; }
-.event-item .ts { color: #484f58; font-size: 10px; }
-.event-item .type { font-weight: 600; }
-.event-item .batch-badge { display: inline-block; background: #d2992222; color: #d29922; padding: 0 5px; border-radius: 8px; font-size: 10px; margin-left: 4px; }
-.tab-bar { display: flex; gap: 1px; margin-bottom: 12px; border-bottom: 1px solid #30363d; }
-.tab { padding: 7px 14px; cursor: pointer; font-size: 12px; color: #8b949e; border-bottom: 2px solid transparent; }
-.tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-.tab:hover { color: #c9d1d9; }
-.tab .badge { display: inline-block; background: #30363d; color: #8b949e; padding: 0 5px; border-radius: 8px; font-size: 10px; margin-left: 3px; }
-.tab .badge.live { background: #23863633; color: #3fb950; }
-.task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px; }
+
+/* Metrics bar */
+.metrics-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.metric { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; min-width: 80px; }
+.metric .label { font-size: 9px; color: #8b949e; text-transform: uppercase; }
+.metric .value { font-size: 18px; font-weight: 700; color: #58a6ff; }
+.metric .value.green { color: #3fb950; }
+.metric .value.orange { color: #d29922; }
+.metric .value.purple { color: #bc8cff; }
+
+/* Agent loop visualization */
+.loop-container { max-width: 900px; }
+.turn-group { margin-bottom: 16px; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+.turn-header { background: #161b22; padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; }
+.turn-header .turn-num { color: #58a6ff; font-weight: 700; }
+.turn-header .turn-type { color: #8b949e; font-size: 11px; }
+.turn-header .turn-tokens { margin-left: auto; color: #d29922; font-size: 11px; }
+.turn-header .turn-status { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+.turn-header .turn-status.running { background: #d2992233; color: #d29922; }
+.turn-header .turn-status.done { background: #3fb95033; color: #3fb950; }
+.turn-body { padding: 10px; display: none; }
+.turn-group.expanded .turn-body { display: block; }
+
+/* LLM call output */
+.llm-output { background: #0d1117; border: 1px solid #30363d; border-radius: 5px; padding: 8px; font-size: 11px; max-height: 200px; overflow-y: auto; margin-bottom: 8px; white-space: pre-wrap; word-break: break-word; }
+
+/* Code block */
+.code-block { background: #0d1117; border: 1px solid #bc8cff44; border-radius: 5px; padding: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; margin: 6px 0; position: relative; }
+.code-block .code-label { position: absolute; top: 2px; right: 6px; font-size: 9px; color: #bc8cff; font-family: sans-serif; }
+
+/* Observation */
+.observation { background: #161b22; border-left: 3px solid #7ee787; border-radius: 0 5px 5px 0; padding: 6px 10px; margin: 4px 0; font-size: 11px; }
+.observation .obs-label { color: #7ee787; font-size: 10px; font-weight: 600; margin-bottom: 2px; }
+.observation .obs-stdout { color: #c9d1d9; font-family: 'SF Mono', Monaco, monospace; white-space: pre-wrap; word-break: break-word; }
+.observation .obs-error { color: #f85149; }
+
+/* Submit event */
+.submit-event { background: #23863622; border: 2px solid #3fb950; border-radius: 8px; padding: 10px 14px; margin: 8px 0; }
+.submit-event .submit-label { color: #3fb950; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.submit-event .submit-answers { font-size: 11px; }
+.submit-event .submit-answer-row { display: flex; gap: 6px; padding: 2px 0; border-bottom: 1px solid #30363d44; }
+.submit-event .submit-answer-row:last-child { border: none; }
+.submit-event .submit-task-id { color: #58a6ff; font-weight: 600; min-width: 60px; }
+.submit-event .submit-answer-val { color: #c9d1d9; }
+
+/* Task grid */
+.task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
 .task-card { background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 8px; font-size: 11px; }
 .task-card.pending { opacity: 0.5; }
 .task-card .id { font-weight: 700; color: #58a6ff; }
@@ -62,41 +86,44 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 .task-card .answer { margin-top: 4px; color: #c9d1d9; max-height: 100px; overflow-y: auto; }
 .task-card .judge-pass { color: #3fb950; font-size: 10px; }
 .task-card .judge-fail { color: #f85149; font-size: 10px; }
-.task-card .batch-tag { color: #d29922; font-size: 9px; margin-top: 2px; }
-.code-block { background: #0d1117; border: 1px solid #30363d; border-radius: 5px; padding: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin: 6px 0; }
-.pred-bar { height: 5px; background: #30363d; border-radius: 3px; margin: 2px 0; }
-.pred-bar-fill { height: 5px; border-radius: 3px; }
-.batch-group { margin-bottom: 12px; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
-.batch-group-header { background: #161b22; padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.batch-group-header .batch-num { color: #d29922; font-weight: 700; }
-.batch-group-header .effort-tag { background: #30363d; padding: 1px 6px; border-radius: 8px; font-size: 10px; color: #d29922; }
-.batch-group-header .model-tag { color: #58a6ff; font-size: 11px; }
-.batch-group-header .task-count { color: #8b949e; font-size: 11px; }
-.batch-group-header .status { margin-left: auto; font-size: 10px; }
-.batch-group-body { padding: 8px; }
-/* Category routing card - compact, stacked, no horizontal scroll */
-.route-card { background: #0d1117; border: 1px solid #30363d; border-radius: 5px; padding: 6px 8px; margin-bottom: 4px; }
-.route-card .route-cat { font-size: 10px; font-weight: 600; display: block; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.route-card .route-controls { display: flex; gap: 4px; }
-.route-card .route-controls select { margin: 0; padding: 2px 4px; font-size: 10px; border-radius: 4px; }
-.route-card .route-controls .effort-sel { width: 75px; flex-shrink: 0; }
-.route-card .route-controls .model-sel { flex: 1; min-width: 0; }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 1px; margin-bottom: 12px; border-bottom: 1px solid #30363d; }
+.tab { padding: 6px 12px; cursor: pointer; font-size: 12px; color: #8b949e; border-bottom: 2px solid transparent; }
+.tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+.tab:hover { color: #c9d1d9; }
+.tab .badge { display: inline-block; background: #30363d; color: #8b949e; padding: 0 5px; border-radius: 8px; font-size: 10px; margin-left: 3px; }
+.tab .badge.live { background: #23863633; color: #3fb950; }
+
+/* Status dot */
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 .status-dot.idle { background: #484f58; }
 .status-dot.running { background: #d29922; animation: pulse 1.5s infinite; }
 .status-dot.done { background: #3fb950; }
 .status-dot.error { background: #f85149; }
-.status-dot.judging { background: #bc8cff; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-.live-indicator { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3fb950; margin-right: 4px; animation: pulse 1.5s infinite; }
-.scroll-anchor { scroll-margin-bottom: 20px; }
+
+/* Empty state */
+.empty { color: #8b949e; font-size: 13px; padding: 20px; text-align: center; }
+
+/* Route card */
+.route-card { background: #0d1117; border: 1px solid #30363d; border-radius: 5px; padding: 5px 7px; margin-bottom: 3px; }
+.route-card .route-cat { font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; }
+.route-card .route-controls { display: flex; gap: 4px; }
+.route-card .route-controls select { margin: 0; padding: 2px 4px; font-size: 10px; border-radius: 4px; }
+.route-card .route-controls .effort-sel { width: 70px; flex-shrink: 0; }
+.route-card .route-controls .model-sel { flex: 1; min-width: 0; }
+
+.pred-bar { height: 4px; background: #30363d; border-radius: 3px; margin: 2px 0; }
+.pred-bar-fill { height: 4px; border-radius: 3px; }
 </style>
 </head>
 <body>
 <div class="header">
 <h1>yassai</h1>
-<span class="sub">Yet Another Super Simple AI Agent - Demo Console</span>
-<span id="runStatusBadge" style="margin-left:auto"></span>
+<span class="sub">Action Space Console</span>
+<div class="spacer"></div>
+<span id="runStatusBadge"></span>
 </div>
 <div class="main">
 <div class="sidebar">
@@ -104,23 +131,23 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 <h3>Task Set &amp; Model</h3>
 <label for="tasksFile">Tasks</label>
 <select id="tasksFile"></select>
-<label for="model">Default Model</label>
+<label for="model">Model</label>
 <select id="model"></select>
 </div>
 <div class="section">
 <h3>Batching</h3>
 <label for="batchSize">Max Batch Size</label>
 <input type="number" id="batchSize" value="20" min="1" max="40">
-<label for="batchTokens">Token Budget / Batch</label>
+<label for="batchTokens">Token Budget</label>
 <input type="number" id="batchTokens" value="12000" min="1000" max="50000">
-<label for="maxConcurrency">Max Concurrency</label>
+<label for="maxConcurrency">Concurrency</label>
 <input type="number" id="maxConcurrency" value="3" min="1" max="10">
 </div>
 <div class="section">
 <h3>Reasoning</h3>
 <label for="effort">Effort Override</label>
 <select id="effort">
-<option value="">Adaptive (per-category)</option>
+<option value="">Adaptive</option>
 <option value="low">Low</option>
 <option value="medium">Medium</option>
 <option value="high">High</option>
@@ -128,23 +155,21 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 </select>
 <div class="checkbox">
 <input type="checkbox" id="enableClassifier" checked>
-<label for="enableClassifier">Enable classifier</label>
+<label for="enableClassifier">Classifier</label>
 </div>
 <div class="checkbox">
 <input type="checkbox" id="disableHints">
-<label for="disableHints">Disable technique hints</label>
+<label for="disableHints">Disable hints</label>
 </div>
 </div>
 <div class="section">
-<h3>Judge / Scoring</h3>
+<h3>Judge</h3>
 <div class="checkbox">
 <input type="checkbox" id="enableJudge">
-<label for="enableJudge">Enable judge (LLM scoring)</label>
+<label for="enableJudge">Enable judge</label>
 </div>
 <label for="judgeModel">Judge Model</label>
-<select id="judgeModel">
-<option value="">(same as agent)</option>
-</select>
+<select id="judgeModel"><option value="">(same as agent)</option></select>
 <label for="judgeEffort">Judge Effort</label>
 <select id="judgeEffort">
 <option value="low">Low</option>
@@ -154,7 +179,7 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 </select>
 </div>
 <div class="section">
-<h3 class="collapsible open" onclick="this.classList.toggle('open')">Category Routing</h3>
+<h3 class="collapsible" onclick="this.classList.toggle('open')">Category Routing</h3>
 <div class="collapsible-content" id="routingSidebar"></div>
 </div>
 <div class="section">
@@ -171,28 +196,21 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 </div>
 <div class="content">
 <div class="tab-bar">
-<div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</div>
-<div class="tab" data-tab="batches" onclick="switchTab('batches')">Batches</div>
+<div class="tab active" data-tab="loop" onclick="switchTab('loop')">Agent Loop</div>
 <div class="tab" data-tab="tasks" onclick="switchTab('tasks')">Tasks <span class="badge" id="tasksBadge">0</span></div>
 <div class="tab" data-tab="trace" onclick="switchTab('trace')">Trace</div>
-<div class="tab" data-tab="tools" onclick="switchTab('tools')">Tools <span class="badge" id="toolsBadge">0</span></div>
 </div>
-<div id="tab-dashboard">
-<div id="metricsRow"></div>
-<div id="batchPlan" style="margin:10px 0"></div>
-<div id="eventStream"></div>
+<div id="tab-loop">
+<div id="metricsRow" class="metrics-bar"></div>
+<div id="loopViz" class="loop-container">
+<div class="empty">Start a run to see the agent loop.</div>
 </div>
-<div id="tab-batches" style="display:none">
-<div id="batchList"></div>
 </div>
 <div id="tab-tasks" style="display:none">
 <div id="taskGrid" class="task-grid"></div>
 </div>
 <div id="tab-trace" style="display:none">
 <div id="traceList"></div>
-</div>
-<div id="tab-tools" style="display:none">
-<div id="toolList"></div>
 </div>
 </div>
 </div>
