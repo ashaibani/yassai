@@ -1,6 +1,6 @@
 # yassai
 
-Yet Another Stupid Simple AI agent for the AMD Developer Hackathon Act 2, Track 1. It
+Yet Another Super Simple AI agent for the AMD Developer Hackathon Act 2, Track 1. It
 reads a batch of tasks, answers them through Fireworks-hosted models, and writes
 the results. Submissions are ranked by **fewest Fireworks tokens, subject to an
 accuracy gate**, so the design goal is: be correct first, then spend as few
@@ -16,15 +16,19 @@ The whole run is one pass (`internal/agent`):
 3. **Plan batches**: group tasks by reasoning-effort tier so each batch is
    tier-homogeneous, then token-pack within each tier up to a budget. Fewer,
    fuller batches amortise the fixed per-call prompt overhead over more tasks.
-4. **Solve** batches concurrently (up to `AGENT_MAX_CONCURRENCY` in parallel):
-   each batch is a single chat call with a terse system prompt, the tasks
-   (with their predicted categories) as JSON, the batch's reasoning effort, and
-   category-specific technique hints only for the categories present. If a task
-   needs exact computation the model may emit one MicroPython action block, whose
-   observation is fed back before the final answer. Metrics are protected by a
-   mutex so concurrent batches accumulate safely.
-5. **Parse** the strict JSON answer, map it back by `task_id`, **write**
-   `/output/results.json`, and exit 0.
+4. **Solve** batches concurrently (up to `AGENT_MAX_CONCURRENCY` in parallel).
+   Each batch is an **unbounded agent loop** with no turn limit:
+   - The system prompt describes the action space and rules concisely.
+   - The model emits fenced `micropy` (or `python`) code blocks to compute
+     answers, store intermediate results in `vars`, and finally calls
+     `submit(answers=[...])` to return results.
+   - The host extracts code blocks, runs them in the MicroPython WASM sandbox,
+     and feeds observations back as a user message.
+   - The loop continues until `submit()` is called, a JSON fallback is parsed,
+     or the overall 9m30s deadline is reached.
+   - **No turn limit**: the agent loops freely, building up state in `vars`
+     across code blocks until it is confident enough to submit.
+5. **Write** `/output/results.json` and exit 0.
 
 Resilience (a crash or malformed output means the submission does not qualify, so
 every stage degrades instead of failing):
@@ -34,6 +38,8 @@ every stage degrades instead of failing):
   just get no category hint).
 - An over-packed or failing batch **self-heals**: `solveBatchWithRecovery` halves
   it and retries.
+- If the model returns raw JSON without calling `submit()`, backward-compatible
+  parsing catches it as a fallback.
 - The whole run is bounded by an internal 9m30s deadline, inside the harness's
   10-minute limit.
 
@@ -73,44 +79,57 @@ The 8 categories, in logit order: `factual_knowledge`, `mathematical_reasoning`,
 Because the ranking metric is total Fireworks tokens, the fixed per-call overhead
 is minimised aggressively while keeping everything load-bearing for accuracy:
 
-- **Terse system prompt** (~160 tokens, down from ~210): the exact output schema, "keep every
-  `task_id`", "shortest fully-correct answer, exact requested format, no preamble
-  or thinking", and the MicroPython escape hatch. Nothing else.
+- **Terse system prompt** (~260 tokens): the action space, rules, and an example
+  in one block. High signal, low noise.
 - **Batching** amortises that fixed overhead over many tasks per call.
 - **Category labels** in the prompt (net token win, above).
 - **Category hints** (`categoryHints`) are injected into the system prompt **only
   for the categories present** in a batch, so they cost tokens only where they
-  help. Currently: logical/deductive puzzles ("solve programmatically with a
-  micropy block, do not reason in prose") and NER ("be exhaustive for the
-  requested entity types").
+  help. Currently: mathematical reasoning ("always compute with code"),
+  logical/deductive puzzles ("solve programmatically"), and NER ("be exhaustive").
 - **Adaptive reasoning effort** (below): high effort only where it changes the
   answer.
 - **Empty context is omitted**: the memory and skills blocks are dropped from the
-  prompt entirely when they carry nothing (the default at runtime), and the
-  agent, which runs once, is not told to maintain memory. Answer-shaping rules
-  live in the system prompt, not in a per-call instruction list.
+  prompt entirely when they carry nothing (the default at runtime).
 
 ## Action space (MicroPython)
 
-The model either returns final JSON directly or emits a single fenced `micropy`
-block. The host extracts it, runs it in a MicroPython WASM sandbox (wazero), and
-returns the observation for the next turn. This is the only tool path - there is
-no native model tool-calling and there are no benchmark-specific local solvers.
+Everything flows through the action space. The model emits fenced `micropy` or
+`python` code blocks; the host extracts them, runs them in a MicroPython WASM
+sandbox (wazero), and feeds observations back. The model calls `submit()` to
+return final answers - there is no manual JSON parsing of the model's text
+output as the primary path.
 
-Globals available inside a block: `input` (the task batch), `vars` (persistent
-per-session state), `cwd`, `fs.read/write/edit/list`, `sh.run` (with
-`run/status/output/wait/cancel/list` lifecycle), `web.fetch/search`,
-`browser.drive`, and `tools.help`. Call with keyword args or one dict, e.g.
-`fs.read(path='README.md', limit=4000)`.
+### submit(answers=[...])
+
+The primary output mechanism. The model calls this with a list of
+`{task_id, answer}` dicts to submit final answers for all tasks in the batch.
+The host validates the submission and signals completion of the agent loop.
+
+### Available tools (Python globals inside a code block)
+
+- `submit(answers=[...])` - submit final answers
+- `sh.run(command='...')` - run shell commands (python3 available in the image)
+- `fs.read/write/edit/list` - file operations
+- `web.fetch/search` - web access
+- `vars` - persistent dict for storing intermediate results across code blocks
+- `tools.help()` - list available tools
+
+### Example
 
 ```micropy
-calc = sh.run(command="python3 -c \"print(17 * 23)\"")
-result = {"m1": calc["output"].strip()}
+# Compute answers for all tasks, then submit
+r1 = sh.run(command='python3 -c "print(17*23)"')
+vars['t1'] = r1['output'].strip()
+vars['t2'] = 'Paris'
+submit(answers=[
+    {'task_id': 't1', 'answer': vars['t1']},
+    {'task_id': 't2', 'answer': vars['t2']},
+])
 ```
 
 The runtime image ships a real shell and `python3`, so `sh.run` and
-`python3 -c ...` work in the container - this is what the logical-reasoning hint
-relies on.
+`python3 -c ...` work in the container.
 
 ## Model selection
 
@@ -136,13 +155,10 @@ tier. Setting `AGENT_REASONING_EFFORT` to a fixed value (`low`/`medium`/`high`/
 - **Memory** is a file-backed markdown store (`internal/memory`). It starts as an
   empty clean-slate index and is injected into the prompt **only when it actually
   contains notes or selected `memories/*.md` docs**. None are bundled, and a
-  single run writes none, so by default memory costs zero prompt tokens. (The
-  store regenerates the empty index on demand; the runtime-generated `MEMORY.md`
-  and `memories/` are git-ignored and never shipped in the image.)
+  single run writes none, so by default memory costs zero prompt tokens.
 - **Skills** (`internal/skills`) is an optional loader for local skill
-  directories (`~/.agents/skills` or `AGENT_SKILL_ROOTS`). **No skills are bundled
-  in the container**, so at runtime the skills block is empty and omitted; the
-  real category-specific help is the compiled-in `categoryHints` described above.
+  directories. **No skills are bundled in the container**, so at runtime the
+  skills block is empty and omitted.
 
 ## Configuration
 
@@ -221,17 +237,8 @@ Three harnesses under `cmd/`:
 
 - **`cmd/eval`** - compare batch sizes / strategies on a task set; writes
   per-strategy metrics, results, and a comparison JSON to `eval-results/`.
-
-  ```bash
-  FIREWORKS_API_KEY=$KEY TASKS_PATH=testdata/tasks.comprehensive.json go run ./cmd/eval
-  BATCH_SIZES=1,5,10,20 go run ./cmd/eval        # custom batch sizes
-  ALLOWED_MODELS=model1,model2 go run ./cmd/eval # multiple models
-  ```
-
 - **`cmd/realeval`** - run the agent on real benchmark tasks and score numeric
-  answers exactly plus judged answers with an LLM judge (`internal/judge`, an
-  OpenAI-compatible model such as umans-flash). Envs: `EFFORT_MODE`, `CODE_MODEL`,
-  `SKILLS`.
+  answers exactly plus judged answers with an LLM judge.
 - **`cmd/routeprobe`** - probe accuracy/tokens per (model, category) to build a
   routing preference map.
 
@@ -241,14 +248,12 @@ Three harnesses under `cmd/`:
 |---|---|
 | `practice.json` | the guide's 8 practice tasks, with reference answers |
 | `container-input.json` | the same 8 in the exact `/input/tasks.json` format |
-| `real_tasks.json` | real benchmark tasks across the 8 categories (GSM8K, SST-2, CNN/DM, CoNLL, LogiQA, TriviaQA, HumanEval(Fix), ...) |
+| `real_tasks.json` | real benchmark tasks across the 8 categories |
 | `tasks.comprehensive.json` / `tasks.batch-large.json` | 40 tasks, 5 per category |
 | `tasks.sample.json` | 2 quick smoke tasks |
 | `golden.json` | easy short-prompt golden set |
 
 ## Design notes
 
-`docs/model-routing.md` is the working decision log (per-category model
-preferences, the reasoning-effort experiments, the prompt/token analysis, and the
-classifier/QEMU resolution). `docs/memory-and-context.md` and
-`docs/phase1-design.md` cover the memory model and the original system design.
+`docs/model-routing.md` is the working decision log. `docs/memory-and-context.md`
+and `docs/phase1-design.md` cover the memory model and the original system design.

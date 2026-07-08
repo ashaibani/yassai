@@ -125,6 +125,21 @@ func (e *Executor) Run(ctx context.Context, sessionID, code string, input map[st
 	return Result{JSON: cap.JSON, Value: value, Vars: cap.Vars, Stdout: strings.TrimSpace(stdout.String())}, nil
 }
 
+// IsSubmitted returns true if the model called submit() during the last Run.
+func (e *Executor) IsSubmitted() bool {
+	return e.tools.IsSubmitted()
+}
+
+// SubmitResult returns the submitted answers.
+func (e *Executor) SubmitResult() map[string]string {
+	return e.tools.SubmitResult()
+}
+
+// ResetSubmit clears submit state for a new batch.
+func (e *Executor) ResetSubmit() {
+	e.tools.ResetSubmit()
+}
+
 func (e *Executor) load(ctx context.Context) error {
 	e.once.Do(func() {
 		rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithCoreFeatures(api.CoreFeaturesV2|experimental.CoreFeaturesExceptionHandling).WithCloseOnContextDone(true).WithMemoryLimitPages(e.pages))
@@ -272,6 +287,12 @@ type ToolHost struct {
 	terms map[string]*terminalRun
 	pages map[string]string
 	next  int
+
+	// submit captures the model's final answers when it calls submit().
+	submitMu     sync.Mutex
+	submitted    bool
+	submitResult map[string]string // task_id -> answer
+	submitError  string
 }
 
 type terminalRun struct {
@@ -285,6 +306,84 @@ type terminalRun struct {
 
 func NewToolHost(cwd string) *ToolHost {
 	return &ToolHost{cwd: cwd, terms: map[string]*terminalRun{}, pages: map[string]string{}}
+}
+
+// doSubmit is called when the model calls submit() in MicroPython.
+// It validates that every task_id in the batch has an answer and stores
+// the result. The agent loop checks IsSubmitted() after each code execution.
+func (h *ToolHost) doSubmit(args map[string]any) (any, error) {
+	answersRaw, ok := args["answers"]
+	if !ok {
+		return nil, fmt.Errorf("submit() requires an 'answers' argument: a list of {task_id, answer} dicts")
+	}
+	arr, ok := answersRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("'answers' must be a list of dicts")
+	}
+	result := map[string]string{}
+	for i, item := range arr {
+		m, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("answers[%d] is not a dict", i)
+		}
+		taskID, _ := m["task_id"].(string)
+		if taskID == "" {
+			return nil, fmt.Errorf("answers[%d] has no task_id", i)
+		}
+		answer := stringifyForSubmit(m["answer"])
+		result[taskID] = answer
+	}
+	h.submitMu.Lock()
+	h.submitted = true
+	h.submitResult = result
+	h.submitError = ""
+	h.submitMu.Unlock()
+	return map[string]any{"ok": true, "count": len(result)}, nil
+}
+
+// IsSubmitted returns true if the model has called submit() with valid answers.
+func (h *ToolHost) IsSubmitted() bool {
+	h.submitMu.Lock()
+	defer h.submitMu.Unlock()
+	return h.submitted
+}
+
+// SubmitResult returns the submitted answers (task_id -> answer).
+func (h *ToolHost) SubmitResult() map[string]string {
+	h.submitMu.Lock()
+	defer h.submitMu.Unlock()
+	return h.submitResult
+}
+
+// ResetSubmit clears the submit state for a new batch.
+func (h *ToolHost) ResetSubmit() {
+	h.submitMu.Lock()
+	h.submitted = false
+	h.submitResult = nil
+	h.submitError = ""
+	h.submitMu.Unlock()
+}
+
+func stringifyForSubmit(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case nil:
+		return ""
+	case float64:
+		if x == float64(int64(x)) {
+			return fmt.Sprintf("%d", int64(x))
+		}
+		return fmt.Sprintf("%v", x)
+	case bool:
+		if x {
+			return "true"
+		}
+		return "false"
+	default:
+		b, _ := json.Marshal(x)
+		return string(b)
+	}
 }
 
 func (h *ToolHost) Dispatch(ctx context.Context, name string, payload []byte) (any, error) {
@@ -309,6 +408,8 @@ func (h *ToolHost) Dispatch(ctx context.Context, name string, payload []byte) (a
 		return h.webSearch(ctx, args)
 	case "browser.drive":
 		return h.browserDrive(ctx, args)
+	case "submit":
+		return h.doSubmit(args)
 	case "tools.help":
 		return map[string]any{"tools": toolSurfaceBindings()}, nil
 	default:
@@ -326,6 +427,7 @@ func toolSurfaceBindings() []map[string]any {
 		{"tool": "web.fetch", "namespace": []string{"web"}, "member": "fetch", "args": "url string, optional limit int bytes", "example": "web.fetch(url='https://example.com', limit=20000)"},
 		{"tool": "web.search", "namespace": []string{"web"}, "member": "search", "args": "query string", "example": "web.search(query='AMD Developer Hackathon')"},
 		{"tool": "browser.drive", "namespace": []string{"browser"}, "member": "drive", "args": "action string, url string for navigate/new_page", "example": "browser.drive(action='navigate', url='https://example.com')"},
+		{"tool": "submit", "namespace": []string{}, "member": "submit", "args": "answers list of {task_id, answer} dicts", "example": "submit(answers=[{'task_id':'t1','answer':'42'},{'task_id':'t2','answer':'Paris'}])"},
 		{"tool": "tools.help", "namespace": []string{"tools"}, "member": "help", "args": "none", "example": "tools.help()"},
 	}
 }
@@ -659,7 +761,10 @@ def _install_surfaces(bindings):
         ns = b.get("namespace") or []
         member = b.get("member")
         tool = b.get("tool")
-        if not ns or not member or not tool:
+        if not member or not tool:
+            continue
+        if not ns:
+            g[member] = _mk_tool(tool)
             continue
         root = g.get(ns[0])
         if root is None:

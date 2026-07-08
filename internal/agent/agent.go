@@ -195,20 +195,24 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, batch []Task) (map[s
 
 func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string, int, int, error) {
 	a.metrics.BatchCount++
+	a.exec.ResetSubmit()
+	sessionID := "batch-" + strings.Join(taskIDs(batch), "-")
+
 	sys := systemPrompt()
 	if g := a.categoryGuidance(batch); g != "" {
 		sys += "\n\nTechnique hints for these task types:\n" + g
 	}
+	taskJSON := a.ctx.BuildBatchPrompt(batch, a.memory.LoadForTasks(batch), a.skills.LoadForPrompt(a.cfg.MemoryRoot, taskText(batch), 8000), a.categories)
 	messages := []llm.Message{
 		{Role: "system", Content: sys},
-		{Role: "user", Content: a.ctx.BuildBatchPrompt(batch, a.memory.LoadForTasks(batch), a.skills.LoadForPrompt(a.cfg.MemoryRoot, taskText(batch), 8000), a.categories)},
+		{Role: "user", Content: taskJSON},
 	}
 	var calls int
 	var tools int
 	var lastText string
 	effort := a.effortForBatch(batch)
 
-	for turn := 0; turn < 5; turn++ {
+	for turn := 0; ; turn++ {
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
 		text, usage, err := a.llm.Chat(ctx, messages, maxTokens, effort)
@@ -229,29 +233,36 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 		lastText = strings.TrimSpace(text)
 		a.recordCall(batch, turn, callStart, callDur, usage, lastText, nil)
 
-		if answers, ok := parseAnswers(lastText, batch); ok {
-			return answers, calls, tools, nil
+		// Check if the model called submit() during code execution.
+		if a.exec.IsSubmitted() {
+			return a.exec.SubmitResult(), calls, tools, nil
 		}
 
-		// If the model hit max_tokens without producing parseable output,
-		// the batch is too large for the token budget. Return an error so
-		// solveBatchWithRecovery splits it in half (much cheaper than retrying).
+		// If the model hit max_tokens without producing output, the batch is
+		// too large for the token budget. Return an error so
+		// solveBatchWithRecovery splits it in half.
 		if lastText == "" && usage.CompletionTokens >= maxTokens*9/10 {
 			return nil, calls, tools, fmt.Errorf("batch truncated at max_tokens=%d (completion=%d), needs split", maxTokens, usage.CompletionTokens)
 		}
 
 		blocks := markdown.ExtractActionBlocks(lastText)
 		if len(blocks) == 0 {
+			// No code blocks. Try to parse as JSON (backward compat for models
+			// that return answers directly without calling submit()).
+			if answers, ok := parseAnswers(lastText, batch); ok {
+				return answers, calls, tools, nil
+			}
+			// Ask the model to use the action space.
 			messages = append(messages,
 				llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
-				llm.Message{Role: "user", Content: "Return only valid JSON in the required schema. Do not include markdown."},
+				llm.Message{Role: "user", Content: "Use the action space. Emit a micropy code block that computes any needed answers and calls submit(answers=[...]). Do not return raw JSON."},
 			)
 			continue
 		}
 
 		observations := make([]map[string]any, 0, len(blocks))
 		for i, block := range blocks {
-			res, err := a.exec.Run(ctx, "batch-"+strings.Join(taskIDs(batch), "-"), block.Code, map[string]any{"tasks": batch})
+			res, err := a.exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
 			tools++
 			a.mu.Lock()
 			a.metrics.ToolRuns++
@@ -262,17 +273,18 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 			}
 			observations = append(observations, obs)
 		}
+
+		// Check if submit() was called during this round of code execution.
+		if a.exec.IsSubmitted() {
+			return a.exec.SubmitResult(), calls, tools, nil
+		}
+
 		obsBytes, _ := json.Marshal(observations)
 		messages = append(messages,
 			llm.Message{Role: "assistant", Content: lastText},
-			llm.Message{Role: "user", Content: "MicroPython observation: " + string(obsBytes) + "\nUse these results to answer. Output ONLY the JSON: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}]}. Do not emit more code."},
+			llm.Message{Role: "user", Content: "Observation: " + string(obsBytes) + "\nIf you have all answers, call submit(answers=[{...}]). Otherwise emit more code."},
 		)
 	}
-
-	if answers, ok := parseAnswers(lastText, batch); ok {
-		return answers, calls, tools, nil
-	}
-	return nil, calls, tools, fmt.Errorf("model did not return parseable answers")
 }
 
 func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Duration, usage llm.Usage, output string, _ any) {
@@ -307,15 +319,8 @@ func taskText(tasks []Task) string {
 
 func systemPrompt() string {
 	parts := []string{
-		"You are a precise, terse task-solving agent.",
-		"Output ONLY this JSON, nothing else: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}]}. Keep every task_id.",
-		"Give the shortest fully-correct answer and match the exact format each task asks for. No preamble, explanation, or thinking in the output.",
-		"CRITICAL RULE: For ANY task involving numbers, arithmetic, primes, factorials, combinatorics, sequences, digit sums, modular arithmetic, counting, or exact computation, you MUST emit a code block FIRST, execute it, and use the result. NEVER compute mentally - you WILL get wrong answers. Only answer directly for pure factual/knowledge/language tasks.",
-		"To compute, emit a fenced code block with language micropy or python containing MicroPython code that calculates the answer. Example for \"What is 17*23?\":",
-		"```micropy",
-		"print(17*23)",
-		"```",
-		"Then use the observation (stdout) to fill in the JSON answer. Available tools as Python globals: sh.run, fs.read/write/edit/list, web.fetch/search.",
+		"You are a precise task-solving agent. Solve each task, then submit your answers through the action space.",
+		"\nACTION SPACE:\n- submit(answers=[{'task_id':'...','answer':'...'}, ...]) - submit final answers for ALL tasks. Call this exactly once when done.\n- sh.run(command='python3 -c \"...\"') - run shell commands (python3 available)\n- fs.read/write/edit/list - file operations\n- web.fetch/search - web access\n- vars - persistent dict for storing intermediate results across code blocks\n\nRULES:\n1. For ANY computation (arithmetic, primes, factorials, counting, etc.), ALWAYS compute with code. Never reason mentally - you WILL get wrong answers.\n2. For factual/knowledge/language tasks, you may answer directly without code.\n3. Build answers in vars, then call submit() with the final list.\n4. Keep answers short and in the exact format each task requests.\n\nExample:\n```micropy\n# Compute and submit\nr = sh.run(command='python3 -c \"print(17*23)\"')\nanswer = r['output'].strip()\nsubmit(answers=[{'task_id':'t1','answer':answer}])\n```\n\nTasks to solve:",
 	}
 	return strings.Join(parts, "\n")
 }
