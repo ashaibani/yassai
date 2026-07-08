@@ -157,17 +157,32 @@ func callAndParse2(t *testing.T, apiKey string, body map[string]any) (string, in
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Skipf("API returned status %d: %s", resp.StatusCode, string(raw))
+	}
 	var result map[string]any
 	json.Unmarshal(raw, &result)
-	usage := result["usage"].(map[string]any)
-	pt := int(usage["prompt_tokens"].(float64))
-	ct := int(usage["completion_tokens"].(float64))
+	usage, _ := result["usage"].(map[string]any)
+	pt := 0
+	ct := 0
+	if usage != nil {
+		if v, ok := usage["prompt_tokens"].(float64); ok {
+			pt = int(v)
+		}
+		if v, ok := usage["completion_tokens"].(float64); ok {
+			ct = int(v)
+		}
+	}
 	choices, _ := result["choices"].([]any)
 	var response string
 	if len(choices) > 0 {
-		choice := choices[0].(map[string]any)
-		msg := choice["message"].(map[string]any)
-		response = msg["content"].(string)
+		if choice, ok := choices[0].(map[string]any); ok {
+			if msg, ok := choice["message"].(map[string]any); ok {
+				if content, ok := msg["content"].(string); ok {
+					response = content
+				}
+			}
+		}
 	}
 	return response, pt, ct
 }

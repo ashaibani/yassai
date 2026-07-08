@@ -14,9 +14,22 @@ func TestClassifyIntegration(t *testing.T) {
 	if lib == "" {
 		t.Skip("set ONNXRUNTIME_LIB to run the ONNX integration test")
 	}
+	if _, err := os.Stat(lib); err != nil {
+		t.Skipf("ONNXRUNTIME_LIB points at %q which does not exist: %v", lib, err)
+	}
 	dir := filepath.Join("..", "..", "assets", "taskclf")
-	if _, err := os.Stat(filepath.Join(dir, "model.int8.onnx")); err != nil {
-		t.Skipf("model not present: %v", err)
+	// Prefer the FP32 model (model.onnx); fall back to int8.
+	modelPath := filepath.Join(dir, "model.onnx")
+	if _, err := os.Stat(modelPath); err != nil {
+		modelPath = filepath.Join(dir, "model.int8.onnx")
+		if _, err := os.Stat(modelPath); err != nil {
+			t.Skipf("model not present: %v", err)
+		}
+	}
+	// Skip if the file is a Git-LFS pointer (text) instead of the real binary.
+	// LFS pointers are ~130 bytes; the real model is megabytes.
+	if fi, err := os.Stat(modelPath); err == nil && fi.Size() < 1024 {
+		t.Skipf("model file is an LFS pointer (%d bytes), not the real binary", fi.Size())
 	}
 
 	clf, err := New(dir, "", lib)

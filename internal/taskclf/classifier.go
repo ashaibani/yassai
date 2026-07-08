@@ -57,7 +57,23 @@ func New(dir, onnxFile, libPath string) (*Classifier, error) {
 		return nil, fmt.Errorf("parse onnx_config.json: %w", err)
 	}
 	if onnxFile == "" {
-		onnxFile = cfg.ModelInt8
+		// Prefer the FP32 model (deterministic across platforms) when available;
+		// fall back to int8 if only the quantized model is shipped.
+		onnxFile = cfg.ModelFP32
+		if onnxFile == "" {
+			onnxFile = cfg.ModelInt8
+		}
+		// Check that the chosen model file actually exists; fall back to whichever does.
+		if _, err := os.Stat(filepath.Join(dir, onnxFile)); err != nil {
+			for _, candidate := range []string{cfg.ModelFP32, cfg.ModelInt8} {
+				if candidate != "" && candidate != onnxFile {
+					if _, err2 := os.Stat(filepath.Join(dir, candidate)); err2 == nil {
+						onnxFile = candidate
+						break
+					}
+				}
+			}
+		}
 	}
 
 	head := int(float64(cfg.MaxLen-2) * cfg.HeadFrac)
