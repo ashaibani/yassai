@@ -75,13 +75,15 @@ jobs:
 
       # ONNXRUNTIME_LIB makes the taskclf integration test run for real, so this
       # verifies the ONNX classifier on genuine amd64 hardware. FIREWORKS_API_KEY
-      # is intentionally unset, so the network-dependent textimg tests self-skip.
+      # (if set as a repo secret) enables the network-dependent textimg tests;
+      # when unset they self-skip.
       - name: Test
         env:
           CGO_ENABLED: "1"
           CGO_LDFLAGS: -L/opt/tokenizers
           ONNXRUNTIME_LIB: /opt/onnxruntime/lib/libonnxruntime.so
           LD_LIBRARY_PATH: /opt/onnxruntime/lib
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
         run: go test ./... -count=1
 
   docker:
@@ -136,3 +138,83 @@ jobs:
           # Single-arch image -> keep a plain manifest (no provenance index), which
           # is simplest for the judge to pull.
           provenance: false
+
+  docker-test:
+    name: Test Docker image
+    needs: docker
+    runs-on: ubuntu-latest
+    # Only run on main pushes (skip PRs to save minutes)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and test image
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)"
+          echo "Pulling $IMAGE..."
+          docker pull "$IMAGE"
+
+          # Create test input
+          mkdir -p /tmp/test-input /tmp/test-output
+          cat > /tmp/test-input/tasks.json << 'EOF'
+          [
+            {"task_id":"m1","prompt":"What is 17 * 23? Return only the number."},
+            {"task_id":"f1","prompt":"What is the capital of France? Return only the name."}
+          ]
+          EOF
+
+          # Run the agent and capture stderr to check classifier
+          STDERR_FILE=/tmp/stderr.txt
+          docker run --rm --platform linux/amd64 \
+            -v /tmp/test-input:/input:ro \
+            -v /tmp/test-output:/output \
+            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e CALLBACK_URL=off \
+            "$IMAGE" 2>"$STDERR_FILE" || true
+
+          echo "=== STDERR ==="
+          cat "$STDERR_FILE"
+
+          # Verify results.json exists and has 2 answers
+          if [ ! -f /tmp/test-output/results.json ]; then
+            echo "FAIL: results.json not created"
+            exit 1
+          fi
+          ANSWER_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/test-output/results.json'))))")
+          echo "Answer count: $ANSWER_COUNT"
+          if [ "$ANSWER_COUNT" != "2" ]; then
+            echo "FAIL: expected 2 answers, got $ANSWER_COUNT"
+            exit 1
+          fi
+
+          # Verify classifier ran (should NOT see "classifier disabled" in stderr)
+          if grep -q "classifier disabled" "$STDERR_FILE"; then
+            echo "WARNING: classifier was disabled in the Docker image"
+          else
+            echo "OK: classifier is running in the Docker image"
+          fi
+
+          # Show results
+          echo "=== RESULTS ==="
+          cat /tmp/test-output/results.json
+          echo ""
+          echo "=== METRICS ==="
+          cat /tmp/test-output/metrics.json || true
+          echo ""
+          echo "Docker image test PASSED"
