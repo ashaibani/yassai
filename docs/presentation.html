@@ -82,9 +82,11 @@ table tr:last-child td { border-bottom: none; }
 .future-card h3 { color: var(--accent3); margin-bottom: 0.3rem; }
 .future-card p { font-size: 0.92rem; line-height: 1.45; }
 code.inline { color: var(--accent3); font-family: var(--mono); font-size: 0.9rem; }
+@page { size: A4 landscape; margin: 0; }
 @media print {
+  html, body { margin: 0; padding: 0; }
   .deck { display: block; overflow: visible; height: auto; scroll-snap-type: none; }
-  .slide { width: 100vw; height: 100vh; page-break-after: always; page-break-inside: avoid; break-after: page; break-inside: avoid; }
+  .slide { width: 100%; height: 100vh; page-break-after: always; page-break-inside: avoid; break-after: page; break-inside: avoid; padding: 3vh 4vw; box-sizing: border-box; }
   .slide:last-child { page-break-after: auto; }
 }
 </style>
