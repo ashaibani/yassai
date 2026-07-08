@@ -82,6 +82,11 @@ table tr:last-child td { border-bottom: none; }
 .future-card h3 { color: var(--accent3); margin-bottom: 0.3rem; }
 .future-card p { font-size: 0.92rem; line-height: 1.45; }
 code.inline { color: var(--accent3); font-family: var(--mono); font-size: 0.9rem; }
+@media print {
+  .deck { display: block; overflow: visible; height: auto; scroll-snap-type: none; }
+  .slide { width: 100vw; height: 100vh; page-break-after: always; page-break-inside: avoid; break-after: page; break-inside: avoid; }
+  .slide:last-child { page-break-after: auto; }
+}
 </style>
 </head>
 <body>
