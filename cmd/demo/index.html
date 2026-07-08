@@ -67,6 +67,17 @@ select:focus, input:focus { border-color: #58a6ff; outline: none; }
 .observation .obs-label { color: #7ee787; font-size: 10px; font-weight: 600; margin-bottom: 2px; }
 .observation .obs-stdout { color: #c9d1d9; font-family: 'SF Mono', Monaco, monospace; white-space: pre-wrap; word-break: break-word; }
 .observation .obs-error { color: #f85149; }
+.event-item { padding: 7px 10px; border-left: 3px solid #30363d; margin-bottom: 3px; background: #161b22; border-radius: 0 5px 5px 0; font-size: 12px; }
+.event-item.classify { border-color: #58a6ff; }
+.event-item.batch { border-color: #d29922; }
+.event-item.call { border-color: #3fb950; }
+.event-item.tool { border-color: #bc8cff; }
+.event-item.submit { border-color: #3fb950; }
+.event-item.result { border-color: #3fb950; }
+.event-item.error { border-color: #f85149; }
+.event-item.judge { border-color: #bc8cff; }
+.event-item .ts { color: #484f58; font-size: 10px; }
+.event-item .type { font-weight: 600; }
 
 /* Submit event */
 .submit-event { background: #23863622; border: 2px solid #3fb950; border-radius: 8px; padding: 10px 14px; margin: 8px 0; }

@@ -196,7 +196,20 @@ TASKS_PATH=testdata/practice.json RESULTS_PATH=/tmp/results.json go run ./cmd/ag
 
 The classifier needs `libonnxruntime`; point `ONNXRUNTIME_LIB` at a local copy
 (matching your native architecture) or leave it unset to run without the
-classifier.
+classifier. On macOS (arm64):
+
+```bash
+# Download and install the macOS ONNX runtime dylib
+ORT_VER=1.27.0
+curl -fsSL -o /tmp/ort.tgz \
+  "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-osx-arm64-${ORT_VER}.tgz"
+tar xzf /tmp/ort.tgz -C /tmp
+mkdir -p ~/lib/onnxruntime
+cp /tmp/onnxruntime-osx-arm64-${ORT_VER}/lib/libonnxruntime.*.dylib ~/lib/onnxruntime/
+ln -sf libonnxruntime.1.27.0.dylib ~/lib/onnxruntime/libonnxruntime.dylib
+
+export ONNXRUNTIME_LIB=~/lib/onnxruntime/libonnxruntime.dylib
+```
 
 ## Docker build
 
