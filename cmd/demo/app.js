@@ -195,12 +195,13 @@ function renderBatchLoop(batchIdx, batch) {
 function renderTasks() {
   var grid = document.getElementById('taskGrid');
   var allTasks = [];
+  var seen = {};
   if (runState.batches) {
     runState.batches.forEach(function(b, i) {
-      if (b.task_ids) b.task_ids.forEach(function(id) { allTasks.push({ id: id, batchIndex: i }); });
+      if (b.task_ids) b.task_ids.forEach(function(id) { if (!seen[id]) { seen[id] = true; allTasks.push({ id: id, batchIndex: i }); } });
     });
   }
-  if (runState.results) { runState.results.forEach(function(r) { allTasks.push({ id: r.task_id, batchIndex: -1 }); }); }
+  if (runState.results) { runState.results.forEach(function(r) { if (!seen[r.task_id]) { seen[r.task_id] = true; allTasks.push({ id: r.task_id, batchIndex: -1 }); } }); }
   if (allTasks.length === 0) { grid.innerHTML = '<div class="empty">No tasks yet. Start a run.</div>'; return; }
   var html = '';
   allTasks.forEach(function(t) {
@@ -264,3 +265,4 @@ function formatEventBrief(ev) {
     default: return '';
   }
 }
+init();
