@@ -208,7 +208,7 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 	var lastText string
 	effort := a.effortForBatch(batch)
 
-	for turn := 0; turn < 3; turn++ {
+	for turn := 0; turn < 5; turn++ {
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
 		text, usage, err := a.llm.Chat(ctx, messages, maxTokens, effort)
@@ -265,7 +265,7 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 		obsBytes, _ := json.Marshal(observations)
 		messages = append(messages,
 			llm.Message{Role: "assistant", Content: lastText},
-			llm.Message{Role: "user", Content: "MicroPython observation: " + string(obsBytes) + "\nNow return the final JSON object only."},
+			llm.Message{Role: "user", Content: "MicroPython observation: " + string(obsBytes) + "\nUse these results to answer. Output ONLY the JSON: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}]}. Do not emit more code."},
 		)
 	}
 
@@ -310,7 +310,12 @@ func systemPrompt() string {
 		"You are a precise, terse task-solving agent.",
 		"Output ONLY this JSON, nothing else: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}]}. Keep every task_id.",
 		"Give the shortest fully-correct answer and match the exact format each task asks for. No preamble, explanation, or thinking in the output.",
-		"Answer directly. Only when a task needs exact computation, code, files, or the web, emit ONE fenced micropy block (MicroPython WASM; tools are Python globals sh.run, fs.read/write/edit/list, web.fetch/search), e.g. sh.run(command='python3 -c \"print(6*7)\"'); set result to a JSON value, then use the returned observation to output the final JSON.",
+		"CRITICAL RULE: For ANY task involving numbers, arithmetic, primes, factorials, combinatorics, sequences, digit sums, modular arithmetic, counting, or exact computation, you MUST emit a code block FIRST, execute it, and use the result. NEVER compute mentally - you WILL get wrong answers. Only answer directly for pure factual/knowledge/language tasks.",
+		"To compute, emit a fenced code block with language micropy or python containing MicroPython code that calculates the answer. Example for \"What is 17*23?\":",
+		"```micropy",
+		"print(17*23)",
+		"```",
+		"Then use the observation (stdout) to fill in the JSON answer. Available tools as Python globals: sh.run, fs.read/write/edit/list, web.fetch/search.",
 	}
 	return strings.Join(parts, "\n")
 }
@@ -321,6 +326,7 @@ func systemPrompt() string {
 // tokens) over prose where that is more reliable.
 var categoryHints = map[string]string{
 	"logical_deductive_reasoning": "Logical / constraint puzzles: solve them PROGRAMMATICALLY, not by prose (prose is error-prone). Emit a micropy block that enumerates the candidate assignments and keeps only those satisfying EVERY stated constraint - e.g. sh.run(command='python3 -c \"import itertools, json; ...\"'). Set result to the unique surviving assignment, then output the answer it proves.",
+	"mathematical_reasoning":      "Mathematical computation: ALWAYS compute with a micropy block, never reason mentally. Emit code that calculates the exact answer (primes, factorials, digit sums, modular arithmetic, sequences, etc.) and print the result as JSON. Mental arithmetic on non-trivial problems gives wrong answers.",
 	"named_entity_recognition":    "Named-entity recognition: be EXHAUSTIVE for the requested types (person, organisation, location, date). Read the whole text; do not miss trailing or adjectival entities. Label each entity with its type; never invent entities absent from the text; return exactly the requested format.",
 }
 
@@ -337,7 +343,7 @@ func (a *Agent) categoryGuidance(batch []Task) string {
 		}
 	}
 	var b strings.Builder
-	for _, c := range []string{"logical_deductive_reasoning", "named_entity_recognition"} {
+	for _, c := range []string{"mathematical_reasoning", "logical_deductive_reasoning", "named_entity_recognition"} {
 		if present[c] {
 			if b.Len() > 0 {
 				b.WriteByte('\n')

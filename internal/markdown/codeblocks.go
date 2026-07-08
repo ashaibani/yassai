@@ -13,7 +13,7 @@ func ExtractActionBlocks(text string) []Block {
 	for _, block := range all {
 		info := strings.ToLower(strings.TrimSpace(block.Info))
 		first := firstLine(block.Code)
-		if strings.Contains(info, "micropy") || strings.Contains(info, "micropython") || strings.Contains(info, "python action") || strings.Contains(info, "python act") || strings.Contains(strings.ToLower(first), "# act") {
+		if strings.Contains(info, "micropy") || strings.Contains(info, "micropython") || strings.Contains(info, "python action") || strings.Contains(info, "python act") || strings.Contains(strings.ToLower(first), "# act") || info == "python" || info == "py" {
 			out = append(out, block)
 		}
 	}
