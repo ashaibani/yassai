@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yassai - AMD Developer Hackathon Act 2</title>
+<style>
+:root {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e;
+  --accent: #58a6ff; --accent2: #3fb950; --accent3: #f0883e;
+  --card: #161b22; --border: #30363d;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.deck { width: 100vw; overflow-x: auto; scroll-snap-type: x mandatory;
+  display: flex; height: 100vh; }
+.slide { flex: 0 0 100vw; height: 100vh; scroll-snap-align: start;
+  padding: 3vh 4vw; display: flex; flex-direction: column;
+  justify-content: center; position: relative; overflow: hidden; }
+.slide-num { position: absolute; bottom: 2vh; right: 3vw;
+  color: var(--muted); font-size: 0.85rem; font-family: var(--mono); }
+.slide-tag { position: absolute; top: 2.5vh; left: 4vw;
+  color: var(--accent); font-size: 0.8rem; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -1px;
+  margin-bottom: 0.5rem; line-height: 1.15; }
+h2 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.5px;
+  margin-bottom: 1.2rem; line-height: 1.2; }
+h3 { font-size: 1.05rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 0.5rem; }
+p { font-size: 1.05rem; line-height: 1.55; color: #c9d1d9; }
+.subtitle { font-size: 1.25rem; color: var(--muted); margin-bottom: 2rem; }
+.metric-row { display: flex; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+.metric { background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.2rem 1.5rem; min-width: 180px; }
+.metric .val { font-size: 1.8rem; font-weight: 700;
+  color: var(--accent); font-family: var(--mono); }
+.metric .val.green { color: var(--accent2); }
+.metric .val.orange { color: var(--accent3); }
+.metric .label { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+.two-col { display: flex; gap: 2rem; margin-top: 1rem; }
+.col { flex: 1; }
+ul { list-style: none; }
+ul li { font-size: 1rem; line-height: 1.6; color: #c9d1d9;
+  padding-left: 1.2rem; position: relative; }
+ul li::before { content: '\2192'; position: absolute; left: 0;
+  color: var(--accent); font-weight: 700; }
+.code-block { background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.2rem; font-family: var(--mono);
+  font-size: 0.85rem; line-height: 1.5; color: #c9d1d9;
+  margin-top: 0.8rem; overflow-x: auto; }
+.code-block .kw { color: var(--accent3); }
+.code-block .fn { color: var(--accent); }
+.code-block .cm { color: var(--muted); }
+.code-block .st { color: var(--accent2); }
+.flow { display: flex; align-items: center; gap: 0.5rem;
+  flex-wrap: wrap; margin-top: 1.5rem; }
+.flow-box { background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem;
+  font-family: var(--mono); text-align: center; min-width: 120px; }
+.flow-box.highlight { border-color: var(--accent); color: var(--accent); }
+.flow-arrow { color: var(--muted); font-size: 1.2rem; }
+.badge { display: inline-block; background: var(--card);
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 0.3rem 0.8rem; font-size: 0.8rem; color: var(--muted); margin: 0.15rem; }
+.badge.accent { border-color: var(--accent); color: var(--accent); }
+.badge.green { border-color: var(--accent2); color: var(--accent2); }
+.badge.orange { border-color: var(--accent3); color: var(--accent3); }
+table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: 0.9rem; }
+table th { text-align: left; color: var(--muted); font-weight: 600;
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+  padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); }
+table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); color: #c9d1d9; }
+table td.num { font-family: var(--mono); text-align: right; }
+table tr:last-child td { border-bottom: none; }
+.future-card { background: var(--card); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent3); border-radius: 8px;
+  padding: 1rem 1.2rem; margin-top: 0.6rem; }
+.future-card h3 { color: var(--accent3); margin-bottom: 0.3rem; }
+.future-card p { font-size: 0.92rem; line-height: 1.45; }
+code.inline { color: var(--accent3); font-family: var(--mono); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- SLIDE 1: TITLE -->
+<section class="slide">
+  <div class="slide-tag">Track 1 / Token-Efficient AI Agent</div>
+  <h1>yassai</h1>
+  <p class="subtitle">Yet Another Super Simple AI agent<br>for the AMD Developer Hackathon Act 2</p>
+  <div class="metric-row">
+    <div class="metric">
+      <div class="val green">100%</div>
+      <div class="label">Task accuracy (40/40 on benchmark)</div>
+    </div>
+    <div class="metric">
+      <div class="val">71%</div>
+      <div class="label">Token reduction via batching</div>
+    </div>
+    <div class="metric">
+      <div class="val orange">~48 MB</div>
+      <div class="label">In-process classifier (int8 ONNX)</div>
+    </div>
+    <div class="metric">
+      <div class="val">~5 ms</div>
+      <div class="label">Classifier latency per task</div>
+    </div>
+  </div>
+  <div style="margin-top: 1.8rem;">
+    <span class="badge accent">Golang</span>
+    <span class="badge accent">Fireworks (minimax-m3)</span>
+    <span class="badge accent">MicroPython + Wazero WASM</span>
+    <span class="badge green">ModernBERT classifier</span>
+    <span class="badge orange">Trained on AMD ROCm</span>
+    <span class="badge">OpenAI SDK</span>
+  </div>
+  <p style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--muted); max-width: 700px;">
+    Ranked by fewest Fireworks tokens subject to an accuracy gate.
+    Design goal: be correct first, then spend as few tokens as possible getting there.
+  </p>
+  <div class="slide-num">1 / 5</div>
+</section>
+
+<!-- SLIDE 2: ACTION SPACE -->
+<section class="slide">
+  <div class="slide-tag">Action Space</div>
+  <h2>Code as Agent Harness</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3>The loop</h3>
+      <ul>
+        <li>Model emits fenced <code class="inline">micropy</code> code blocks</li>
+        <li>Host extracts, runs them in a MicroPython WASM sandbox (wazero)</li>
+        <li>Observations fed back as user messages</li>
+        <li>Loop continues until <code class="inline">submit()</code> is called</li>
+        <li>No turn limit, no JSON parsing as primary path</li>
+        <li>State persists across code blocks in <code class="inline">vars</code></li>
+      </ul>
+      <div class="code-block"><span class="cm"># Compute, store, submit</span>
+r1 = <span class="fn">sh.run</span>(command=<span class="st">'python3 -c "print(17*23)"'</span>)
+vars[<span class="st">'t1'</span>] = r1[<span class="st">'output'</span>].strip()
+<span class="fn">submit</span>(answers=[
+  {<span class="st">'task_id'</span>: <span class="st">'t1'</span>, <span class="st">'answer'</span>: vars[<span class="st">'t1'</span>]}
+])</div>
+    </div>
+    <div class="col">
+      <h3>Available tools (sandbox globals)</h3>
+      <div style="margin-top: 0.5rem;">
+        <span class="badge accent">submit()</span>
+        <span class="badge accent">sh.run()</span>
+        <span class="badge accent">fs.read/write/edit/list</span>
+        <span class="badge accent">web.fetch/search</span>
+        <span class="badge accent">vars</span>
+        <span class="badge accent">tools.help()</span>
+      </div>
+      <h3 style="margin-top: 1.5rem;">Pipeline</h3>
+      <div class="flow">
+        <div class="flow-box">tasks.json</div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="flow-box highlight">Classifier</div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="flow-box highlight">Batcher</div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="flow-box highlight">Agent Loop</div>
+        <span class="flow-arrow">&#8594;</span>
+        <div class="flow-box">results.json</div>
+      </div>
+      <p style="margin-top: 1.2rem; font-size: 0.88rem; color: var(--muted);">
+        Grounded in <em>Hitchhiker's Guide to Agentic AI</em> and
+        <em>Code as Agent Harness Survey</em>. The agent reasons freely, builds
+        state in <code class="inline">vars</code>, and computes answers
+        programmatically instead of guessing.
+      </p>
+    </div>
+  </div>
+  <div class="slide-num">2 / 5</div>
+</section>
+
+<!-- SLIDE 3: CLASSIFIER -->
+<section class="slide">
+  <div class="slide-tag">Task Classifier</div>
+  <h2>In-Process Task Routing Classifier</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3>Model</h3>
+      <ul>
+        <li>Backbone: IBM Granite Embedding R2 (ModernBERT, ~47M params)</li>
+        <li>Fine-tuned as 8-way multi-label head (sigmoid + per-label thresholds)</li>
+        <li>Exported to int8 ONNX, runs in-process on CPU via Go</li>
+        <li>Pure-Go BPE tokeniser (verified byte-identical to HuggingFace)</li>
+        <li>Head+tail truncation to 1024 tokens (leading or trailing instruction survives)</li>
+        <li><strong style="color:var(--accent3);">Trained on AMD ROCm notebook</strong></li>
+      </ul>
+      <h3 style="margin-top: 1.2rem;">8 capability categories</h3>
+      <div style="margin-top: 0.3rem;">
+        <span class="badge">factual_knowledge</span>
+        <span class="badge">mathematical_reasoning</span>
+        <span class="badge">sentiment_classification</span>
+        <span class="badge">text_summarisation</span>
+        <span class="badge">named_entity_recognition</span>
+        <span class="badge">code_debugging</span>
+        <span class="badge">logical_deductive_reasoning</span>
+        <span class="badge">code_generation</span>
+      </div>
+    </div>
+    <div class="col">
+      <h3>Accuracy (held-out hard real-benchmark)</h3>
+      <table>
+        <tr><th>Metric</th><th>Result</th></tr>
+        <tr><td>micro-F1</td><td class="num" style="color:var(--accent2);font-weight:700;">0.977</td></tr>
+        <tr><td>macro-F1</td><td class="num">0.967</td></tr>
+        <tr><td>subset accuracy</td><td class="num">0.930</td></tr>
+        <tr><td>prev. MiniLM v1 (micro-F1)</td><td class="num" style="color:var(--muted);">0.889</td></tr>
+      </table>
+      <h3 style="margin-top: 1.2rem;">Training data</h3>
+      <ul>
+        <li>14,388 synthetic + real prompts (7,142 train / 400 val / 199 test)</li>
+        <li>Independent blind re-label adopted as ground truth to remove noise</li>
+        <li>Sources: Umans synthetic gen, real benchmark fetch, easy short prompts</li>
+      </ul>
+      <h3 style="margin-top: 1.2rem;">Why it pays for itself</h3>
+      <p style="font-size: 0.92rem;">
+        Adding predicted categories to the prompt costs ~10 tokens per task but
+        nets <strong style="color:var(--accent2);">~12% fewer Fireworks tokens</strong>
+        overall, because the model reasons less when told the task type up front.
+      </p>
+    </div>
+  </div>
+  <div class="slide-num">3 / 5</div>
+</section>
+
+<!-- SLIDE 4: BATCHING + TOKEN EFFICIENCY -->
+<section class="slide">
+  <div class="slide-tag">Token Efficiency</div>
+  <h2>Batching and Adaptive Routing</h2>
+  <div class="two-col">
+    <div class="col">
+      <h3>Batch size vs token cost (40 tasks)</h3>
+      <table>
+        <tr><th>Batch size</th><th>Calls</th><th>Tokens</th><th>Accuracy</th></tr>
+        <tr><td>1 (no batching)</td><td class="num">42</td><td class="num">78,865</td><td class="num">95%</td></tr>
+        <tr><td>10</td><td class="num">4</td><td class="num">31,985</td><td class="num">100%</td></tr>
+        <tr style="background: rgba(88,166,255,0.08);">
+          <td style="color:var(--accent);font-weight:700;">20</td>
+          <td class="num" style="color:var(--accent);">2</td>
+          <td class="num" style="color:var(--accent);font-weight:700;">23,141</td>
+          <td class="num" style="color:var(--accent2);font-weight:700;">100%</td>
+        </tr>
+      </table>
+      <p style="margin-top: 0.8rem; font-size: 0.88rem; color: var(--muted);">
+        Batching amortises the fixed per-call prompt overhead (~260-token system
+        prompt) over many tasks. Fewer, fuller batches = fewer tokens.
+      </p>
+      <h3 style="margin-top: 1.2rem;">Adaptive reasoning effort</h3>
+      <ul>
+        <li>Tasks grouped by capability tier; one effort level per batch</li>
+        <li>Only logical/deductive puzzles get <code class="inline">xhigh</code></li>
+        <li>Everything else at <code class="inline">low</code> (already at ceiling)</li>
+        <li>Category hints injected only for categories present in batch</li>
+        <li>Memory and skills blocks omitted when empty (zero cost)</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Token breakdown (3 hard math tasks, batched)</h3>
+      <div class="metric-row">
+        <div class="metric">
+          <div class="val">26,112</div>
+          <div class="label">Total tokens</div>
+        </div>
+        <div class="metric">
+          <div class="val green">20,802</div>
+          <div class="label">Cached (80% hit rate)</div>
+        </div>
+        <div class="metric">
+          <div class="val orange">1,780</div>
+          <div class="label">Reasoning tokens</div>
+        </div>
+      </div>
+      <h3 style="margin-top: 1.2rem;">Per-category token profile (routeprobe)</h3>
+      <table>
+        <tr><th>Category</th><th>Effort</th><th>Tokens</th><th>Pass</th></tr>
+        <tr><td>factual</td><td>low</td><td class="num">3,609</td><td class="num">5/5</td></tr>
+        <tr><td>maths</td><td>high</td><td class="num">4,123</td><td class="num">5/5</td></tr>
+        <tr><td>sentiment</td><td>low</td><td class="num">3,789</td><td class="num">5/5</td></tr>
+        <tr><td>NER</td><td>low</td><td class="num">8,442</td><td class="num">5/5</td></tr>
+        <tr><td>summarisation</td><td>low</td><td class="num">8,193</td><td class="num">5/5</td></tr>
+        <tr><td>logical_reasoning</td><td>high</td><td class="num">21,835</td><td class="num">5/5</td></tr>
+        <tr><td>code_debugging</td><td>high</td><td class="num">6,914</td><td class="num">5/5</td></tr>
+        <tr><td>code_generation</td><td>high</td><td class="num">6,400</td><td class="num">5/5</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="slide-num">4 / 5</div>
+</section>
+
+<!-- SLIDE 5: WHAT IS LEFT ON THE TABLE -->
+<section class="slide">
+  <div class="slide-tag">Future Work</div>
+  <h2>What is Left on the Table</h2>
+  <div class="two-col">
+    <div class="col">
+      <div class="future-card">
+        <h3>Smarter routing across models</h3>
+        <p>Currently all tasks go to one model (minimax-m3). The classifier already
+        tags capability; routing factual/sentiment to a cheaper model and
+        logical/code to a stronger one could cut tokens further while maintaining
+        accuracy.</p>
+      </div>
+      <div class="future-card">
+        <h3>Cost / quality / speed tradeoff dial</h3>
+        <p>The adaptive effort tier is binary (low vs xhigh). A continuous
+        per-category effort slider, tuned from routeprobe data, would find the
+        Pareto frontier of accuracy vs token cost for each category.</p>
+      </div>
+      <div class="future-card">
+        <h3>Load-bearing vs decorative classification</h3>
+        <p>The classifier currently feeds categories to the prompt. It could also
+        drive batch composition (group similar-difficulty tasks), max_tokens
+        allocation, and concurrency priority. Right now only the effort tier uses it.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="future-card">
+        <h3>Fine-tuning for compact reasoning (Grug-style)</h3>
+        <p>Base model reasoning is verbose (1,780 reasoning tokens for 3 tasks).
+        A Grug-style compact-reasoning LoRA fine-tune on agent trajectories could
+        halve reasoning tokens while preserving code-block quality. Fireworks
+        managed LoRA ($50 credits available) on Gemma 4 26B-A4B / 31B.</p>
+      </div>
+      <div class="future-card">
+        <h3>Caching and context compression</h3>
+        <p>80% cache hit is already strong, but prompt-prefix caching could be
+        improved further by stabilising batch ordering. Context compression
+        (pxpipe-inspired) for long agent loops would reduce per-turn growth.</p>
+      </div>
+      <div class="future-card">
+        <h3>Classifier ensemble and confidence routing</h3>
+        <p>Low-confidence classifications could trigger a fallback (second model
+        or majority vote). Currently best-effort with no confidence threshold.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">5 / 5</div>
+</section>
+
+</div>
+</body>
+</html>
