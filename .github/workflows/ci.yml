@@ -1,0 +1,138 @@
+name: CI
+
+# Build + test the Go app, then build + publish the Docker image to GHCR.
+#
+# Tagging scheme (handled by docker/metadata-action):
+#   push to main        -> :latest        (moving pointer to newest main)
+#                          :main          (same, conventional branch tag)
+#                          :sha-<commit>  (immutable - pull any historical main build)
+#   pull request        -> :pr-<number>   (moving pointer to the PR's latest commit)
+#                          :sha-<commit>  (immutable per commit)
+# Merging a PR lands a commit on main, which the push trigger below rebuilds as
+# :latest + :sha-<commit> - so "merge" is covered without a separate trigger.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel superseded PR builds; never cancel a main build, so every main commit
+# gets its own immutable :sha- image.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build & test (native amd64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The cgo build needs two native libs, at the SAME versions the Dockerfile
+      # pins (read straight from it so they can never drift):
+      #   libonnxruntime.so - dlopen'd at runtime by onnxruntime_go
+      #   libtokenizers.a   - statically linked by daulet/tokenizers
+      - name: Fetch native libs (onnxruntime + tokenizers)
+        run: |
+          set -euo pipefail
+          ORT=$(grep -oP 'ARG ORT_VERSION=\K[0-9.]+' Dockerfile)
+          TOK=$(grep -oP 'ARG TOK_VERSION=\K[0-9.]+' Dockerfile)
+          echo "onnxruntime=$ORT  tokenizers=$TOK"
+          curl -fsSL -o /tmp/ort.tgz \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ORT}/onnxruntime-linux-x64-${ORT}.tgz"
+          sudo mkdir -p /opt/onnxruntime
+          sudo tar xzf /tmp/ort.tgz -C /opt/onnxruntime --strip-components=1
+          curl -fsSL -o /tmp/tok.tgz \
+            "https://github.com/daulet/tokenizers/releases/download/v${TOK}/libtokenizers.linux-amd64.tar.gz"
+          sudo mkdir -p /opt/tokenizers
+          sudo tar xzf /tmp/tok.tgz -C /opt/tokenizers
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Build
+        env:
+          CGO_ENABLED: "1"
+          CGO_LDFLAGS: -L/opt/tokenizers
+        run: go build ./...
+
+      # ONNXRUNTIME_LIB makes the taskclf integration test run for real, so this
+      # verifies the ONNX classifier on genuine amd64 hardware. FIREWORKS_API_KEY
+      # is intentionally unset, so the network-dependent textimg tests self-skip.
+      - name: Test
+        env:
+          CGO_ENABLED: "1"
+          CGO_LDFLAGS: -L/opt/tokenizers
+          ONNXRUNTIME_LIB: /opt/onnxruntime/lib/libonnxruntime.so
+          LD_LIBRARY_PATH: /opt/onnxruntime/lib
+        run: go test ./... -count=1
+
+  docker:
+    name: Build & publish image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Push for pushes to main and same-repo PRs. Fork PRs have no write creds,
+      # so they build only (which still validates the Dockerfile).
+      PUSH: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Image name: ghcr.io/<owner>/yassai (== the repo). metadata-action
+      # lowercases it, so an uppercase owner still yields a valid name.
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: ${{ env.PUSH }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Single-arch image -> keep a plain manifest (no provenance index), which
+          # is simplest for the judge to pull.
+          provenance: false

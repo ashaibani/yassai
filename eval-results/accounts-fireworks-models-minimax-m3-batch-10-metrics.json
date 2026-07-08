@@ -1,0 +1,179 @@
+{
+  "model": "accounts/fireworks/models/minimax-m3",
+  "calls": 4,
+  "prompt_tokens": 28392,
+  "output_tokens": 3593,
+  "total_tokens": 31985,
+  "cached_tokens": 28388,
+  "reasoning_tokens": 7247,
+  "tool_runs": 0,
+  "batch_count": 4,
+  "fallbacks": 0,
+  "started_at": "2026-07-08T01:53:28.132886+01:00",
+  "finished_at": "2026-07-08T01:54:00.99756+01:00",
+  "duration_ms": 32864,
+  "batch_summaries": [
+    {
+      "task_ids": [
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5"
+      ],
+      "calls": 1,
+      "tools": 0
+    },
+    {
+      "task_ids": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "su1",
+        "su2",
+        "su3",
+        "su4",
+        "su5"
+      ],
+      "calls": 1,
+      "tools": 0
+    },
+    {
+      "task_ids": [
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "cd1",
+        "cd2",
+        "cd3",
+        "cd4",
+        "cd5"
+      ],
+      "calls": 1,
+      "tools": 0
+    },
+    {
+      "task_ids": [
+        "l1",
+        "l2",
+        "l3",
+        "l4",
+        "l5",
+        "cg1",
+        "cg2",
+        "cg3",
+        "cg4",
+        "cg5"
+      ],
+      "calls": 1,
+      "tools": 0
+    }
+  ],
+  "call_records": [
+    {
+      "turn": 0,
+      "timestamp": "2026-07-08T01:53:28.135634+01:00",
+      "latency_ms": 5304,
+      "prompt_tokens": 4061,
+      "completion_tokens": 329,
+      "total_tokens": 4390,
+      "cached_tokens": 4060,
+      "reasoning_tokens": 434,
+      "batch_size": 10,
+      "output_chars": 731,
+      "task_ids": [
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5"
+      ]
+    },
+    {
+      "turn": 0,
+      "timestamp": "2026-07-08T01:53:33.450963+01:00",
+      "latency_ms": 2138,
+      "prompt_tokens": 9006,
+      "completion_tokens": 472,
+      "total_tokens": 9478,
+      "cached_tokens": 9005,
+      "reasoning_tokens": 900,
+      "batch_size": 10,
+      "output_chars": 1160,
+      "task_ids": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "su1",
+        "su2",
+        "su3",
+        "su4",
+        "su5"
+      ]
+    },
+    {
+      "turn": 0,
+      "timestamp": "2026-07-08T01:53:35.598745+01:00",
+      "latency_ms": 19037,
+      "prompt_tokens": 9057,
+      "completion_tokens": 927,
+      "total_tokens": 9984,
+      "cached_tokens": 9056,
+      "reasoning_tokens": 1621,
+      "batch_size": 10,
+      "output_chars": 1621,
+      "task_ids": [
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "cd1",
+        "cd2",
+        "cd3",
+        "cd4",
+        "cd5"
+      ]
+    },
+    {
+      "turn": 0,
+      "timestamp": "2026-07-08T01:53:54.64705+01:00",
+      "latency_ms": 6350,
+      "prompt_tokens": 6268,
+      "completion_tokens": 1865,
+      "total_tokens": 8133,
+      "cached_tokens": 6267,
+      "reasoning_tokens": 4292,
+      "batch_size": 10,
+      "output_chars": 1034,
+      "task_ids": [
+        "l1",
+        "l2",
+        "l3",
+        "l4",
+        "l5",
+        "cg1",
+        "cg2",
+        "cg3",
+        "cg4",
+        "cg5"
+      ]
+    }
+  ]
+}

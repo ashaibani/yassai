@@ -1,0 +1,162 @@
+[
+  {
+    "task_id": "f1",
+    "answer": "Paris"
+  },
+  {
+    "task_id": "f2",
+    "answer": "An API gateway is a server that acts as a single entry point for client requests, routing them to the appropriate backend services while handling cross-cutting concerns like authentication, rate limiting, and request/response transformation."
+  },
+  {
+    "task_id": "f3",
+    "answer": "Hypertext Transfer Protocol Secure"
+  },
+  {
+    "task_id": "f4",
+    "answer": "Recursion in programming is a technique in which a function solves a problem by calling itself with smaller or simpler inputs until it reaches a base case that can be answered directly."
+  },
+  {
+    "task_id": "f5",
+    "answer": "100"
+  },
+  {
+    "task_id": "m1",
+    "answer": "391"
+  },
+  {
+    "task_id": "m2",
+    "answer": "50"
+  },
+  {
+    "task_id": "m3",
+    "answer": "80"
+  },
+  {
+    "task_id": "m4",
+    "answer": "72"
+  },
+  {
+    "task_id": "m5",
+    "answer": "12"
+  },
+  {
+    "task_id": "s1",
+    "answer": "positive"
+  },
+  {
+    "task_id": "s2",
+    "answer": "negative"
+  },
+  {
+    "task_id": "s3",
+    "answer": "positive"
+  },
+  {
+    "task_id": "s4",
+    "answer": "neutral"
+  },
+  {
+    "task_id": "s5",
+    "answer": "positive"
+  },
+  {
+    "task_id": "su1",
+    "answer": "The software update delivers security patches, a redesigned interface, and up to 30% faster load times for a smoother experience, though some users report compatibility issues with older plugins."
+  },
+  {
+    "task_id": "su2",
+    "answer": "The quarterly report showed a 12% revenue increase driven by strong European sales, despite a slight decline in Asia due to supply chain disruptions expected to resolve next quarter."
+  },
+  {
+    "task_id": "su3",
+    "answer": "Researchers have developed a multi-layer solar panel that converts 40% of sunlight into electricity—nearly double the current 22% average—by capturing a broader spectrum of light."
+  },
+  {
+    "task_id": "su4",
+    "answer": "The committee postponed next month's zoning law decision after members criticized the environmental impact study for inadequately addressing effects on local wildlife and water sources."
+  },
+  {
+    "task_id": "su5",
+    "answer": "A survey of 2,000 remote workers found that 65% prefer a hybrid model for better work-life balance and reduced commuting stress, 20% want to return to the office full-time for improved collaboration, and 15% prefer fully remote work."
+  },
+  {
+    "task_id": "n1",
+    "answer": "{\"entities\":[{\"text\":\"Tim Cook\",\"type\":\"Person\"},{\"text\":\"Apple Inc.\",\"type\":\"Organization\"},{\"text\":\"London\",\"type\":\"Location\"},{\"text\":\"January 2025\",\"type\":\"Date\"}]}"
+  },
+  {
+    "task_id": "n2",
+    "answer": "{\"person\":[\"Marie Curie\"],\"organisation\":[\"University of Paris\"],\"location\":[\"Warsaw\",\"Paris\"],\"date\":[\"1898\"]}"
+  },
+  {
+    "task_id": "n3",
+    "answer": "{\"entities\":[{\"text\":\"United Nations General Assembly\",\"type\":\"ORG\",\"label\":\"Organization\"},{\"text\":\"New York\",\"type\":\"GPE\",\"label\":\"Geo-Political Entity (Location)\"},{\"text\":\"September\",\"type\":\"DATE\",\"label\":\"Date/Time\"}]}"
+  },
+  {
+    "task_id": "n4",
+    "answer": "{\"entities\":[{\"text\":\"Elon Musk\",\"type\":\"PERSON\"},{\"text\":\"SpaceX\",\"type\":\"ORGANIZATION\"},{\"text\":\"2002\",\"type\":\"DATE\"}]}"
+  },
+  {
+    "task_id": "n5",
+    "answer": "{\"entities\":[{\"text\":\"Treaty of Versailles\",\"type\":\"DOCUMENT/TREATY\"},{\"text\":\"28 June 1919\",\"type\":\"DATE\"},{\"text\":\"Palace of Versailles\",\"type\":\"FACILITY/LOCATION\"},{\"text\":\"France\",\"type\":\"GPE/COUNTRY\"}]}"
+  },
+  {
+    "task_id": "cd1",
+    "answer": "def add(a, b): return a + b"
+  },
+  {
+    "task_id": "cd2",
+    "answer": "def factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)"
+  },
+  {
+    "task_id": "cd3",
+    "answer": "function getAverage(arr) {\n  let sum = 0;\n  for (let i = 0; i \u003c arr.length; i++) {\n    sum += arr[i];\n  }\n  return sum / arr.length;\n}"
+  },
+  {
+    "task_id": "cd4",
+    "answer": "def is_even(n):\n    return n % 2 == 0"
+  },
+  {
+    "task_id": "cd5",
+    "answer": "def reverse_string(s):\n    return s[::-1]"
+  },
+  {
+    "task_id": "l1",
+    "answer": "blue"
+  },
+  {
+    "task_id": "l2",
+    "answer": "Yes"
+  },
+  {
+    "task_id": "l3",
+    "answer": "7"
+  },
+  {
+    "task_id": "l4",
+    "answer": "Unable to answer confidently: model did not return parseable answers"
+  },
+  {
+    "task_id": "l5",
+    "answer": "No"
+  },
+  {
+    "task_id": "cg1",
+    "answer": "def is_palindrome(s):\n    cleaned = s.replace(\" \", \"\").lower()\n    return cleaned == cleaned[::-1]"
+  },
+  {
+    "task_id": "cg2",
+    "answer": "def fibonacci(n):\n    if n \u003c 0:\n        raise ValueError(\"n must be non-negative\")\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a"
+  },
+  {
+    "task_id": "cg3",
+    "answer": "function debounce(fn, delay) {\n  let timerId;\n  return function (...args) {\n    clearTimeout(timerId);\n    timerId = setTimeout(() =\u003e fn.apply(this, args), delay);\n  };\n}"
+  },
+  {
+    "task_id": "cg4",
+    "answer": "def merge_sorted_lists(a, b):\n    i, j = 0, 0\n    result = []\n    while i \u003c len(a) and j \u003c len(b):\n        if a[i] \u003c= b[j]:\n            result.append(a[i])\n            i += 1\n        else:\n            result.append(b[j])\n            j += 1\n    result.extend(a[i:])\n    result.extend(b[j:])\n    return result"
+  },
+  {
+    "task_id": "cg5",
+    "answer": "def count_vowels(s):\n    return sum(1 for c in s.lower() if c in 'aeiou')"
+  }
+]

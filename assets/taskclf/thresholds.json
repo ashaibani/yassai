@@ -1,0 +1,10 @@
+{
+  "factual_knowledge": 0.5,
+  "mathematical_reasoning": 0.5,
+  "sentiment_classification": 0.5,
+  "text_summarisation": 0.5,
+  "named_entity_recognition": 0.5,
+  "code_debugging": 0.5,
+  "logical_deductive_reasoning": 0.5,
+  "code_generation": 0.5
+}

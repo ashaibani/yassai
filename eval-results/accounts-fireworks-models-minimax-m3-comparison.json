@@ -1,0 +1,659 @@
+{
+  "model": "accounts/fireworks/models/minimax-m3",
+  "results": [
+    {
+      "strategy": "batch-10",
+      "batch_size": 10,
+      "metrics": {
+        "model": "accounts/fireworks/models/minimax-m3",
+        "calls": 4,
+        "prompt_tokens": 28392,
+        "output_tokens": 3593,
+        "total_tokens": 31985,
+        "cached_tokens": 28388,
+        "reasoning_tokens": 7247,
+        "tool_runs": 0,
+        "batch_count": 4,
+        "fallbacks": 0,
+        "started_at": "2026-07-08T01:53:28.132886+01:00",
+        "finished_at": "2026-07-08T01:54:00.99756+01:00",
+        "duration_ms": 32864,
+        "batch_summaries": [
+          {
+            "task_ids": [
+              "f1",
+              "f2",
+              "f3",
+              "f4",
+              "f5",
+              "m1",
+              "m2",
+              "m3",
+              "m4",
+              "m5"
+            ],
+            "calls": 1,
+            "tools": 0
+          },
+          {
+            "task_ids": [
+              "s1",
+              "s2",
+              "s3",
+              "s4",
+              "s5",
+              "su1",
+              "su2",
+              "su3",
+              "su4",
+              "su5"
+            ],
+            "calls": 1,
+            "tools": 0
+          },
+          {
+            "task_ids": [
+              "n1",
+              "n2",
+              "n3",
+              "n4",
+              "n5",
+              "cd1",
+              "cd2",
+              "cd3",
+              "cd4",
+              "cd5"
+            ],
+            "calls": 1,
+            "tools": 0
+          },
+          {
+            "task_ids": [
+              "l1",
+              "l2",
+              "l3",
+              "l4",
+              "l5",
+              "cg1",
+              "cg2",
+              "cg3",
+              "cg4",
+              "cg5"
+            ],
+            "calls": 1,
+            "tools": 0
+          }
+        ],
+        "call_records": [
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:53:28.135634+01:00",
+            "latency_ms": 5304,
+            "prompt_tokens": 4061,
+            "completion_tokens": 329,
+            "total_tokens": 4390,
+            "cached_tokens": 4060,
+            "reasoning_tokens": 434,
+            "batch_size": 10,
+            "output_chars": 731,
+            "task_ids": [
+              "f1",
+              "f2",
+              "f3",
+              "f4",
+              "f5",
+              "m1",
+              "m2",
+              "m3",
+              "m4",
+              "m5"
+            ]
+          },
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:53:33.450963+01:00",
+            "latency_ms": 2138,
+            "prompt_tokens": 9006,
+            "completion_tokens": 472,
+            "total_tokens": 9478,
+            "cached_tokens": 9005,
+            "reasoning_tokens": 900,
+            "batch_size": 10,
+            "output_chars": 1160,
+            "task_ids": [
+              "s1",
+              "s2",
+              "s3",
+              "s4",
+              "s5",
+              "su1",
+              "su2",
+              "su3",
+              "su4",
+              "su5"
+            ]
+          },
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:53:35.598745+01:00",
+            "latency_ms": 19037,
+            "prompt_tokens": 9057,
+            "completion_tokens": 927,
+            "total_tokens": 9984,
+            "cached_tokens": 9056,
+            "reasoning_tokens": 1621,
+            "batch_size": 10,
+            "output_chars": 1621,
+            "task_ids": [
+              "n1",
+              "n2",
+              "n3",
+              "n4",
+              "n5",
+              "cd1",
+              "cd2",
+              "cd3",
+              "cd4",
+              "cd5"
+            ]
+          },
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:53:54.64705+01:00",
+            "latency_ms": 6350,
+            "prompt_tokens": 6268,
+            "completion_tokens": 1865,
+            "total_tokens": 8133,
+            "cached_tokens": 6267,
+            "reasoning_tokens": 4292,
+            "batch_size": 10,
+            "output_chars": 1034,
+            "task_ids": [
+              "l1",
+              "l2",
+              "l3",
+              "l4",
+              "l5",
+              "cg1",
+              "cg2",
+              "cg3",
+              "cg4",
+              "cg5"
+            ]
+          }
+        ]
+      },
+      "results": [
+        {
+          "task_id": "f1",
+          "answer": "Paris"
+        },
+        {
+          "task_id": "f2",
+          "answer": "An API gateway is a server that acts as a single entry point for client requests, routing them to the appropriate backend services while handling cross-cutting concerns like authentication, rate limiting, and request aggregation."
+        },
+        {
+          "task_id": "f3",
+          "answer": "Hypertext Transfer Protocol Secure"
+        },
+        {
+          "task_id": "f4",
+          "answer": "Recursion is a programming technique in which a function calls itself to solve a problem by breaking it into smaller subproblems of the same form."
+        },
+        {
+          "task_id": "f5",
+          "answer": "100"
+        },
+        {
+          "task_id": "m1",
+          "answer": "391"
+        },
+        {
+          "task_id": "m2",
+          "answer": "50"
+        },
+        {
+          "task_id": "m3",
+          "answer": "80"
+        },
+        {
+          "task_id": "m4",
+          "answer": "72"
+        },
+        {
+          "task_id": "m5",
+          "answer": "12"
+        },
+        {
+          "task_id": "s1",
+          "answer": "positive"
+        },
+        {
+          "task_id": "s2",
+          "answer": "negative"
+        },
+        {
+          "task_id": "s3",
+          "answer": "neutral"
+        },
+        {
+          "task_id": "s4",
+          "answer": "neutral"
+        },
+        {
+          "task_id": "s5",
+          "answer": "positive"
+        },
+        {
+          "task_id": "su1",
+          "answer": "A software update brings security patches, a redesigned interface, and up to 30% faster load times for a smoother experience, though some users report compatibility issues with older plugins."
+        },
+        {
+          "task_id": "su2",
+          "answer": "Revenue rose 12% this quarter on strong European sales, while Asia saw a slight decline from supply chain disruptions expected to ease next quarter."
+        },
+        {
+          "task_id": "su3",
+          "answer": "Researchers have built a multi-layer solar panel that converts 40% of sunlight into electricity, nearly double the current 22% average."
+        },
+        {
+          "task_id": "su4",
+          "answer": "The committee postponed the zoning law decision until next month after members said the environmental impact study inadequately addressed effects on wildlife and water sources."
+        },
+        {
+          "task_id": "su5",
+          "answer": "A survey of 2000 remote workers found 65% prefer hybrid work for better work-life balance, 20% want full-time office for collaboration, and 15% prefer fully remote."
+        },
+        {
+          "task_id": "n1",
+          "answer": "{\"entities\":[{\"text\":\"Tim Cook\",\"type\":\"person\"},{\"text\":\"Apple Inc.\",\"type\":\"organisation\"},{\"text\":\"London\",\"type\":\"location\"},{\"text\":\"January 2025\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n2",
+          "answer": "{\"entities\":[{\"text\":\"Marie Curie\",\"type\":\"person\"},{\"text\":\"Warsaw\",\"type\":\"location\"},{\"text\":\"University of Paris\",\"type\":\"organisation\"},{\"text\":\"1898\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n3",
+          "answer": "{\"entities\":[{\"text\":\"United Nations General Assembly\",\"type\":\"organisation\"},{\"text\":\"New York\",\"type\":\"location\"},{\"text\":\"September\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n4",
+          "answer": "{\"entities\":[{\"text\":\"Elon Musk\",\"type\":\"person\"},{\"text\":\"SpaceX\",\"type\":\"organisation\"},{\"text\":\"2002\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n5",
+          "answer": "{\"entities\":[{\"text\":\"Treaty of Versailles\",\"type\":\"event\"},{\"text\":\"28 June 1919\",\"type\":\"date\"},{\"text\":\"Palace of Versailles\",\"type\":\"location\"},{\"text\":\"France\",\"type\":\"location\"}]}"
+        },
+        {
+          "task_id": "cd1",
+          "answer": "def add(a, b):\n    return a + b"
+        },
+        {
+          "task_id": "cd2",
+          "answer": "def factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)"
+        },
+        {
+          "task_id": "cd3",
+          "answer": "function getAverage(arr) {\n    let sum = 0;\n    for (let i = 0; i \u003c arr.length; i++) {\n        sum += arr[i];\n    }\n    return sum / arr.length;\n}"
+        },
+        {
+          "task_id": "cd4",
+          "answer": "def is_even(n):\n    return n % 2 == 0"
+        },
+        {
+          "task_id": "cd5",
+          "answer": "def reverse_string(s):\n    return s[::-1]"
+        },
+        {
+          "task_id": "l1",
+          "answer": "blue"
+        },
+        {
+          "task_id": "l2",
+          "answer": "Yes"
+        },
+        {
+          "task_id": "l3",
+          "answer": "7"
+        },
+        {
+          "task_id": "l4",
+          "answer": "C"
+        },
+        {
+          "task_id": "l5",
+          "answer": "No"
+        },
+        {
+          "task_id": "cg1",
+          "answer": "def is_palindrome(s):\n    s = s.replace(' ', '').lower()\n    return s == s[::-1]"
+        },
+        {
+          "task_id": "cg2",
+          "answer": "def fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a"
+        },
+        {
+          "task_id": "cg3",
+          "answer": "function debounce(fn, delay) {\n  let timer;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() =\u003e fn.apply(this, args), delay);\n  };\n}"
+        },
+        {
+          "task_id": "cg4",
+          "answer": "def merge_sorted_lists(a, b):\n    result = []\n    i = j = 0\n    while i \u003c len(a) and j \u003c len(b):\n        if a[i] \u003c= b[j]:\n            result.append(a[i]); i += 1\n        else:\n            result.append(b[j]); j += 1\n    result.extend(a[i:])\n    result.extend(b[j:])\n    return result"
+        },
+        {
+          "task_id": "cg5",
+          "answer": "def count_vowels(s):\n    return sum(1 for c in s.lower() if c in 'aeiou')"
+        }
+      ],
+      "duration_s": 32.864623125
+    },
+    {
+      "strategy": "batch-20",
+      "batch_size": 20,
+      "metrics": {
+        "model": "accounts/fireworks/models/minimax-m3",
+        "calls": 2,
+        "prompt_tokens": 19172,
+        "output_tokens": 3969,
+        "total_tokens": 23141,
+        "cached_tokens": 19170,
+        "reasoning_tokens": 8931,
+        "tool_runs": 0,
+        "batch_count": 2,
+        "fallbacks": 0,
+        "started_at": "2026-07-08T01:54:01.000091+01:00",
+        "finished_at": "2026-07-08T01:54:23.311586+01:00",
+        "duration_ms": 22311,
+        "batch_summaries": [
+          {
+            "task_ids": [
+              "f1",
+              "f2",
+              "f3",
+              "f4",
+              "f5",
+              "m1",
+              "m2",
+              "m3",
+              "m4",
+              "m5",
+              "s1",
+              "s2",
+              "s3",
+              "s4",
+              "s5",
+              "su1",
+              "su2",
+              "su3",
+              "su4",
+              "su5"
+            ],
+            "calls": 1,
+            "tools": 0
+          },
+          {
+            "task_ids": [
+              "n1",
+              "n2",
+              "n3",
+              "n4",
+              "n5",
+              "cd1",
+              "cd2",
+              "cd3",
+              "cd4",
+              "cd5",
+              "l1",
+              "l2",
+              "l3",
+              "l4",
+              "l5",
+              "cg1",
+              "cg2",
+              "cg3",
+              "cg4",
+              "cg5"
+            ],
+            "calls": 1,
+            "tools": 0
+          }
+        ],
+        "call_records": [
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:54:01.010746+01:00",
+            "latency_ms": 10419,
+            "prompt_tokens": 9558,
+            "completion_tokens": 767,
+            "total_tokens": 10325,
+            "cached_tokens": 9557,
+            "reasoning_tokens": 1285,
+            "batch_size": 20,
+            "output_chars": 1856,
+            "task_ids": [
+              "f1",
+              "f2",
+              "f3",
+              "f4",
+              "f5",
+              "m1",
+              "m2",
+              "m3",
+              "m4",
+              "m5",
+              "s1",
+              "s2",
+              "s3",
+              "s4",
+              "s5",
+              "su1",
+              "su2",
+              "su3",
+              "su4",
+              "su5"
+            ]
+          },
+          {
+            "turn": 0,
+            "timestamp": "2026-07-08T01:54:11.443578+01:00",
+            "latency_ms": 11867,
+            "prompt_tokens": 9614,
+            "completion_tokens": 3202,
+            "total_tokens": 12816,
+            "cached_tokens": 9613,
+            "reasoning_tokens": 7646,
+            "batch_size": 20,
+            "output_chars": 2680,
+            "task_ids": [
+              "n1",
+              "n2",
+              "n3",
+              "n4",
+              "n5",
+              "cd1",
+              "cd2",
+              "cd3",
+              "cd4",
+              "cd5",
+              "l1",
+              "l2",
+              "l3",
+              "l4",
+              "l5",
+              "cg1",
+              "cg2",
+              "cg3",
+              "cg4",
+              "cg5"
+            ]
+          }
+        ]
+      },
+      "results": [
+        {
+          "task_id": "f1",
+          "answer": "Paris"
+        },
+        {
+          "task_id": "f2",
+          "answer": "An API gateway is a server that acts as a single entry point for client requests, routing them to backend services while handling cross-cutting concerns like authentication, rate limiting, and monitoring."
+        },
+        {
+          "task_id": "f3",
+          "answer": "Hypertext Transfer Protocol Secure"
+        },
+        {
+          "task_id": "f4",
+          "answer": "Recursion is a programming technique in which a function calls itself to solve smaller instances of the same problem until a base case is reached."
+        },
+        {
+          "task_id": "f5",
+          "answer": "100"
+        },
+        {
+          "task_id": "m1",
+          "answer": "391"
+        },
+        {
+          "task_id": "m2",
+          "answer": "50"
+        },
+        {
+          "task_id": "m3",
+          "answer": "80"
+        },
+        {
+          "task_id": "m4",
+          "answer": "72"
+        },
+        {
+          "task_id": "m5",
+          "answer": "12"
+        },
+        {
+          "task_id": "s1",
+          "answer": "positive"
+        },
+        {
+          "task_id": "s2",
+          "answer": "negative"
+        },
+        {
+          "task_id": "s3",
+          "answer": "neutral"
+        },
+        {
+          "task_id": "s4",
+          "answer": "neutral"
+        },
+        {
+          "task_id": "s5",
+          "answer": "positive"
+        },
+        {
+          "task_id": "su1",
+          "answer": "The software update delivers security patches, a redesigned interface, and up to 30% faster load times, though some users report compatibility issues with older plugins."
+        },
+        {
+          "task_id": "su2",
+          "answer": "Quarterly revenue rose 12% on strong European sales, while the Asian segment dipped slightly due to supply chain disruptions expected to ease next quarter."
+        },
+        {
+          "task_id": "su3",
+          "answer": "Researchers have built a multi-layer solar panel that converts 40% of sunlight into electricity, nearly doubling the current 22% average efficiency."
+        },
+        {
+          "task_id": "su4",
+          "answer": "The committee postponed the zoning decision until next month after members concluded the environmental impact study inadequately addressed risks to local wildlife and water sources."
+        },
+        {
+          "task_id": "su5",
+          "answer": "A survey of 2000 remote workers found 65% prefer hybrid work for better work-life balance, 20% want full-time office for collaboration, and 15% prefer fully remote."
+        },
+        {
+          "task_id": "n1",
+          "answer": "{\"entities\":[{\"text\":\"Tim Cook\",\"type\":\"person\"},{\"text\":\"Apple Inc.\",\"type\":\"organisation\"},{\"text\":\"London\",\"type\":\"location\"},{\"text\":\"January 2025\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n2",
+          "answer": "{\"entities\":[{\"text\":\"Marie Curie\",\"type\":\"person\"},{\"text\":\"Warsaw\",\"type\":\"location\"},{\"text\":\"University of Paris\",\"type\":\"organisation\"},{\"text\":\"1898\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n3",
+          "answer": "{\"entities\":[{\"text\":\"United Nations General Assembly\",\"type\":\"organisation\"},{\"text\":\"New York\",\"type\":\"location\"},{\"text\":\"September\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n4",
+          "answer": "{\"entities\":[{\"text\":\"Elon Musk\",\"type\":\"person\"},{\"text\":\"SpaceX\",\"type\":\"organisation\"},{\"text\":\"2002\",\"type\":\"date\"}]}"
+        },
+        {
+          "task_id": "n5",
+          "answer": "{\"entities\":[{\"text\":\"Treaty of Versailles\",\"type\":\"event\"},{\"text\":\"28 June 1919\",\"type\":\"date\"},{\"text\":\"Palace of Versailles\",\"type\":\"location\"},{\"text\":\"France\",\"type\":\"location\"}]}"
+        },
+        {
+          "task_id": "cd1",
+          "answer": "def add(a, b):\n    return a + b"
+        },
+        {
+          "task_id": "cd2",
+          "answer": "def factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)"
+        },
+        {
+          "task_id": "cd3",
+          "answer": "function getAverage(arr) {\n    let sum = 0;\n    for (let i = 0; i \u003c arr.length; i++) {\n        sum += arr[i];\n    }\n    return sum / arr.length;\n}"
+        },
+        {
+          "task_id": "cd4",
+          "answer": "def is_even(n):\n    return n % 2 == 0"
+        },
+        {
+          "task_id": "cd5",
+          "answer": "def reverse_string(s):\n    return s[::-1]"
+        },
+        {
+          "task_id": "l1",
+          "answer": "blue"
+        },
+        {
+          "task_id": "l2",
+          "answer": "Yes"
+        },
+        {
+          "task_id": "l3",
+          "answer": "7"
+        },
+        {
+          "task_id": "l4",
+          "answer": "C"
+        },
+        {
+          "task_id": "l5",
+          "answer": "No"
+        },
+        {
+          "task_id": "cg1",
+          "answer": "def is_palindrome(s):\n    cleaned = s.replace(\" \", \"\").lower()\n    return cleaned == cleaned[::-1]"
+        },
+        {
+          "task_id": "cg2",
+          "answer": "def fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a"
+        },
+        {
+          "task_id": "cg3",
+          "answer": "function debounce(fn, delay) {\n    let timer;\n    return function(...args) {\n        clearTimeout(timer);\n        timer = setTimeout(() =\u003e fn.apply(this, args), delay);\n    };\n}"
+        },
+        {
+          "task_id": "cg4",
+          "answer": "def merge_sorted_lists(a, b):\n    result = []\n    i = j = 0\n    while i \u003c len(a) and j \u003c len(b):\n        if a[i] \u003c= b[j]:\n            result.append(a[i]); i += 1\n        else:\n            result.append(b[j]); j += 1\n    result.extend(a[i:])\n    result.extend(b[j:])\n    return result"
+        },
+        {
+          "task_id": "cg5",
+          "answer": "def count_vowels(s):\n    return sum(1 for c in s.lower() if c in \"aeiou\")"
+        }
+      ],
+      "duration_s": 22.311460667
+    }
+  ],
+  "best_tokens": "batch-20 (23141 tokens)",
+  "best_speed": "batch-20 (22.3s)"
+}

@@ -1,0 +1,66 @@
+[
+ {
+  "task_id": "fp1",
+  "prompt": "What is the capital of Australia, and what body of water is it near?",
+  "expected": "Canberra; it is near Lake Burley Griffin.",
+  "validate": "llm",
+  "category": "factual_knowledge",
+  "source": "practice-01"
+ },
+ {
+  "task_id": "mp2",
+  "prompt": "A store has 240 items. It sells 15% on Monday and 60 more on Tuesday. How many items remain?",
+  "expected": "144",
+  "validate": "numeric",
+  "category": "mathematical_reasoning",
+  "source": "practice-02"
+ },
+ {
+  "task_id": "sp3",
+  "prompt": "Classify the sentiment of this review: The battery life is great, but the screen scratches too easily.",
+  "expected": "Mixed sentiment: positive about battery life, negative about the screen scratching.",
+  "validate": "llm",
+  "category": "sentiment_classification",
+  "source": "practice-03"
+ },
+ {
+  "task_id": "sup4",
+  "prompt": "Summarize the following in exactly one sentence: The James Webb Space Telescope, launched in December 2021, observes the universe primarily in infrared light. Its large segmented mirror and sunshield let it detect faint, distant galaxies whose light has been stretched into the infrared by the expansion of the universe. Scientists use it to study the earliest galaxies, star formation, and the atmospheres of exoplanets.",
+  "expected": "The James Webb Space Telescope, launched in December 2021, uses infrared light and a large mirror to study the earliest galaxies, star formation, and exoplanet atmospheres.",
+  "validate": "llm",
+  "category": "text_summarisation",
+  "source": "practice-04"
+ },
+ {
+  "task_id": "np5",
+  "prompt": "Extract all named entities and their types from: Maria Sanchez joined Fireworks AI in Berlin last March.",
+  "expected": "Maria Sanchez = PERSON; Fireworks AI = ORGANISATION; Berlin = LOCATION; last March = DATE.",
+  "validate": "llm",
+  "category": "named_entity_recognition",
+  "source": "practice-05"
+ },
+ {
+  "task_id": "cdp6",
+  "prompt": "This function should return the max of a list but has a bug: def get_max(nums): return nums[0]. Find and fix it.",
+  "expected": "The bug: it returns the first element instead of the maximum. Fix: def get_max(nums): return max(nums) (or iterate tracking the largest).",
+  "validate": "llm",
+  "category": "code_debugging",
+  "source": "practice-06"
+ },
+ {
+  "task_id": "lp7",
+  "prompt": "Three friends, Sam, Jo, and Lee, each own a different pet: cat, dog, bird. Sam does not own the bird. Jo owns the dog. Who owns the cat?",
+  "expected": "Sam owns the cat. (Jo owns the dog, Sam does not own the bird so Sam owns the cat, leaving Lee with the bird.)",
+  "validate": "llm",
+  "category": "logical_deductive_reasoning",
+  "source": "practice-07"
+ },
+ {
+  "task_id": "cgp8",
+  "prompt": "Write a Python function that returns the second-largest number in a list, handling duplicates correctly.",
+  "expected": "A function that returns the second-largest DISTINCT value, e.g. def second_largest(nums): u=sorted(set(nums)); return u[-2] if len(u)>=2 else None.",
+  "validate": "llm",
+  "category": "code_generation",
+  "source": "practice-08"
+ }
+]

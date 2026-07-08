@@ -1,0 +1,49 @@
+{
+  "total": 40,
+  "passed": 38,
+  "failed": 0,
+  "pass_rate": 0.95,
+  "results": null,
+  "by_category": {
+    "code_debugging": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    },
+    "code_generation": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    },
+    "factual": {
+      "total": 5,
+      "passed": 4,
+      "pass_rate": 0.8
+    },
+    "logical_reasoning": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    },
+    "maths": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    },
+    "ner": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    },
+    "sentiment": {
+      "total": 5,
+      "passed": 4,
+      "pass_rate": 0.8
+    },
+    "summarisation": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1
+    }
+  }
+}

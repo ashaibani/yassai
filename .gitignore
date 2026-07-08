@@ -1,0 +1,9 @@
+bin/
+inspo/
+lib/
+.DS_Store
+
+# Runtime-generated agent memory. The store writes a clean empty index on demand
+# (see internal/memory/store.go DefaultIndex); never seed or commit it.
+MEMORY.md
+memories/

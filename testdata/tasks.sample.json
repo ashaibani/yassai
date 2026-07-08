@@ -1,0 +1,4 @@
+[
+  {"task_id":"s1","prompt":"Classify the sentiment of \"I loved this excellent product\". Return only the label."},
+  {"task_id":"m1","prompt":"What is 17 * 23? Return only the number."}
+]

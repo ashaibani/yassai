@@ -1,0 +1,16 @@
+.git
+.DS_Store
+bin
+/output
+/input
+*.log
+.env
+.env.*
+eval-results
+lib
+# Large / irrelevant to the image build (only ./cmd/agent is compiled).
+inspo
+.github
+# Never ship seeded/host-generated agent memory into the build context.
+MEMORY.md
+memories/

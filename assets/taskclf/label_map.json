@@ -1,0 +1,10 @@
+[
+  "factual_knowledge",
+  "mathematical_reasoning",
+  "sentiment_classification",
+  "text_summarisation",
+  "named_entity_recognition",
+  "code_debugging",
+  "logical_deductive_reasoning",
+  "code_generation"
+]

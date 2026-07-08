@@ -1,0 +1,116 @@
+package agent
+
+import (
+	"time"
+
+	"github.com/ashaibani/yassai/internal/agenttypes"
+)
+
+type Task = agenttypes.Task
+
+type Result = agenttypes.Result
+
+type Config struct {
+	APIKey           string
+	BaseURL          string
+	AllowedModels    []string
+	PreferredModel   string
+	MaxBatchSize     int
+	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default); packs tasks to amortise fixed prompt overhead
+	MaxConcurrency   int                 // max parallel batch solving (0 = sequential)
+	ReasoningEffort  string              // "", "low", "medium", "high", "xhigh"; "" = adaptive by category (see effortForTask)
+	Categories       map[string][]string // optional task_id -> categories override (eval); nil = classify at runtime
+	DisableHints     bool                // if true, skip category technique-hint injection (for eval A/B)
+	MaxContextTokens int
+	MemoryRoot       string
+	SkillRoots       []string
+	Timeout          time.Duration
+	ClassifierDir    string // artefact dir (onnx_config.json, vocab.txt, model); empty disables
+	ClassifierLib    string // path to libonnxruntime (or via ONNXRUNTIME_LIB)
+
+	// EffortTierMap overrides the default per-category reasoning effort.
+	// nil = use the built-in map (only logical_deductive_reasoning -> xhigh).
+	// Empty map = all categories use "low" effort.
+	EffortTierMap map[string]string
+
+	// ModelRouteMap routes specific categories to a different model.
+	// nil/empty = use the single PreferredModel for all categories.
+	// e.g. {"code_generation": "accounts/fireworks/models/kimi-k2p7-code"}
+	ModelRouteMap map[string]string
+}
+
+type CallRecord struct {
+	Turn             int       `json:"turn"`
+	Timestamp        time.Time `json:"timestamp"`
+	LatencyMS        int64     `json:"latency_ms"`
+	PromptTokens     int       `json:"prompt_tokens"`
+	CompletionTokens int       `json:"completion_tokens"`
+	TotalTokens      int       `json:"total_tokens"`
+	CachedTokens     int       `json:"cached_tokens"`
+	ReasoningTokens  int       `json:"reasoning_tokens"`
+	BatchSize        int       `json:"batch_size"`
+	OutputChars      int       `json:"output_chars"`
+	TaskIDs          []string  `json:"task_ids"`
+	Error            string    `json:"error,omitempty"`
+}
+
+type Metrics struct {
+	Model           string       `json:"model"`
+	Calls           int          `json:"calls"`
+	PromptTokens    int          `json:"prompt_tokens"`
+	OutputTokens    int          `json:"output_tokens"`
+	TotalTokens     int          `json:"total_tokens"`
+	CachedTokens    int          `json:"cached_tokens"`
+	ReasoningTokens int          `json:"reasoning_tokens"`
+	ToolRuns        int          `json:"tool_runs"`
+	BatchCount      int          `json:"batch_count"`
+	Fallbacks       int          `json:"fallbacks"`
+	StartedAt       time.Time    `json:"started_at"`
+	FinishedAt      time.Time    `json:"finished_at"`
+	DurationMS      int64        `json:"duration_ms"`
+	BatchSummaries  []BatchRun   `json:"batch_summaries,omitempty"`
+	CallRecords     []CallRecord `json:"call_records,omitempty"`
+}
+
+type BatchRun struct {
+	TaskIDs []string `json:"task_ids"`
+	Calls   int      `json:"calls"`
+	Tools   int      `json:"tools"`
+	Error   string   `json:"error,omitempty"`
+}
+
+// RoutingConfig is the serialisable view of the routing maps used by the demo API.
+type RoutingConfig struct {
+	EffortTierMap map[string]string `json:"effort_tier_map"`
+	ModelRouteMap map[string]string `json:"model_route_map"`
+	DefaultModel  string            `json:"default_model"`
+}
+
+// DefaultEffortTier returns the built-in default effort tier map.
+func DefaultEffortTier() map[string]string {
+	return map[string]string{
+		"logical_deductive_reasoning": "xhigh",
+		"code_debugging":              "xhigh",
+		"code_generation":             "xhigh",
+	}
+}
+
+// DefaultModelRouteMap returns the built-in default model routing map, filtered
+// to only include models that are actually in the allowed list. If kimi-k2p7-code
+// is available, code_debugging and code_generation are routed to it.
+func DefaultModelRouteMap(allowedModels []string) map[string]string {
+	hasKimi := false
+	for _, m := range allowedModels {
+		if m == "accounts/fireworks/models/kimi-k2p7-code" {
+			hasKimi = true
+			break
+		}
+	}
+	if !hasKimi {
+		return map[string]string{}
+	}
+	return map[string]string{
+		"code_debugging":  "accounts/fireworks/models/kimi-k2p7-code",
+		"code_generation": "accounts/fireworks/models/kimi-k2p7-code",
+	}
+}
