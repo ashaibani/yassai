@@ -80,28 +80,32 @@ func TestPlanBatchesMathBatchSize(t *testing.T) {
 	}
 }
 
-func TestPlanBatchesIsolatesCodeDebugging(t *testing.T) {
+func TestPlanBatchesIsolatesLogic(t *testing.T) {
+	// Focus isolation (the default) keeps logic in its own code-exec batch,
+	// separate from the direct categories. NER/debugging now merge into the
+	// direct batch (they run reliably at effort "none" via python3), so logic
+	// is the only isolated category.
 	tasks := []Task{
 		{TaskID: "F", Prompt: "What is RAM?"},
-		{TaskID: "D", Prompt: "Find the bug in this function."},
+		{TaskID: "L", Prompt: "Who owns which pet given these clues?"},
 		{TaskID: "S", Prompt: "Summarize this."},
 	}
 	cats := map[string][]string{
 		"F": {"factual_knowledge"},
-		"D": {"code_debugging"},
+		"L": {"logical_deductive_reasoning"},
 		"S": {"text_summarisation"},
 	}
-	ag, err := New(Config{MaxBatchSize: 40, ReasoningEffort: "none", Categories: cats})
+	ag, err := New(Config{MaxBatchSize: 40, BatchIsolation: "focus", ReasoningEffort: "none", Categories: cats})
 	if err != nil {
 		t.Fatal(err)
 	}
 	ag.categories = cats
 	batches := ag.planBatches(tasks)
 	if len(batches) != 2 {
-		t.Fatalf("want 2 batches (general + code-debug), got %d %#v", len(batches), batches)
+		t.Fatalf("want 2 batches (direct + logic), got %d %#v", len(batches), batches)
 	}
-	if len(batches[1]) != 1 || batches[1][0].TaskID != "D" {
-		t.Fatalf("code-debug task should be isolated in its own batch, got %#v", batches)
+	if len(batches[1]) != 1 || batches[1][0].TaskID != "L" {
+		t.Fatalf("logic task should be isolated in its own batch, got %#v", batches)
 	}
 }
 
@@ -109,11 +113,12 @@ func TestBatchIsolationModes(t *testing.T) {
 	for _, tc := range []struct {
 		mode, cat, want string
 	}{
-		{"focus", "code_debugging", "code_debugging"},
+		{"focus", "logical_deductive_reasoning", "logical_deductive_reasoning"},
+		{"focus", "code_debugging", ""},
 		{"focus", "mathematical_reasoning", ""},
 		{"math", "mathematical_reasoning", "mathematical_reasoning"},
 		{"math", "named_entity_recognition", ""},
-		{"none", "code_debugging", ""},
+		{"none", "logical_deductive_reasoning", ""},
 	} {
 		if got := batchIsolationFocus(tc.mode, tc.cat); got != tc.want {
 			t.Errorf("mode=%q cat=%q: got %q want %q", tc.mode, tc.cat, got, tc.want)
@@ -121,19 +126,21 @@ func TestBatchIsolationModes(t *testing.T) {
 	}
 }
 
-func TestLeanEffortKeepsMathOnLow(t *testing.T) {
+func TestLeanEffortMathIsNone(t *testing.T) {
+	// Maths and logic are solved via a run_python tool call, so the executed
+	// code does the reasoning and the model runs at effort "none" (reasoning
+	// tokens are the biggest cost lever). Every category is "none".
 	tiers := LeanEffortTiers()
-	if tiers["mathematical_reasoning"] != "low" {
-		t.Fatalf("math effort should stay low for reliable tool code, got %q", tiers["mathematical_reasoning"])
-	}
-	if tiers["factual_knowledge"] != "none" {
-		t.Fatalf("factual effort should stay token-lean, got %q", tiers["factual_knowledge"])
+	for _, cat := range []string{"mathematical_reasoning", "logical_deductive_reasoning", "factual_knowledge"} {
+		if tiers[cat] != "none" {
+			t.Fatalf("%s effort should be none, got %q", cat, tiers[cat])
+		}
 	}
 }
 
 func TestMathRecipeRequiresSubsetAndTimeChecks(t *testing.T) {
 	recipe := categoryRecipe["mathematical_reasoning"]
-	for _, want := range []string{"assert len(subset)==K", "preserve exact times incl seconds", "NEVER store rounded rates", "include raw average used"} {
+	for _, want := range []string{"assert len(subset)==K", "preserve exact times incl seconds", "NEVER store rounded rates", "include the raw average used"} {
 		if !strings.Contains(recipe, want) {
 			t.Fatalf("math recipe missing %q: %s", want, recipe)
 		}
