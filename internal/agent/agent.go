@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ashaibani/yassai/internal/contextmgr"
@@ -25,18 +26,28 @@ type Agent struct {
 	ctx        contextmgr.Manager
 	memory     *memory.Store
 	skills     *skills.Loader
-	clf        *taskclf.Classifier // task-type classifier; nil if unavailable
-	categories map[string][]string // task_id -> predicted categories (best-effort)
+	clf        *taskclf.Classifier
+	categories map[string][]string
 	metrics    Metrics
-	mu         sync.Mutex // protects metrics during concurrent batch solving
+	mu         sync.Mutex
 }
 
 func New(cfg Config) (*Agent, error) {
 	if cfg.MaxBatchSize <= 0 {
-		cfg.MaxBatchSize = 20
+		cfg.MaxBatchSize = 4
+	}
+	if cfg.MaxBatchSize > 6 {
+		// Keep batches small enough that one model turn can submit everything.
+		cfg.MaxBatchSize = 6
+	}
+	if cfg.MaxTurns <= 0 {
+		cfg.MaxTurns = 4
+	}
+	if cfg.MaxConcurrency <= 0 {
+		cfg.MaxConcurrency = 2
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = 120 * time.Second
+		cfg.Timeout = 90 * time.Second
 	}
 	model := chooseModel(cfg.AllowedModels, cfg.PreferredModel)
 	ag := &Agent{
@@ -49,9 +60,6 @@ func New(cfg Config) (*Agent, error) {
 	if strings.TrimSpace(cfg.APIKey) != "" {
 		ag.llm = llm.New(llm.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: model, Timeout: cfg.Timeout})
 	}
-
-	// Task-type classifier is best-effort: if it can't load (missing model or
-	// ONNX runtime), log and continue so the agent behaves exactly as before.
 	if dir := strings.TrimSpace(cfg.ClassifierDir); dir != "" {
 		if clf, cerr := taskclf.New(dir, "", cfg.ClassifierLib); cerr != nil {
 			fmt.Fprintln(os.Stderr, "task classifier disabled:", cerr)
@@ -62,8 +70,6 @@ func New(cfg Config) (*Agent, error) {
 	return ag, nil
 }
 
-// classifyTasks predicts capability categories for each task (best-effort).
-// Returns nil if the classifier is unavailable; per-task failures are skipped.
 func (a *Agent) classifyTasks(tasks []Task) map[string][]string {
 	if a.clf == nil {
 		return nil
@@ -73,7 +79,7 @@ func (a *Agent) classifyTasks(tasks []Task) map[string][]string {
 	for _, t := range tasks {
 		preds, err := a.clf.Classify(t.Prompt)
 		if err != nil {
-			if !loggedErr { // surface inference failures instead of silently degrading to no categories
+			if !loggedErr {
 				fmt.Fprintln(os.Stderr, "task classifier inference failed:", err)
 				loggedErr = true
 			}
@@ -88,118 +94,231 @@ func (a *Agent) classifyTasks(tasks []Task) map[string][]string {
 	return out
 }
 
+// Solve answers every task under the parent context deadline. Batches run with
+// bounded concurrency; each batch has its own MicroPython executor and a local
+// deadline so one slow batch cannot starve the rest of the 10-minute budget.
 func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, error) {
 	a.metrics = Metrics{Model: a.model, StartedAt: time.Now()}
 	answers := make(map[string]string, len(tasks))
-	pending := make([]Task, 0, len(tasks))
-	if !a.cfg.DisableLocal {
-		for _, task := range tasks {
-			if answer, ok := trySolveLocal(task); ok {
-				answers[task.TaskID] = answer
-				a.metrics.LocalAnswers++
-				continue
-			}
-			pending = append(pending, task)
-		}
-	} else {
-		pending = append([]Task(nil), tasks...)
-	}
 
-	if len(pending) > 0 && a.llm == nil {
+	if len(tasks) == 0 {
+		a.metrics.FinishedAt = time.Now()
+		return nil, a.metrics, nil
+	}
+	if a.llm == nil {
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required")
 	}
 
-	// Categories drive adaptive reasoning + technique hints. Use supplied
-	// categories if provided (eval), else classify once up front (best-effort).
 	if a.cfg.Categories != nil {
 		a.categories = a.cfg.Categories
 	} else {
-		a.categories = a.classifyTasks(pending)
+		a.categories = a.classifyTasks(tasks)
 	}
 
-	batches := a.planBatches(pending)
+	batches := a.planBatches(tasks)
 	a.metrics.Classifications = a.categories
 	a.metrics.BatchPlan = a.batchPlanRecords(batches)
+
 	maxConcurrent := a.cfg.MaxConcurrency
 	if maxConcurrent <= 0 {
-		maxConcurrent = 1
+		maxConcurrent = 2
 	}
 	if maxConcurrent > len(batches) {
 		maxConcurrent = len(batches)
 	}
+
 	type batchResult struct {
 		index   int
 		answers map[string]string
 		run     BatchRun
 	}
-	sem := make(chan struct{}, maxConcurrent)
-	resultsCh := make(chan batchResult, len(batches))
-	var wg sync.WaitGroup
+
+	// Shared deadline budget: leave a small tail so results can still be written.
+	deadline, hasDeadline := ctx.Deadline()
+	globalRemaining := func() time.Duration {
+		if !hasDeadline {
+			return 8 * time.Minute
+		}
+		left := time.Until(deadline) - 20*time.Second
+		if left < 0 {
+			return 0
+		}
+		return left
+	}
+
+	var (
+		wg      sync.WaitGroup
+		sem     = make(chan struct{}, maxConcurrent)
+		results = make([]batchResult, len(batches))
+		stopped atomic.Bool
+	)
+
 	for i, batch := range batches {
+		if stopped.Load() || ctx.Err() != nil {
+			// Mark remaining batches as timed out without launching more work.
+			for j := i; j < len(batches); j++ {
+				results[j] = batchResult{
+					index:   j,
+					answers: map[string]string{},
+					run:     BatchRun{TaskIDs: taskIDs(batches[j]), Error: "skipped: parent context deadline"},
+				}
+			}
+			break
+		}
+
 		wg.Add(1)
 		go func(idx int, b []Task) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			exec, err := micropy.New(micropy.Config{Timeout: 20 * time.Second, MemoryBytes: 16 * 1024 * 1024})
-			if err != nil {
-				resultsCh <- batchResult{index: idx, answers: map[string]string{}, run: BatchRun{TaskIDs: taskIDs(b), Error: err.Error()}}
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results[idx] = batchResult{
+					index:   idx,
+					answers: map[string]string{},
+					run:     BatchRun{TaskIDs: taskIDs(b), Error: ctx.Err().Error()},
+				}
 				return
 			}
-			batchAnswers, run := a.solveBatchWithRecovery(ctx, exec, b)
-			resultsCh <- batchResult{index: idx, answers: batchAnswers, run: run}
+			defer func() { <-sem }()
+
+			// Per-batch budget: share remaining time fairly, but never take more
+			// than 3 minutes or less than 45s when anything remains.
+			remaining := globalRemaining()
+			if remaining <= 0 {
+				stopped.Store(true)
+				results[idx] = batchResult{
+					index:   idx,
+					answers: map[string]string{},
+					run:     BatchRun{TaskIDs: taskIDs(b), Error: "batch skipped: no time remaining"},
+				}
+				return
+			}
+			batchBudget := remaining
+			if maxConcurrent > 1 {
+				// Rough share for in-flight work; still allow a healthy single-batch budget.
+				share := remaining
+				if nLeft := len(batches) - idx; nLeft > 0 {
+					share = remaining * time.Duration(maxConcurrent) / time.Duration(nLeft)
+				}
+				if share < batchBudget {
+					batchBudget = share
+				}
+			}
+			if batchBudget > 3*time.Minute {
+				batchBudget = 3 * time.Minute
+			}
+			if batchBudget < 45*time.Second && remaining >= 45*time.Second {
+				batchBudget = 45 * time.Second
+			}
+
+			batchCtx, cancel := context.WithTimeout(ctx, batchBudget)
+			defer cancel()
+
+			exec, err := micropy.New(micropy.Config{Timeout: 15 * time.Second, MemoryBytes: 16 * 1024 * 1024})
+			if err != nil {
+				results[idx] = batchResult{
+					index:   idx,
+					answers: map[string]string{},
+					run:     BatchRun{TaskIDs: taskIDs(b), Error: err.Error()},
+				}
+				return
+			}
+			exec.SetExpectedTasks(taskIDs(b))
+
+			batchAnswers, run := a.solveBatchWithRecovery(batchCtx, exec, b)
+			results[idx] = batchResult{index: idx, answers: batchAnswers, run: run}
 		}(i, batch)
 	}
 	wg.Wait()
-	close(resultsCh)
-	orderedResults := make([]batchResult, len(batches))
-	for br := range resultsCh {
-		orderedResults[br.index] = br
-	}
-	for _, br := range orderedResults {
+
+	for _, br := range results {
 		a.metrics.BatchSummaries = append(a.metrics.BatchSummaries, br.run)
 		for id, answer := range br.answers {
-			answers[id] = answer
+			if strings.TrimSpace(answer) != "" {
+				answers[id] = answer
+			}
 		}
 	}
 
-	results := make([]Result, 0, len(tasks))
+	out := make([]Result, 0, len(tasks))
 	for _, task := range tasks {
 		answer := strings.TrimSpace(answers[task.TaskID])
 		if answer == "" {
-			answer = "I do not have enough information to answer confidently."
+			answer = "Unable to produce a confident answer within the time budget."
 			a.metrics.Fallbacks++
 		}
-		results = append(results, Result{TaskID: task.TaskID, Answer: answer})
+		out = append(out, Result{TaskID: task.TaskID, Answer: answer})
 	}
 	a.metrics.FinishedAt = time.Now()
 	a.metrics.DurationMS = a.metrics.FinishedAt.Sub(a.metrics.StartedAt).Milliseconds()
-	return results, a.metrics, nil
+	return out, a.metrics, nil
 }
 
 func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
+	if ctx.Err() != nil {
+		run.Error = ctx.Err().Error()
+		return map[string]string{}, run
+	}
+
 	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
 	run.Calls = calls
 	run.Tools = tools
-	if err == nil {
+	if err == nil && completeAnswers(answers, batch) {
 		return answers, run
 	}
-	run.Error = err.Error()
-	if len(batch) == 1 {
-		a.metrics.Fallbacks++
-		return map[string]string{batch[0].TaskID: fallbackAnswer(batch[0], err)}, run
+	if err != nil {
+		run.Error = err.Error()
+	} else {
+		run.Error = fmt.Sprintf("incomplete batch answers (%d/%d)", len(answers), len(batch))
 	}
 
-	mid := len(batch) / 2
-	left, leftRun := a.solveBatchWithRecovery(ctx, exec, batch[:mid])
-	right, rightRun := a.solveBatchWithRecovery(ctx, exec, batch[mid:])
-	merged := map[string]string{}
+	// Keep any partial answers already produced.
+	merged := cloneAnswerMap(answers)
+
+	if len(batch) == 1 {
+		if strings.TrimSpace(merged[batch[0].TaskID]) == "" {
+			a.mu.Lock()
+			a.metrics.Fallbacks++
+			a.mu.Unlock()
+			merged[batch[0].TaskID] = fallbackAnswer(batch[0], err)
+		}
+		return merged, run
+	}
+
+	// Prefer splitting only the missing tasks so partial work is not discarded.
+	missing := missingTasks(batch, merged)
+	if len(missing) == 0 {
+		return merged, run
+	}
+	if len(missing) == 1 || ctx.Err() != nil {
+		// Single missing task or no time: solve missing only (or fall back).
+		sub, subRun := a.solveBatchWithRecovery(ctx, exec, missing)
+		for k, v := range sub {
+			if strings.TrimSpace(v) != "" {
+				merged[k] = v
+			}
+		}
+		run.Calls += subRun.Calls
+		run.Tools += subRun.Tools
+		if subRun.Error != "" {
+			run.Error = subRun.Error
+		}
+		return merged, run
+	}
+
+	mid := len(missing) / 2
+	left, leftRun := a.solveBatchWithRecovery(ctx, exec, missing[:mid])
+	right, rightRun := a.solveBatchWithRecovery(ctx, exec, missing[mid:])
 	for k, v := range left {
-		merged[k] = v
+		if strings.TrimSpace(v) != "" {
+			merged[k] = v
+		}
 	}
 	for k, v := range right {
-		merged[k] = v
+		if strings.TrimSpace(v) != "" {
+			merged[k] = v
+		}
 	}
 	run.Calls += leftRun.Calls + rightRun.Calls
 	run.Tools += leftRun.Tools + rightRun.Tools
@@ -207,13 +326,18 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *micropy.Execut
 }
 
 func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, int, int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, 0, err
+	}
 	a.mu.Lock()
 	a.metrics.BatchCount++
 	a.mu.Unlock()
+
 	exec.ResetSubmit()
+	exec.SetExpectedTasks(taskIDs(batch))
 	sessionID := "batch-" + strings.Join(taskIDs(batch), "-")
 
-	sys := systemPrompt()
+	sys := systemPrompt(batch)
 	if g := a.categoryGuidance(batch); g != "" {
 		sys += "\n\nTechnique hints for these task types:\n" + g
 	}
@@ -222,9 +346,11 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		{Role: "system", Content: sys},
 		{Role: "user", Content: taskJSON},
 	}
+
 	var calls int
 	var tools int
 	var lastText string
+	var partial map[string]string
 	effort := a.effortForBatch(batch)
 	batchModel := a.model
 	if len(batch) > 0 {
@@ -235,7 +361,19 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		llmClient = llm.New(llm.Config{APIKey: a.cfg.APIKey, BaseURL: a.cfg.BaseURL, Model: batchModel, Timeout: a.cfg.Timeout})
 	}
 
-	for turn := 0; ; turn++ {
+	maxTurns := a.cfg.MaxTurns
+	if maxTurns <= 0 {
+		maxTurns = 4
+	}
+
+	for turn := 0; turn < maxTurns; turn++ {
+		if err := ctx.Err(); err != nil {
+			if completeAnswers(partial, batch) {
+				return partial, calls, tools, nil
+			}
+			return partial, calls, tools, err
+		}
+
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
 		chat, err := llmClient.ChatDetailed(ctx, messages, maxTokens, effort)
@@ -243,7 +381,10 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		callDur := time.Since(callStart)
 		if err != nil {
 			a.recordCall(batch, turn, callStart, callDur, usage, "", chat.ReasoningContent, batchModel, effort, maxTokens, messages, err)
-			return nil, calls, tools, err
+			if completeAnswers(partial, batch) {
+				return partial, calls, tools, nil
+			}
+			return partial, calls, tools, err
 		}
 		calls++
 		a.mu.Lock()
@@ -257,58 +398,135 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		lastText = strings.TrimSpace(text)
 		a.recordCall(batch, turn, callStart, callDur, usage, lastText, chat.ReasoningContent, batchModel, effort, maxTokens, messages, nil)
 
-		// Check if the model called submit() during code execution.
-		if exec.IsSubmitted() {
-			return exec.SubmitResult(), calls, tools, nil
-		}
-
-		// If the model hit max_tokens without producing output, the batch is
-		// too large for the token budget. Return an error so
-		// solveBatchWithRecovery splits it in half.
-		if lastText == "" && usage.CompletionTokens >= maxTokens*9/10 {
-			return nil, calls, tools, fmt.Errorf("batch truncated at max_tokens=%d (completion=%d), needs split", maxTokens, usage.CompletionTokens)
-		}
-
+		// Prefer code-action path first (submit / tools).
 		blocks := markdown.ExtractActionBlocks(lastText)
-		if len(blocks) == 0 {
-			// No code blocks. Try to parse as JSON (backward compat for models
-			// that return answers directly without calling submit()).
-			if answers, ok := parseAnswers(lastText, batch); ok {
-				return answers, calls, tools, nil
+		if len(blocks) > 0 {
+			observations := make([]map[string]any, 0, len(blocks))
+			toolTraces := make([]ToolTrace, 0, len(blocks))
+			for i, block := range blocks {
+				if err := ctx.Err(); err != nil {
+					break
+				}
+				res, runErr := exec.Run(ctx, sessionID, block.Code, map[string]any{
+					"tasks":    tasksAsMaps(batch),
+					"task_ids": taskIDs(batch),
+				})
+				tools++
+				a.mu.Lock()
+				a.metrics.ToolRuns++
+				a.mu.Unlock()
+				obs := map[string]any{"index": i, "stdout": res.Stdout, "json": res.JSON, "value": res.Value}
+				if runErr != nil {
+					obs["error"] = runErr.Error()
+				}
+				observations = append(observations, obs)
+				tt := ToolTrace{Index: i, Code: block.Code, Stdout: res.Stdout, JSON: res.JSON}
+				if runErr != nil {
+					tt.Error = runErr.Error()
+				}
+				toolTraces = append(toolTraces, tt)
+
+				if exec.IsSubmitted() {
+					submitted := exec.SubmitResult()
+					partial = mergeAnswers(partial, submitted)
+					a.appendToolTraces(batch, turn, toolTraces)
+					if completeAnswers(submitted, batch) {
+						return submitted, calls, tools, nil
+					}
+					// Incomplete submit: keep partials and continue / split later.
+					return submitted, calls, tools, fmt.Errorf("submit incomplete (%d/%d)", len(submitted), len(batch))
+				}
 			}
-			// Ask the model to use the action space.
+			a.appendToolTraces(batch, turn, toolTraces)
+
+			// No submit: try to salvage answers from assistant text / observations.
+			if answers, ok := parseAnswers(lastText, batch); ok {
+				partial = mergeAnswers(partial, answers)
+				if completeAnswers(answers, batch) {
+					return answers, calls, tools, nil
+				}
+			}
+
+			if turn == maxTurns-1 {
+				if completeAnswers(partial, batch) {
+					return partial, calls, tools, nil
+				}
+				if len(batch) == 1 && lastText != "" {
+					return map[string]string{batch[0].TaskID: lastText}, calls, tools, nil
+				}
+				return partial, calls, tools, fmt.Errorf("max turns reached without complete answers")
+			}
+
+			obsBytes, _ := json.Marshal(observations)
 			messages = append(messages,
-				llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
-				llm.Message{Role: "user", Content: "Use the action space. Emit a micropy code block that computes any needed answers and calls submit(answers=[...]). Do not return raw JSON."},
+				llm.Message{Role: "assistant", Content: lastText},
+				llm.Message{Role: "user", Content: "Observation: " + string(obsBytes) + "\n" + nextStepPrompt(batch)},
 			)
 			continue
 		}
 
-		observations := make([]map[string]any, 0, len(blocks))
-		for i, block := range blocks {
-			res, err := exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
-			tools++
-			a.mu.Lock()
-			a.metrics.ToolRuns++
-			a.mu.Unlock()
-			obs := map[string]any{"index": i, "stdout": res.Stdout, "json": res.JSON, "value": res.Value}
-			if err != nil {
-				obs["error"] = err.Error()
+		// No code blocks: accept complete JSON/prose answers (token-efficient path).
+		if answers, ok := parseAnswers(lastText, batch); ok {
+			partial = mergeAnswers(partial, answers)
+			if completeAnswers(answers, batch) {
+				return answers, calls, tools, nil
 			}
-			observations = append(observations, obs)
+			// Partial JSON for multi-task batches: split rather than burn turns.
+			if len(batch) > 1 {
+				return answers, calls, tools, fmt.Errorf("partial answers (%d/%d)", len(answers), len(batch))
+			}
 		}
 
-		// Check if submit() was called during this round of code execution.
-		if exec.IsSubmitted() {
-			return exec.SubmitResult(), calls, tools, nil
+		if lastText == "" && usage.CompletionTokens >= maxTokens*9/10 {
+			return partial, calls, tools, fmt.Errorf("batch truncated at max_tokens=%d (completion=%d), needs split", maxTokens, usage.CompletionTokens)
 		}
 
-		obsBytes, _ := json.Marshal(observations)
+		if turn == maxTurns-1 {
+			if completeAnswers(partial, batch) {
+				return partial, calls, tools, nil
+			}
+			if len(batch) == 1 && lastText != "" {
+				return map[string]string{batch[0].TaskID: lastText}, calls, tools, nil
+			}
+			return partial, calls, tools, fmt.Errorf("max turns reached without complete answers")
+		}
+
 		messages = append(messages,
-			llm.Message{Role: "assistant", Content: lastText},
-			llm.Message{Role: "user", Content: "Observation: " + string(obsBytes) + "\nIf you have all answers, call submit(answers=[{...}]). Otherwise emit more code."},
+			llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
+			llm.Message{Role: "user", Content: nextStepPrompt(batch)},
 		)
 	}
+	return partial, calls, tools, fmt.Errorf("max turns reached without complete answers")
+}
+
+func nextStepPrompt(batch []Task) string {
+	ids := strings.Join(taskIDs(batch), ", ")
+	if needsCode(batch) {
+		return "You must finish by submitting answers for EVERY task (" + ids + "). Emit a python/micropy code block that computes what is needed and ends with submit(answers=[{'task_id':'...','answer':'...'}, ...])."
+	}
+	return "Provide final answers for EVERY task (" + ids + "). Preferred: emit a python/micropy code block ending with submit(answers=[...]). Alternatively return only JSON: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}, ...]}."
+}
+
+func needsCode(batch []Task) bool {
+	// Heuristic: multi-step numeric / code / puzzle wording benefits from tools.
+	for _, t := range batch {
+		p := strings.ToLower(t.Prompt)
+		if strings.Contains(p, "python") || strings.Contains(p, "function") ||
+			strings.Contains(p, "calculate") || strings.Contains(p, "how many") ||
+			strings.Contains(p, "bug") || strings.Contains(p, "clues") ||
+			strings.Contains(p, "write a") {
+			return true
+		}
+	}
+	return false
+}
+
+func tasksAsMaps(batch []Task) []map[string]string {
+	out := make([]map[string]string, len(batch))
+	for i, t := range batch {
+		out[i] = map[string]string{"task_id": t.TaskID, "prompt": t.Prompt}
+	}
+	return out
 }
 
 func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Duration, usage llm.Usage, output, reasoning, model, effort string, maxTokens int, messages []llm.Message, err error) {
@@ -327,14 +545,14 @@ func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Dur
 		Model:            model,
 		Effort:           effort,
 		MaxTokens:        maxTokens,
+		AssistantMessage: truncateTrace(output, 32000),
+		ReasoningContent: truncateTrace(reasoning, 32000),
 	}
 	if err != nil {
 		rec.Error = err.Error()
 	}
 	if a.cfg.TraceMessages {
 		rec.Messages = cloneMessages(messages)
-		rec.AssistantMessage = output
-		rec.ReasoningContent = reasoning
 	}
 	a.mu.Lock()
 	a.metrics.CallRecords = append(a.metrics.CallRecords, rec)
@@ -345,6 +563,34 @@ func cloneMessages(messages []llm.Message) []llm.Message {
 	out := make([]llm.Message, len(messages))
 	copy(out, messages)
 	return out
+}
+
+func (a *Agent) appendToolTraces(batch []Task, turn int, traces []ToolTrace) {
+	if len(traces) == 0 {
+		return
+	}
+	ids := taskIDs(batch)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i := len(a.metrics.CallRecords) - 1; i >= 0; i-- {
+		rec := &a.metrics.CallRecords[i]
+		if rec.Turn == turn && stringSliceEqual(rec.TaskIDs, ids) {
+			rec.ToolTraces = traces
+			return
+		}
+	}
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func taskText(tasks []Task) string {
@@ -358,26 +604,40 @@ func taskText(tasks []Task) string {
 	return b.String()
 }
 
-func systemPrompt() string {
-	parts := []string{
-		"You are a precise task-solving agent. Solve each task, then submit your answers through the action space.",
-		"\nACTION SPACE:\n- submit(answers=[{'task_id':'...','answer':'...'}, ...]) - submit final answers for ALL tasks. Call this exactly once when done.\n- sh.run(command='python3 -c \"...\"') - run shell commands (python3 available)\n- fs.read/write/edit/list - file operations\n- web.fetch/search - web access\n- vars - persistent dict for storing intermediate results across code blocks\n\nRULES:\n1. For ANY computation (arithmetic, primes, factorials, counting, etc.), ALWAYS compute with code. Never reason mentally - you WILL get wrong answers.\n2. For factual/knowledge/language tasks, you may answer directly without code.\n3. Build answers in vars, then call submit() with the final list.\n4. Keep answers short and in the exact format each task requests.\n\nExample:\n```micropy\n# Compute and submit\nr = sh.run(command='python3 -c \"print(17*23)\"')\nanswer = r['output'].strip()\nsubmit(answers=[{'task_id':'t1','answer':answer}])\n```\n\nTasks to solve:",
-	}
-	return strings.Join(parts, "\n")
+func systemPrompt(batch []Task) string {
+	ids := strings.Join(taskIDs(batch), ", ")
+	return strings.Join([]string{
+		"You are a precise task-solving agent for a multi-capability benchmark.",
+		"You will receive one or more tasks. You must produce a non-empty answer for every task_id.",
+		"",
+		"HOW TO RETURN ANSWERS (pick one):",
+		"1) PREFERRED for computation/code/puzzles: emit a python or micropy fenced code block that ends with:",
+		"   submit(answers=[{'task_id':'T01','answer':'...'}, ...])",
+		"   Cover every task_id in this batch: " + ids,
+		"2) For pure knowledge/language tasks you may return ONLY this JSON (no prose outside it):",
+		"   {\"answers\":[{\"task_id\":\"T01\",\"answer\":\"...\"}, ...]}",
+		"",
+		"ACTION SPACE inside code blocks:",
+		"- submit(answers=[...])  REQUIRED to finish when using code",
+		"- sh.run(command='python3 -c \"...\"')  for real Python computation",
+		"- fs.read/write/edit/list, web.fetch/search, vars dict",
+		"",
+		"RULES:",
+		"1. Arithmetic, projections, train/meeting problems, and constraint puzzles: COMPUTE in code (sh.run python3), do not guess.",
+		"2. Keep answers short and match any format constraints (bullet count, sentence count, labels).",
+		"3. Never refuse. Always give your best complete answer for every task.",
+		"4. Do not invent task_ids. Use only: " + ids,
+	}, "\n")
 }
 
-// categoryHints are concise, category-specific techniques injected into the
-// system prompt only when a batch contains that category (so they cost tokens
-// only where they help). They favour LOCAL code execution (zero Fireworks
-// tokens) over prose where that is more reliable.
 var categoryHints = map[string]string{
-	"logical_deductive_reasoning": "Logical / constraint puzzles: solve them PROGRAMMATICALLY, not by prose (prose is error-prone). Emit a micropy block that enumerates the candidate assignments and keeps only those satisfying EVERY stated constraint - e.g. sh.run(command='python3 -c \"import itertools, json; ...\"'). Set result to the unique surviving assignment, then output the answer it proves.",
-	"mathematical_reasoning":      "Mathematical computation: ALWAYS compute with a micropy block, never reason mentally. Emit code that calculates the exact answer (primes, factorials, digit sums, modular arithmetic, sequences, etc.) and print the result as JSON. Mental arithmetic on non-trivial problems gives wrong answers.",
-	"named_entity_recognition":    "Named-entity recognition: be EXHAUSTIVE for the requested types (person, organisation, location, date). Read the whole text; do not miss trailing or adjectival entities. Label each entity with its type; never invent entities absent from the text; return exactly the requested format.",
+	"logical_deductive_reasoning": "Logical puzzles: enumerate assignments in python3 (itertools) and filter by every constraint, then submit the unique solution.",
+	"mathematical_reasoning":      "Math: compute with python3 via sh.run; print exact numbers; then submit.",
+	"named_entity_recognition":    "NER: list every PERSON/ORGANIZATION/LOCATION/DATE in the text; be exhaustive; no invented entities.",
+	"code_debugging":              "Code debug: state the bug briefly, then provide a complete corrected function.",
+	"code_generation":             "Code gen: provide a complete function with docstring matching the examples/edge cases.",
 }
 
-// categoryGuidance concatenates the hints for the distinct categories present in
-// a batch (per the classifier / supplied categories).
 func (a *Agent) categoryGuidance(batch []Task) string {
 	if a.cfg.DisableHints {
 		return ""
@@ -389,7 +649,13 @@ func (a *Agent) categoryGuidance(batch []Task) string {
 		}
 	}
 	var b strings.Builder
-	for _, c := range []string{"mathematical_reasoning", "logical_deductive_reasoning", "named_entity_recognition"} {
+	for _, c := range []string{
+		"mathematical_reasoning",
+		"logical_deductive_reasoning",
+		"named_entity_recognition",
+		"code_debugging",
+		"code_generation",
+	} {
 		if present[c] {
 			if b.Len() > 0 {
 				b.WriteByte('\n')
@@ -401,12 +667,8 @@ func (a *Agent) categoryGuidance(batch []Task) string {
 }
 
 func chooseModel(allowed []string, preferred string) string {
-	// ALLOWED_MODELS (injected by the harness at runtime) is the single source
-	// of truth for permitted models; we never hardcode a model ID. AGENT_MODEL
-	// pins a specific choice, honoured only when it is one of the permitted
-	// models; otherwise the first permitted model wins (list order is priority).
 	if len(allowed) == 0 {
-		return preferred // no allow-list (local dev only); "" if unset
+		return preferred
 	}
 	if preferred != "" {
 		for _, m := range allowed {
@@ -415,7 +677,6 @@ func chooseModel(allowed []string, preferred string) string {
 			}
 		}
 	}
-	// Prefer minimax-m3 as the default general-purpose model if present.
 	for _, m := range allowed {
 		if m == "accounts/fireworks/models/minimax-m3" {
 			return m
@@ -424,12 +685,6 @@ func chooseModel(allowed []string, preferred string) string {
 	return allowed[0]
 }
 
-// planBatches packs tasks into batches by estimated token budget so the large,
-// fixed per-call prompt overhead (system prompt + injected memory) is amortised
-// over as many tasks as safely fit, capped by MaxBatchSize. The prompt is ~90%+
-// of each call's tokens, so fewer, fuller batches cut total tokens sharply (see
-// docs/model-routing.md). solveBatchWithRecovery still halves a batch on failure,
-// so an over-packed batch self-heals.
 func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
 	out := make([]BatchPlanRecord, len(batches))
 	for i, b := range batches {
@@ -445,24 +700,20 @@ func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
 func (a *Agent) planBatches(tasks []Task) [][]Task {
 	maxTok := a.cfg.MaxBatchTokens
 	if maxTok <= 0 {
-		maxTok = 12000
+		maxTok = 8000
 	}
 	maxN := a.cfg.MaxBatchSize
 	if maxN <= 0 {
-		maxN = 40
+		maxN = 4
 	}
-	// Group by reasoning-effort tier so each batch is tier-homogeneous (one
-	// reasoning_effort fits all its tasks), then token-pack within each tier.
-	// With a fixed Config.ReasoningEffort every task shares one tier, so this
-	// collapses to a single group and packs exactly as before.
-	// Group by (effort, model) so each batch is both tier-homogeneous and
-	// model-homogeneous. With no model routing this collapses to effort-only grouping.
+	if maxN > 6 {
+		maxN = 6
+	}
+
 	byGroup := map[string][]Task{}
 	var groups []string
 	for _, t := range tasks {
-		e := a.effortForTask(t)
-		m := a.modelForTask(t)
-		key := e + "|" + m
+		key := a.effortForTask(t) + "|" + a.modelForTask(t)
 		if _, ok := byGroup[key]; !ok {
 			groups = append(groups, key)
 		}
@@ -473,7 +724,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 		var cur []Task
 		curTok := 0
 		for _, t := range byGroup[key] {
-			tk := estTokens(t.Prompt) + 16 // task text + per-task JSON overhead
+			tk := estTokens(t.Prompt) + 16
 			if len(cur) > 0 && (len(cur) >= maxN || curTok+tk > maxTok) {
 				batches = append(batches, cur)
 				cur, curTok = nil, 0
@@ -488,30 +739,24 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	return batches
 }
 
-// estTokens is a cheap chars/4 token estimate used only for batch packing.
 func estTokens(s string) int { return len(s)/4 + 1 }
 
-// effortTier elevates only the categories that empirically benefit from more
-// reasoning. On the real-task eval only logical (constraint puzzles) improved
-// with higher effort; every other category was already at ceiling on "low", so
-// raising them only burned tokens. Categories not listed default to "low".
-// See docs/model-routing.md.
 var effortTier = map[string]string{
-	"logical_deductive_reasoning": "xhigh",
+	"logical_deductive_reasoning": "high",
+	"code_debugging":              "medium",
+	"code_generation":             "medium",
+	"mathematical_reasoning":      "medium",
 }
 
 var tierRank = map[string]int{"low": 0, "medium": 1, "high": 2, "xhigh": 3}
 
-// effortForTask returns reasoning_effort for one task: an explicit
-// Config.ReasoningEffort override wins; otherwise the highest tier among the
-// task's predicted categories (default low).
 func (a *Agent) effortForTask(t Task) string {
 	if a.cfg.ReasoningEffort != "" {
 		return a.cfg.ReasoningEffort
 	}
 	tiers := a.cfg.EffortTierMap
 	if tiers == nil {
-		tiers = effortTier // built-in default
+		tiers = effortTier
 	}
 	best := "low"
 	for _, c := range a.categories[t.TaskID] {
@@ -522,8 +767,6 @@ func (a *Agent) effortForTask(t Task) string {
 	return best
 }
 
-// modelForTask returns the model to use for a task based on its categories.
-// If no routing map is set or no category matches, returns the default model.
 func (a *Agent) modelForTask(t Task) string {
 	if len(a.cfg.ModelRouteMap) == 0 {
 		return a.model
@@ -536,8 +779,6 @@ func (a *Agent) modelForTask(t Task) string {
 	return a.model
 }
 
-// effortForBatch returns the batch's reasoning_effort. planBatches makes batches
-// tier-homogeneous, so the first task's tier applies to the whole batch.
 func (a *Agent) effortForBatch(batch []Task) string {
 	if len(batch) == 0 {
 		return a.cfg.ReasoningEffort
@@ -545,21 +786,17 @@ func (a *Agent) effortForBatch(batch []Task) string {
 	return a.effortForTask(batch[0])
 }
 
-// maxTokensForBatch sizes the output budget by batch size AND reasoning tier:
-// higher effort needs far more room or the reasoning truncates and the batch
-// fails. Bounded per tier so a batch can't run away.
 func maxTokensForBatch(batch []Task, turn int, effort string) int {
-	perTask, ceil := 1200, 32000
+	perTask, ceil := 1000, 24000
 	switch effort {
 	case "medium":
-		perTask, ceil = 1600, 40000
+		perTask, ceil = 1400, 32000
 	case "high":
-		perTask, ceil = 2500, 48000
+		perTask, ceil = 2000, 40000
 	case "xhigh":
-		perTask, ceil = 4000, 64000
+		perTask, ceil = 2800, 48000
 	}
-	base := 1200 + len(batch)*perTask
-	// On retry (empty output), INCREASE the budget rather than shrinking it.
+	base := 800 + len(batch)*perTask
 	if turn > 0 {
 		base = base * 5 / 4
 	}
@@ -581,14 +818,30 @@ func parseAnswers(text string, batch []Task) (map[string]string, bool) {
 	if j := extractJSON(text); j != "" && j != text {
 		candidates = append([]string{j}, candidates...)
 	}
+	// Also try fenced json blocks.
+	for _, block := range markdown.ExtractBlocks(text) {
+		info := strings.ToLower(block.Info)
+		if info == "" || strings.Contains(info, "json") {
+			candidates = append(candidates, block.Code)
+		}
+	}
 	ids := map[string]bool{}
 	for _, t := range batch {
 		ids[t.TaskID] = true
 	}
+	var best map[string]string
 	for _, candidate := range candidates {
 		if answers, ok := parseAnswerJSON(candidate, ids); ok {
-			return answers, true
+			if len(answers) == len(ids) {
+				return answers, true
+			}
+			if len(answers) > len(best) {
+				best = answers
+			}
 		}
+	}
+	if len(best) > 0 {
+		return best, true
 	}
 	if len(batch) == 1 && !strings.Contains(text, "```") {
 		return map[string]string{batch[0].TaskID: strings.Trim(text, "` \n\t")}, true
@@ -609,9 +862,15 @@ func parseAnswerJSON(s string, ids map[string]bool) (map[string]string, bool) {
 			if !ids[item.TaskID] {
 				continue
 			}
-			out[item.TaskID] = stringifyAnswer(item.Answer)
+			ans := stringifyAnswer(item.Answer)
+			if ans == "" {
+				continue
+			}
+			out[item.TaskID] = ans
 		}
-		return out, len(out) == len(ids)
+		if len(out) > 0 {
+			return out, true
+		}
 	}
 
 	var arr []struct {
@@ -621,11 +880,18 @@ func parseAnswerJSON(s string, ids map[string]bool) (map[string]string, bool) {
 	if err := json.Unmarshal([]byte(s), &arr); err == nil && len(arr) > 0 {
 		out := map[string]string{}
 		for _, item := range arr {
-			if ids[item.TaskID] {
-				out[item.TaskID] = stringifyAnswer(item.Answer)
+			if !ids[item.TaskID] {
+				continue
 			}
+			ans := stringifyAnswer(item.Answer)
+			if ans == "" {
+				continue
+			}
+			out[item.TaskID] = ans
 		}
-		return out, len(out) == len(ids)
+		if len(out) > 0 {
+			return out, true
+		}
 	}
 
 	var obj map[string]any
@@ -633,10 +899,15 @@ func parseAnswerJSON(s string, ids map[string]bool) (map[string]string, bool) {
 		out := map[string]string{}
 		for id := range ids {
 			if v, ok := obj[id]; ok {
-				out[id] = stringifyAnswer(v)
+				ans := stringifyAnswer(v)
+				if ans != "" {
+					out[id] = ans
+				}
 			}
 		}
-		return out, len(out) == len(ids)
+		if len(out) > 0 {
+			return out, true
+		}
 	}
 	return nil, false
 }
@@ -683,6 +954,56 @@ func extractJSON(s string) string {
 	return strings.TrimSpace(s[start : end+1])
 }
 
+func truncateTrace(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max/2] + "\n...\n" + s[len(s)-max/2:]
+}
+
+func completeAnswers(answers map[string]string, batch []Task) bool {
+	if answers == nil {
+		return false
+	}
+	for _, t := range batch {
+		if strings.TrimSpace(answers[t.TaskID]) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func missingTasks(batch []Task, answers map[string]string) []Task {
+	var out []Task
+	for _, t := range batch {
+		if strings.TrimSpace(answers[t.TaskID]) == "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func mergeAnswers(dst, src map[string]string) map[string]string {
+	if dst == nil {
+		dst = map[string]string{}
+	}
+	for k, v := range src {
+		if strings.TrimSpace(v) != "" {
+			dst[k] = v
+		}
+	}
+	return dst
+}
+
+func cloneAnswerMap(in map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
 func compactAssistantEcho(s string) string {
 	s = strings.TrimSpace(s)
 	if len(s) > 1200 {
@@ -700,5 +1021,8 @@ func taskIDs(tasks []Task) []string {
 }
 
 func fallbackAnswer(task Task, err error) string {
-	return "Unable to answer confidently: " + err.Error()
+	if err != nil {
+		return "Unable to answer confidently: " + err.Error()
+	}
+	return "Unable to answer confidently for task " + task.TaskID
 }

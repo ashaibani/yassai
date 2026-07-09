@@ -17,8 +17,9 @@ type Config struct {
 	AllowedModels    []string
 	PreferredModel   string
 	MaxBatchSize     int
-	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default); packs tasks to amortise fixed prompt overhead
-	MaxConcurrency   int                 // max parallel batch solving (0 = sequential)
+	MaxTurns         int                 // per-batch LLM turn limit (0 = default 4)
+	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default 8000)
+	MaxConcurrency   int                 // max parallel batch workers (0 = default 2)
 	ReasoningEffort  string              // "", "low", "medium", "high", "xhigh"; "" = adaptive by category (see effortForTask)
 	Categories       map[string][]string // optional task_id -> categories override (eval); nil = classify at runtime
 	DisableHints     bool                // if true, skip category technique-hint injection (for eval A/B)
@@ -42,7 +43,6 @@ type Config struct {
 	// TraceMessages stores full request messages, assistant outputs, and any
 	// provider reasoning_content in metrics.call_records for callback telemetry.
 	TraceMessages bool
-	DisableLocal  bool
 }
 
 type BatchPlanRecord struct {
@@ -71,7 +71,17 @@ type CallRecord struct {
 	Messages         []llm.Message `json:"messages,omitempty"`
 	AssistantMessage string        `json:"assistant_message,omitempty"`
 	ReasoningContent string        `json:"reasoning_content,omitempty"`
+	ToolTraces       []ToolTrace   `json:"tool_traces,omitempty"`
 	Error            string        `json:"error,omitempty"`
+}
+
+// ToolTrace records a single code-execution observation within a batch turn.
+type ToolTrace struct {
+	Index  int    `json:"index"`
+	Code   string `json:"code"`
+	Stdout string `json:"stdout,omitempty"`
+	JSON   string `json:"json,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 type Metrics struct {
@@ -84,7 +94,6 @@ type Metrics struct {
 	ReasoningTokens int                 `json:"reasoning_tokens"`
 	ToolRuns        int                 `json:"tool_runs"`
 	BatchCount      int                 `json:"batch_count"`
-	LocalAnswers    int                 `json:"local_answers"`
 	Fallbacks       int                 `json:"fallbacks"`
 	StartedAt       time.Time           `json:"started_at"`
 	FinishedAt      time.Time           `json:"finished_at"`

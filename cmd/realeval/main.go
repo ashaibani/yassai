@@ -118,7 +118,7 @@ func main() {
 		APIKey:           apiKey,
 		BaseURL:          getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1"),
 		DisableHints:     getenv("SKILLS", "on") == "off",
-		MaxBatchSize:     20,
+		MaxBatchSize:     5,
 		MaxBatchTokens:   12000,
 		MaxContextTokens: 200000,
 		MemoryRoot:       tmpMem,

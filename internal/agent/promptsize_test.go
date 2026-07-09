@@ -12,7 +12,7 @@ import (
 // see the true fixed overhead (system prompt + batch scaffolding) versus task
 // content. Run: go test -run TestPromptSizeBreakdown -v ./internal/agent/
 func TestPromptSizeBreakdown(t *testing.T) {
-	sys := systemPrompt()
+	sys := systemPrompt([]Task{{TaskID: "t1", Prompt: "x"}})
 	mgr := contextmgr.Manager{MaxContextTokens: 200000, ReserveTokens: 24000}
 	one := []Task{{TaskID: "f1", Prompt: "What is the capital of France? Return only the name."}}
 	bp1 := mgr.BuildBatchPrompt(one, memory.Bundle{}, skills.Bundle{}, nil)

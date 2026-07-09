@@ -13,7 +13,9 @@ func ExtractActionBlocks(text string) []Block {
 	for _, block := range all {
 		info := strings.ToLower(strings.TrimSpace(block.Info))
 		first := firstLine(block.Code)
-		if strings.Contains(info, "micropy") || strings.Contains(info, "micropython") || strings.Contains(info, "python action") || strings.Contains(info, "python act") || strings.Contains(strings.ToLower(first), "# act") || info == "python" || info == "py" {
+		// Accept bare code blocks (no info string) and common Python aliases
+		// so the model can use whichever fence it naturally writes.
+		if info == "" || strings.Contains(info, "micropy") || strings.Contains(info, "micropython") || strings.Contains(info, "python action") || strings.Contains(info, "python act") || strings.Contains(strings.ToLower(first), "# act") || info == "python" || info == "python3" || info == "py" || info == "py3" {
 			out = append(out, block)
 		}
 	}

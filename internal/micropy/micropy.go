@@ -140,6 +140,11 @@ func (e *Executor) ResetSubmit() {
 	e.tools.ResetSubmit()
 }
 
+// SetExpectedTasks configures submit() validation for the next runs.
+func (e *Executor) SetExpectedTasks(ids []string) {
+	e.tools.SetExpectedTasks(ids)
+}
+
 func (e *Executor) load(ctx context.Context) error {
 	e.once.Do(func() {
 		rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithCoreFeatures(api.CoreFeaturesV2|experimental.CoreFeaturesExceptionHandling).WithCloseOnContextDone(true).WithMemoryLimitPages(e.pages))
@@ -289,10 +294,11 @@ type ToolHost struct {
 	next  int
 
 	// submit captures the model's final answers when it calls submit().
-	submitMu     sync.Mutex
-	submitted    bool
-	submitResult map[string]string // task_id -> answer
-	submitError  string
+	submitMu        sync.Mutex
+	submitted       bool
+	submitResult    map[string]string // task_id -> answer
+	submitError     string
+	expectedTaskIDs map[string]bool // set by agent before Run; used for validation
 }
 
 type terminalRun struct {
@@ -320,12 +326,20 @@ func (h *ToolHost) doSubmit(args map[string]any) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("'answers' must be a list of dicts")
 	}
+	h.submitMu.Lock()
 	taskIDs := map[string]bool{}
-	if tasksRaw, ok := args["tasks"].([]any); ok {
-		for _, item := range tasksRaw {
-			if m, ok := item.(map[string]any); ok {
-				if id, _ := m["task_id"].(string); id != "" {
-					taskIDs[id] = true
+	for id := range h.expectedTaskIDs {
+		taskIDs[id] = true
+	}
+	h.submitMu.Unlock()
+	if len(taskIDs) == 0 {
+		// Fallback: accept tasks list from call args if agent did not pre-set IDs.
+		if tasksRaw, ok := args["tasks"].([]any); ok {
+			for _, item := range tasksRaw {
+				if m, ok := item.(map[string]any); ok {
+					if id, _ := m["task_id"].(string); id != "" {
+						taskIDs[id] = true
+					}
 				}
 			}
 		}
@@ -384,6 +398,22 @@ func (h *ToolHost) ResetSubmit() {
 	h.submitResult = nil
 	h.submitError = ""
 	h.submitMu.Unlock()
+}
+
+// SetExpectedTasks configures which task_ids submit() must cover.
+func (h *ToolHost) SetExpectedTasks(ids []string) {
+	h.submitMu.Lock()
+	defer h.submitMu.Unlock()
+	if len(ids) == 0 {
+		h.expectedTaskIDs = nil
+		return
+	}
+	h.expectedTaskIDs = make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if id != "" {
+			h.expectedTaskIDs[id] = true
+		}
+	}
 }
 
 func stringifyForSubmit(v any) string {
