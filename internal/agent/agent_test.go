@@ -105,6 +105,22 @@ func TestPlanBatchesIsolatesCodeDebugging(t *testing.T) {
 	}
 }
 
+func TestBatchIsolationModes(t *testing.T) {
+	for _, tc := range []struct {
+		mode, cat, want string
+	}{
+		{"focus", "code_debugging", "code_debugging"},
+		{"focus", "mathematical_reasoning", ""},
+		{"math", "mathematical_reasoning", "mathematical_reasoning"},
+		{"math", "named_entity_recognition", ""},
+		{"none", "code_debugging", ""},
+	} {
+		if got := batchIsolationFocus(tc.mode, tc.cat); got != tc.want {
+			t.Errorf("mode=%q cat=%q: got %q want %q", tc.mode, tc.cat, got, tc.want)
+		}
+	}
+}
+
 func TestLeanEffortKeepsMathOnLow(t *testing.T) {
 	tiers := LeanEffortTiers()
 	if tiers["mathematical_reasoning"] != "low" {

@@ -18,6 +18,7 @@ type Config struct {
 	PreferredModel   string
 	MaxBatchSize     int
 	MathBatchSize    int                 // chunk size for mathematical_reasoning groups (0 = use MaxBatchSize)
+	BatchIsolation   string              // "focus" (default), "math", or "none"
 	MaxTurns         int                 // per-batch LLM turn limit (0 = default 4)
 	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default 8000)
 	MaxConcurrency   int                 // max parallel batch workers (0 = default 3)

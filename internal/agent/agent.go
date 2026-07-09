@@ -612,7 +612,7 @@ func shortKindHighError(cat string) string {
 // Tuned for harsh LLM-judge survival + native run_python tool on math batches.
 var categoryRecipe = map[string]string{
 	"mathematical_reasoning":      "math: MUST call run_python once; answer as text string; multi-part label 1) 2) 3); requested units/currency; ASCII signs; preserve exact times incl seconds; NEVER store rounded rates for later math; projections use raw unrounded rates only and include raw average used; for 'last K' use final K entries (growth[-K:]) and assert len(subset)==K before averaging",
-	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exact full source spans incl every word; include named programmes/missions as ORGANIZATION when no better allowed label exists; no shortened spans",
+	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exact full source spans incl every word; if a named programme/mission has no allowed type, include it as a named-programme reference rather than forcing a wrong label; no skips",
 	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; plain code no fences; preserve input/list/string semantics; for second-largest/rank fixes, if duplicate/distinct semantics are ambiguous mention both nums[-2] positional and sorted(set(nums))[-2] distinct variants; do not normalise strings unless asked; absent methods raise AttributeError, not False",
 	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; stated edges only; no bonus features",
 	"logical_deductive_reasoning": "logic: Person: value for EVERY person; check each clue; all values distinct; final assignments only unless asked",
@@ -757,10 +757,9 @@ func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
 	return out
 }
 
-// planBatches groups by (effort, math?) so tool text and reasoning_effort stay homogeneous.
-// Math is isolated so the lean act recipe is only injected where useful.
-// NER, code debugging, and logic puzzles are isolated because mixed batches
-// often cause models to ignore span/fix/constraint-satisfaction constraints.
+// planBatches groups by effort and optionally isolates categories. Math must be
+// isolated whenever it uses run_python; the other focus categories are
+// selectable because batching is the dominant token-efficiency tradeoff.
 // MathBatchSize (when >0) chunks only mathematical_reasoning groups independently of MaxBatchSize,
 // so non-math can stay large (prompt amortisation) while multi-step math can run smaller.
 func (a *Agent) planBatches(tasks []Task) [][]Task {
@@ -781,10 +780,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	groups := map[key][]Task{}
 	for _, t := range tasks {
 		cat := a.primaryCat(t)
-		focus := ""
-		if cat == "code_debugging" || cat == "named_entity_recognition" || cat == "logical_deductive_reasoning" {
-			focus = cat
-		}
+		focus := batchIsolationFocus(a.cfg.BatchIsolation, cat)
 		k := key{effort: a.effortForTask(t), math: cat == "mathematical_reasoning", focus: focus}
 		if _, ok := groups[k]; !ok {
 			order = append(order, k)
@@ -807,6 +803,25 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 		}
 	}
 	return batches
+}
+
+func batchIsolationFocus(mode, cat string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "none", "off", "false", "0":
+		return ""
+	case "math", "maths":
+		if cat == "mathematical_reasoning" {
+			return cat
+		}
+		return ""
+	default: // focus, empty, and unknown values preserve the accuracy-first default.
+		switch cat {
+		case "code_debugging", "named_entity_recognition", "logical_deductive_reasoning":
+			return cat
+		default:
+			return ""
+		}
+	}
 }
 
 func (a *Agent) primaryCat(t Task) string {
