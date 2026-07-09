@@ -55,3 +55,14 @@ func TestMicroPythonToolSurface(t *testing.T) {
 		t.Fatalf("tool output missing: %s", res.JSON)
 	}
 }
+
+func TestSubmitRejectsMissingTaskIDs(t *testing.T) {
+	exec, err := New(Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = exec.Run(context.Background(), "submit-missing", "submit(answers=[{'task_id':'a','answer':'1'}])", map[string]any{"tasks": []map[string]any{{"task_id": "a"}, {"task_id": "b"}}})
+	if err == nil || !strings.Contains(err.Error(), "missing answers") {
+		t.Fatalf("expected missing answers error, got %v", err)
+	}
+}

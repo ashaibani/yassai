@@ -10,6 +10,7 @@ import (
 
 	"github.com/ashaibani/yassai/internal/llm"
 	"github.com/ashaibani/yassai/internal/markdown"
+	"github.com/ashaibani/yassai/internal/micropy"
 )
 
 // Event is emitted during SolveWithEvents for real-time observability.
@@ -26,26 +27,41 @@ type EventCallback func(Event)
 func (a *Agent) SolveWithEvents(ctx context.Context, tasks []Task, cb EventCallback) ([]Result, Metrics, error) {
 	a.metrics = Metrics{Model: a.model, StartedAt: time.Now()}
 	answers := make(map[string]string, len(tasks))
+	pending := make([]Task, 0, len(tasks))
+	if !a.cfg.DisableLocal {
+		for _, task := range tasks {
+			if answer, ok := trySolveLocal(task); ok {
+				answers[task.TaskID] = answer
+				a.metrics.LocalAnswers++
+				cb(Event{Type: "local_answer", Timestamp: time.Now(), Data: map[string]any{"task_id": task.TaskID, "answer": answer}})
+				continue
+			}
+			pending = append(pending, task)
+		}
+	} else {
+		pending = append([]Task(nil), tasks...)
+	}
 
-	if len(tasks) > 0 && a.llm == nil {
+	if len(pending) > 0 && a.llm == nil {
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required")
 	}
 
 	// Step 1: Classify
-	cb(Event{Type: "classify_start", Timestamp: time.Now(), Data: map[string]any{"task_count": len(tasks)}})
+	cb(Event{Type: "classify_start", Timestamp: time.Now(), Data: map[string]any{"task_count": len(pending)}})
 	if a.cfg.Categories != nil {
 		a.categories = a.cfg.Categories
 	} else {
-		a.categories = a.classifyTasks(tasks)
+		a.categories = a.classifyTasks(pending)
 	}
 	if a.categories != nil {
+		a.metrics.Classifications = a.categories
 		cb(Event{Type: "classify_done", Timestamp: time.Now(), Data: a.categories})
 	} else {
 		cb(Event{Type: "classify_skip", Timestamp: time.Now(), Data: map[string]any{"reason": "classifier unavailable"}})
 	}
 
 	// Step 2: Plan batches
-	batches := a.planBatches(tasks)
+	batches := a.planBatches(pending)
 	batchPlan := make([]map[string]any, len(batches))
 	for i, b := range batches {
 		batchPlan[i] = map[string]any{
@@ -56,6 +72,7 @@ func (a *Agent) SolveWithEvents(ctx context.Context, tasks []Task, cb EventCallb
 			"model":    a.modelForTask(b[0]),
 		}
 	}
+	a.metrics.BatchPlan = a.batchPlanRecords(batches)
 	cb(Event{Type: "batch_plan", Timestamp: time.Now(), Data: map[string]any{"batches": batchPlan}})
 
 	// Step 3: Solve batches (optionally concurrent)
@@ -87,7 +104,12 @@ func (a *Agent) SolveWithEvents(ctx context.Context, tasks []Task, cb EventCallb
 				"effort":   a.effortForBatch(b),
 				"model":    a.modelForTask(b[0]),
 			}})
-			batchAnswers, run := a.solveBatchWithRecoveryEvents(ctx, b, cb)
+			exec, err := micropy.New(micropy.Config{Timeout: 20 * time.Second, MemoryBytes: 16 * 1024 * 1024})
+			if err != nil {
+				resultsCh <- batchResult{index: idx, answers: map[string]string{}, run: BatchRun{TaskIDs: taskIDs(b), Error: err.Error()}}
+				return
+			}
+			batchAnswers, run := a.solveBatchWithRecoveryEvents(ctx, exec, b, cb)
 			cb(Event{Type: "batch_end", Timestamp: time.Now(), Data: map[string]any{
 				"index":    idx,
 				"task_ids": taskIDs(b),
@@ -133,9 +155,9 @@ func (a *Agent) SolveWithEvents(ctx context.Context, tasks []Task, cb EventCallb
 }
 
 // solveBatchWithRecoveryEvents mirrors solveBatchWithRecovery but emits events.
-func (a *Agent) solveBatchWithRecoveryEvents(ctx context.Context, batch []Task, cb EventCallback) (map[string]string, BatchRun) {
+func (a *Agent) solveBatchWithRecoveryEvents(ctx context.Context, exec *micropy.Executor, batch []Task, cb EventCallback) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
-	answers, calls, tools, err := a.solveBatchEvents(ctx, batch, cb)
+	answers, calls, tools, err := a.solveBatchEvents(ctx, exec, batch, cb)
 	run.Calls = calls
 	run.Tools = tools
 	if err == nil {
@@ -147,8 +169,8 @@ func (a *Agent) solveBatchWithRecoveryEvents(ctx context.Context, batch []Task, 
 		return map[string]string{batch[0].TaskID: fallbackAnswer(batch[0], err)}, run
 	}
 	mid := len(batch) / 2
-	left, leftRun := a.solveBatchWithRecoveryEvents(ctx, batch[:mid], cb)
-	right, rightRun := a.solveBatchWithRecoveryEvents(ctx, batch[mid:], cb)
+	left, leftRun := a.solveBatchWithRecoveryEvents(ctx, exec, batch[:mid], cb)
+	right, rightRun := a.solveBatchWithRecoveryEvents(ctx, exec, batch[mid:], cb)
 	merged := map[string]string{}
 	for k, v := range left {
 		merged[k] = v
@@ -162,9 +184,11 @@ func (a *Agent) solveBatchWithRecoveryEvents(ctx context.Context, batch []Task, 
 }
 
 // solveBatchEvents mirrors solveBatch but emits per-call and per-tool events.
-func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCallback) (map[string]string, int, int, error) {
+func (a *Agent) solveBatchEvents(ctx context.Context, exec *micropy.Executor, batch []Task, cb EventCallback) (map[string]string, int, int, error) {
+	a.mu.Lock()
 	a.metrics.BatchCount++
-	a.exec.ResetSubmit()
+	a.mu.Unlock()
+	exec.ResetSubmit()
 	sessionID := "batch-" + strings.Join(taskIDs(batch), "-")
 
 	// Select model for this batch (may differ from default if routing is configured)
@@ -193,10 +217,11 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 	for turn := 0; ; turn++ {
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
-		text, usage, err := llmClient.Chat(ctx, messages, maxTokens, effort)
+		chat, err := llmClient.ChatDetailed(ctx, messages, maxTokens, effort)
+		text, usage := chat.Content, chat.Usage
 		callDur := time.Since(callStart)
 		if err != nil {
-			a.recordCall(batch, turn, callStart, callDur, usage, "", err)
+			a.recordCall(batch, turn, callStart, callDur, usage, "", chat.ReasoningContent, batchModel, effort, maxTokens, messages, err)
 			cb(Event{Type: "call", Timestamp: time.Now(), Data: map[string]any{
 				"turn":       turn,
 				"task_ids":   taskIDs(batch),
@@ -216,7 +241,7 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 		a.metrics.ReasoningTokens += usage.ReasoningTokens
 		a.mu.Unlock()
 		lastText = strings.TrimSpace(text)
-		a.recordCall(batch, turn, callStart, callDur, usage, lastText, nil)
+		a.recordCall(batch, turn, callStart, callDur, usage, lastText, chat.ReasoningContent, batchModel, effort, maxTokens, messages, nil)
 
 		cb(Event{Type: "call", Timestamp: time.Now(), Data: map[string]any{
 			"turn":              turn,
@@ -234,8 +259,8 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 		}})
 
 		// Check if the model called submit() during code execution.
-		if a.exec.IsSubmitted() {
-			result := a.exec.SubmitResult()
+		if exec.IsSubmitted() {
+			result := exec.SubmitResult()
 			cb(Event{Type: "submit", Timestamp: time.Now(), Data: map[string]any{
 				"turn":     turn,
 				"task_ids": taskIDs(batch),
@@ -273,7 +298,7 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 
 		observations := make([]map[string]any, 0, len(blocks))
 		for i, block := range blocks {
-			res, err := a.exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
+			res, err := exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
 			tools++
 			a.mu.Lock()
 			a.metrics.ToolRuns++
@@ -295,8 +320,8 @@ func (a *Agent) solveBatchEvents(ctx context.Context, batch []Task, cb EventCall
 		}
 
 		// Check if submit() was called during this round of code execution.
-		if a.exec.IsSubmitted() {
-			result := a.exec.SubmitResult()
+		if exec.IsSubmitted() {
+			result := exec.SubmitResult()
 			cb(Event{Type: "submit", Timestamp: time.Now(), Data: map[string]any{
 				"turn":     turn,
 				"task_ids": taskIDs(batch),

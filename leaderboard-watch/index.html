@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AMD leaderboard watch - yassai</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12;
+      --panel: #131722;
+      --panel-2: #191f2e;
+      --text: #f3f6ff;
+      --muted: #98a2b3;
+      --line: #273044;
+      --accent: #ff5a1f;
+      --good: #40c463;
+      --warn: #f6c343;
+      --bad: #ff6b6b;
+      --mine: rgba(255, 90, 31, 0.16);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, #25120b 0, var(--bg) 36rem); color: var(--text); }
+    button, input, select { font: inherit; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    header { display: grid; gap: 18px; grid-template-columns: 1fr; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: clamp(26px, 4vw, 44px); letter-spacing: -0.04em; }
+    .subtitle { margin: 8px 0 0; color: var(--muted); max-width: 850px; line-height: 1.5; }
+    .toolbar, .cards, .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .card, .panel { background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 70px rgba(0,0,0,0.28); }
+    .card { padding: 16px 18px; min-width: 170px; }
+    .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .card .value { font-size: 26px; font-weight: 750; margin-top: 4px; }
+    .panel { overflow: hidden; }
+    .toolbar { justify-content: space-between; padding: 16px; margin-bottom: 14px; }
+    .filters { flex: 1; }
+    .pill, button, select, input { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 999px; padding: 9px 12px; }
+    input { min-width: 230px; }
+    button { cursor: pointer; transition: transform 120ms ease, border-color 120ms ease; }
+    button:hover { transform: translateY(-1px); border-color: var(--accent); }
+    button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; }
+    .primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 4px rgba(152,162,179,0.12); }
+    .dot.ok { background: var(--good); box-shadow: 0 0 0 4px rgba(64,196,99,0.14); }
+    .dot.err { background: var(--bad); box-shadow: 0 0 0 4px rgba(255,107,107,0.14); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { position: sticky; top: 0; z-index: 1; background: #111622; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; }
+    tr.mine { background: var(--mine); outline: 1px solid rgba(255,90,31,0.45); }
+    tr:hover { background: rgba(255,255,255,0.035); }
+    .rank { font-variant-numeric: tabular-nums; font-weight: 800; }
+    .name { font-weight: 750; }
+    .team { color: var(--muted); margin-top: 2px; font-size: 13px; }
+    .score { font-variant-numeric: tabular-nums; font-weight: 700; }
+    .muted { color: var(--muted); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); border-radius: 999px; padding: 4px 8px; font-size: 12px; color: var(--muted); }
+    .badge.mine-badge { color: #ffd8ca; border-color: rgba(255,90,31,0.55); background: rgba(255,90,31,0.18); }
+    .error { margin: 14px 0; padding: 14px 16px; border: 1px solid rgba(255,107,107,0.35); background: rgba(255,107,107,0.08); border-radius: 14px; color: #ffd4d4; }
+    .table-wrap { overflow: auto; max-height: calc(100vh - 330px); }
+    .foot { margin-top: 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    pre { white-space: pre-wrap; word-break: break-word; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) { .wrap { padding: 14px; } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display: none; } .table-wrap { max-height: none; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.22.1';
+    import { useEffect, useMemo, useRef, useState } from 'https://esm.sh/preact@10.22.1/hooks';
+
+    const ENDPOINT = 'https://lablab.ai/api/v4/amd-developer-hackathon-act-ii/amd-leaderboard';
+    const MY_SUBMISSION = 'yassai';
+    const MY_TEAM = 'Solo Stack';
+    const DEFAULT_POLL_SECONDS = 30;
+
+    const text = (value) => value == null ? '' : String(value);
+    const lower = (value) => text(value).toLowerCase();
+    const includes = (value, needle) => lower(value).includes(lower(needle));
+    const numberOrNull = (value) => {
+      if (value == null || value === '') return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    };
+    const pick = (obj, keys) => {
+      for (const key of keys) {
+        if (obj && obj[key] != null && obj[key] !== '') return obj[key];
+      }
+      return null;
+    };
+    const isTrack1 = (entry) => {
+      const candidates = [entry.track, entry.trackName, entry.track_name, entry.trackSlug, entry.track_slug, entry.challenge, entry.challengeName, entry.category, entry.type, entry.__track && entry.__track.track, entry.__track && entry.__track.trackName];
+      const joined = candidates.map(text).join(' ');
+      return /(^|D)1(D|$)/.test(joined) || /tracks*1|general[- ]purpose|ai agent/i.test(joined);
+    };
+    const findArrays = (node, path = [], context = {}) => {
+      const arrays = [];
+      if (Array.isArray(node)) arrays.push({ path: path.join('.'), items: node, context });
+      else if (node && typeof node === 'object') {
+        const nextContext = {
+          ...context,
+          track: pick(node, ['track', 'trackId', 'track_id']) ?? context.track,
+          trackName: pick(node, ['name', 'trackName', 'track_name']) ?? context.trackName,
+          rankBy: pick(node, ['rankBy', 'rank_by']) ?? context.rankBy,
+        };
+        for (const [key, value] of Object.entries(node)) arrays.push(...findArrays(value, path.concat(key), nextContext));
+      }
+      return arrays;
+    };
+    const normaliseEntry = (item, index, sourcePath, context = {}) => {
+      const submission = item.submission || item.project || item.entry || item.teamSubmission || item;
+      const team = item.team || submission.team || {};
+      const user = item.user || item.owner || submission.user || {};
+      const rawName = pick(submission, ['name', 'title', 'submissionName', 'submission_name', 'projectName', 'project_name']) || pick(item, ['name', 'title', 'submissionName', 'submission_name', 'projectName', 'project_name']);
+      const rawTeam = pick(team, ['name', 'title']) || pick(item, ['teamName', 'team_name', 'team']) || pick(submission, ['teamName', 'team_name']);
+      const rawUser = pick(user, ['name', 'username', 'displayName', 'display_name']) || pick(item, ['username', 'userName', 'user_name']);
+      const score = numberOrNull(pick(item, ['score', 'finalScore', 'final_score', 'totalScore', 'total_score', 'tokens', 'totalTokens', 'total_tokens'])) ?? numberOrNull(pick(submission, ['score', 'finalScore', 'final_score', 'totalTokens', 'total_tokens']));
+      const scoreLabel = pick(item, ['scoreLabel', 'score_label']) || pick(submission, ['scoreLabel', 'score_label']);
+      const tokens = numberOrNull(pick(item, ['tokens', 'totalTokens', 'total_tokens', 'token_count', 'tokenCount'])) ?? (scoreLabel && /token/i.test(scoreLabel) ? numberOrNull(String(scoreLabel).replace(/[^0-9.]/g, '')) : null) ?? numberOrNull(pick(submission, ['tokens', 'totalTokens', 'total_tokens']));
+      const accuracy = numberOrNull(pick(item, ['accuracy', 'accuracyScore', 'accuracy_score'])) ?? numberOrNull(pick(submission, ['accuracy', 'accuracyScore', 'accuracy_score']));
+      const rank = numberOrNull(pick(item, ['rank', 'position', 'place']));
+      const status = pick(item, ['status', 'resultStatus', 'result_status', 'failureReason', 'failure_reason']) || pick(submission, ['status']);
+      const createdAt = pick(item, ['createdAt', 'created_at', 'submittedAt', 'submitted_at', 'updatedAt', 'updated_at']) || pick(submission, ['createdAt', 'created_at', 'submittedAt', 'submitted_at', 'updatedAt', 'updated_at']);
+      const id = pick(item, ['id', '_id', 'submissionId', 'submission_id']) || pick(submission, ['id', '_id']) || sourcePath + '-' + index;
+      return { id, rank, name: text(rawName || 'Untitled submission'), team: text(rawTeam || ''), user: text(rawUser || ''), score, scoreLabel: text(scoreLabel || ''), tokens, accuracy, status: text(status), createdAt, track: context.track, trackName: text(context.trackName || ''), rankBy: text(context.rankBy || ''), sourcePath, raw: { ...item, __track: context } };
+    };
+    const extractEntries = (payload) => {
+      const arrays = findArrays(payload)
+        .filter(({ path, items }) => /(^|.)(entries|failedEntries|submissions|results|leaderboard)$/i.test(path) && items.length && items.some((x) => x && typeof x === 'object'));
+      const chosen = arrays.length ? arrays : findArrays(payload).filter(({ items }) => items.length && items.some((x) => x && typeof x === 'object'));
+      return chosen.flatMap(({ path, items, context }) => items.filter((x) => x && typeof x === 'object').map((x, i) => normaliseEntry(x, i, path, context)));
+    };
+    const compareEntries = (a, b, mode) => {
+      if (a.rank != null || b.rank != null) return (a.rank ?? 999999) - (b.rank ?? 999999);
+      if (mode === 'tokens') return (a.tokens ?? 999999999) - (b.tokens ?? 999999999);
+      if (mode === 'accuracy') return (b.accuracy ?? -1) - (a.accuracy ?? -1);
+      if ((a.rankBy || b.rankBy).toLowerCase().includes('tokens')) return (a.tokens ?? a.score ?? 999999999) - (b.tokens ?? b.score ?? 999999999);
+      return (b.score ?? -1) - (a.score ?? -1);
+    };
+    const fmt = (value) => value == null ? 'n/a' : new Intl.NumberFormat('en-GB', { maximumFractionDigits: 3 }).format(value);
+    const fmtDate = (value) => {
+      if (!value) return 'n/a';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? text(value) : d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'medium', hour12: false });
+    };
+
+    function App() {
+      const [payload, setPayload] = useState(null);
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [lastUpdated, setLastUpdated] = useState(null);
+      const [pollSeconds, setPollSeconds] = useState(DEFAULT_POLL_SECONDS);
+      const [trackOnly, setTrackOnly] = useState(true);
+      const [query, setQuery] = useState('');
+      const [sortMode, setSortMode] = useState('auto');
+      const timer = useRef(null);
+
+      const load = async () => {
+        setLoading(true);
+        setError('');
+        try {
+          const res = await fetch(ENDPOINT, { headers: { accept: 'application/json' }, cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+          const json = await res.json();
+          setPayload(json);
+          setLastUpdated(new Date());
+        } catch (err) {
+          setError(err.message || String(err));
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => { load(); }, []);
+      useEffect(() => {
+        if (timer.current) clearInterval(timer.current);
+        if (pollSeconds > 0) timer.current = setInterval(load, pollSeconds * 1000);
+        return () => timer.current && clearInterval(timer.current);
+      }, [pollSeconds]);
+
+      const allEntries = useMemo(() => extractEntries(payload), [payload]);
+      const ranked = useMemo(() => {
+        const base = allEntries
+          .filter((entry) => !trackOnly || isTrack1(entry.raw))
+          .filter((entry) => !query || [entry.name, entry.team, entry.user, entry.status].some((v) => includes(v, query)));
+        return [...base].sort((a, b) => compareEntries(a, b, sortMode)).map((entry, index) => ({ ...entry, computedRank: index + 1 }));
+      }, [allEntries, trackOnly, query, sortMode]);
+      const mine = ranked.find((entry) => includes(entry.name, MY_SUBMISSION) || includes(entry.team, MY_TEAM));
+      const leader = ranked[0];
+      const shapeHint = payload && typeof payload === 'object' ? (Array.isArray(payload) ? 'Top-level array, ' + payload.length + ' rows' : 'Top-level object keys: ' + Object.keys(payload).join(', ')) : 'Waiting for data';
+
+      return h('div', { class: 'wrap' },
+        h('header', null,
+          h('div', null,
+            h('h1', null, 'AMD leaderboard watch'),
+            h('p', { class: 'subtitle' }, 'Polling the lablab.ai AMD Developer Hackathon Act II leaderboard. Highlighting submission ', h('strong', null, MY_SUBMISSION), ' for team ', h('strong', null, MY_TEAM), ', filtered to Track 1 by default. Track 1 ranks passing submissions by token efficiency, with fewer recorded tokens ranked higher after the accuracy gate.')),
+          h('div', { class: 'cards' },
+            h('div', { class: 'card' }, h('div', { class: 'label' }, 'My rank'), h('div', { class: 'value' }, mine ? '#' + mine.computedRank : 'n/a')),
+            h('div', { class: 'card' }, h('div', { class: 'label' }, 'Entries shown'), h('div', { class: 'value' }, ranked.length)),
+            h('div', { class: 'card' }, h('div', { class: 'label' }, 'Leader'), h('div', { class: 'value' }, leader ? '#' + leader.computedRank : 'n/a')),
+            h('div', { class: 'card' }, h('div', { class: 'label' }, 'Last update'), h('div', { class: 'value', style: 'font-size:16px' }, lastUpdated ? lastUpdated.toLocaleTimeString('en-GB', { hour12: false }) : 'never')))),
+        h('section', { class: 'toolbar panel' },
+          h('div', { class: 'filters' },
+            h('input', { value: query, onInput: (e) => setQuery(e.currentTarget.value), placeholder: 'Filter name, team, user, or status' }),
+            h('label', { class: 'pill' }, h('input', { type: 'checkbox', checked: trackOnly, onChange: (e) => setTrackOnly(e.currentTarget.checked), style: 'min-width:0;margin-right:8px' }), 'Track 1 only'),
+            h('select', { value: sortMode, onChange: (e) => setSortMode(e.currentTarget.value) },
+              h('option', { value: 'auto' }, 'Sort: API rank or score'),
+              h('option', { value: 'tokens' }, 'Sort: tokens ascending'),
+              h('option', { value: 'accuracy' }, 'Sort: accuracy descending')),
+            h('select', { value: pollSeconds, onChange: (e) => setPollSeconds(Number(e.currentTarget.value)) },
+              h('option', { value: 0 }, 'Polling off'),
+              h('option', { value: 10 }, 'Poll every 10 s'),
+              h('option', { value: 30 }, 'Poll every 30 s'),
+              h('option', { value: 60 }, 'Poll every 60 s'),
+              h('option', { value: 300 }, 'Poll every 5 min'))),
+          h('div', { class: 'status' }, h('span', { class: 'dot ' + (error ? 'err' : payload ? 'ok' : '') }), error ? 'Error' : loading ? 'Refreshing' : 'Live', h('button', { class: 'primary', onClick: load, disabled: loading }, loading ? 'Refreshing...' : 'Refresh now'))),
+        error && h('div', { class: 'error' }, 'Could not load leaderboard: ', error, '. If you opened this as a file and the browser blocks requests, run a local server with python3 -m http.server 8080.'),
+        h('section', { class: 'panel' },
+          h('div', { class: 'table-wrap' },
+            h('table', null,
+              h('thead', null, h('tr', null, h('th', null, 'Rank'), h('th', null, 'Submission'), h('th', null, 'Score'), h('th', null, 'Tokens'), h('th', null, 'Accuracy'), h('th', null, 'Status'), h('th', null, 'Updated'))),
+              h('tbody', null,
+                ranked.map((entry) => {
+                  const isMine = includes(entry.name, MY_SUBMISSION) || includes(entry.team, MY_TEAM);
+                  return h('tr', { key: entry.id, class: isMine ? 'mine' : '' },
+                    h('td', { class: 'rank' }, '#' + entry.computedRank),
+                    h('td', null, h('div', { class: 'name' }, entry.name, isMine && h('span', { class: 'badge mine-badge', style: 'margin-left:8px' }, 'mine')), h('div', { class: 'team' }, entry.team || entry.user || 'Unknown team'), h('div', { class: 'muted', style: 'font-size:12px' }, entry.sourcePath)),
+                    h('td', { class: 'score' }, entry.scoreLabel || fmt(entry.score)),
+                    h('td', { class: 'score' }, fmt(entry.tokens)),
+                    h('td', { class: 'score' }, fmt(entry.accuracy)),
+                    h('td', null, entry.status ? h('span', { class: 'badge' }, entry.status) : h('span', { class: 'muted' }, 'n/a')),
+                    h('td', { class: 'muted' }, fmtDate(entry.createdAt)));
+                }),
+                !ranked.length && h('tr', null, h('td', { colspan: 7, class: 'muted' }, payload ? 'No entries matched the filters.' : 'Loading leaderboard...'))))))),
+        h('p', { class: 'foot' }, 'API response format detected: ', shapeHint, '. The app searches nested arrays in the response and normalises common leaderboard fields, so it keeps working if the endpoint wraps rows under keys such as data, leaderboard, tracks, submissions, or results.'),
+        mine && h('details', { class: 'foot' }, h('summary', null, 'Raw yassai row'), h('pre', null, JSON.stringify(mine.raw, null, 2)))
+    }
+
+    render(h(App), document.getElementById('app'));
+  </script>
+</body>
+</html>

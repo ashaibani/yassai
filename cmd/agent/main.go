@@ -62,6 +62,8 @@ func run() error {
 		Timeout:          time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 180)) * time.Second,
 		ClassifierDir:    getenv("TASKCLF_DIR", "assets/taskclf"),
 		ClassifierLib:    os.Getenv("ONNXRUNTIME_LIB"),
+		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", true),
+		DisableLocal:     envBool("AGENT_DISABLE_LOCAL", false),
 	}
 
 	ag, err := agent.New(cfg)
@@ -157,6 +159,14 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if v == "" {
+		return fallback
+	}
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func getenvInt(key string, fallback int) int {

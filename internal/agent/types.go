@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ashaibani/yassai/internal/agenttypes"
+	"github.com/ashaibani/yassai/internal/llm"
 )
 
 type Task = agenttypes.Task
@@ -37,39 +38,61 @@ type Config struct {
 	// nil/empty = use the single PreferredModel for all categories.
 	// e.g. {"code_generation": "accounts/fireworks/models/kimi-k2p7-code"}
 	ModelRouteMap map[string]string
+
+	// TraceMessages stores full request messages, assistant outputs, and any
+	// provider reasoning_content in metrics.call_records for callback telemetry.
+	TraceMessages bool
+	DisableLocal  bool
+}
+
+type BatchPlanRecord struct {
+	Index   int      `json:"index"`
+	TaskIDs []string `json:"task_ids"`
+	Size    int      `json:"size"`
+	Effort  string   `json:"effort"`
+	Model   string   `json:"model"`
 }
 
 type CallRecord struct {
-	Turn             int       `json:"turn"`
-	Timestamp        time.Time `json:"timestamp"`
-	LatencyMS        int64     `json:"latency_ms"`
-	PromptTokens     int       `json:"prompt_tokens"`
-	CompletionTokens int       `json:"completion_tokens"`
-	TotalTokens      int       `json:"total_tokens"`
-	CachedTokens     int       `json:"cached_tokens"`
-	ReasoningTokens  int       `json:"reasoning_tokens"`
-	BatchSize        int       `json:"batch_size"`
-	OutputChars      int       `json:"output_chars"`
-	TaskIDs          []string  `json:"task_ids"`
-	Error            string    `json:"error,omitempty"`
+	Turn             int           `json:"turn"`
+	Timestamp        time.Time     `json:"timestamp"`
+	LatencyMS        int64         `json:"latency_ms"`
+	PromptTokens     int           `json:"prompt_tokens"`
+	CompletionTokens int           `json:"completion_tokens"`
+	TotalTokens      int           `json:"total_tokens"`
+	CachedTokens     int           `json:"cached_tokens"`
+	ReasoningTokens  int           `json:"reasoning_tokens"`
+	BatchSize        int           `json:"batch_size"`
+	OutputChars      int           `json:"output_chars"`
+	TaskIDs          []string      `json:"task_ids"`
+	Model            string        `json:"model,omitempty"`
+	Effort           string        `json:"effort,omitempty"`
+	MaxTokens        int           `json:"max_tokens,omitempty"`
+	Messages         []llm.Message `json:"messages,omitempty"`
+	AssistantMessage string        `json:"assistant_message,omitempty"`
+	ReasoningContent string        `json:"reasoning_content,omitempty"`
+	Error            string        `json:"error,omitempty"`
 }
 
 type Metrics struct {
-	Model           string       `json:"model"`
-	Calls           int          `json:"calls"`
-	PromptTokens    int          `json:"prompt_tokens"`
-	OutputTokens    int          `json:"output_tokens"`
-	TotalTokens     int          `json:"total_tokens"`
-	CachedTokens    int          `json:"cached_tokens"`
-	ReasoningTokens int          `json:"reasoning_tokens"`
-	ToolRuns        int          `json:"tool_runs"`
-	BatchCount      int          `json:"batch_count"`
-	Fallbacks       int          `json:"fallbacks"`
-	StartedAt       time.Time    `json:"started_at"`
-	FinishedAt      time.Time    `json:"finished_at"`
-	DurationMS      int64        `json:"duration_ms"`
-	BatchSummaries  []BatchRun   `json:"batch_summaries,omitempty"`
-	CallRecords     []CallRecord `json:"call_records,omitempty"`
+	Model           string              `json:"model"`
+	Calls           int                 `json:"calls"`
+	PromptTokens    int                 `json:"prompt_tokens"`
+	OutputTokens    int                 `json:"output_tokens"`
+	TotalTokens     int                 `json:"total_tokens"`
+	CachedTokens    int                 `json:"cached_tokens"`
+	ReasoningTokens int                 `json:"reasoning_tokens"`
+	ToolRuns        int                 `json:"tool_runs"`
+	BatchCount      int                 `json:"batch_count"`
+	LocalAnswers    int                 `json:"local_answers"`
+	Fallbacks       int                 `json:"fallbacks"`
+	StartedAt       time.Time           `json:"started_at"`
+	FinishedAt      time.Time           `json:"finished_at"`
+	DurationMS      int64               `json:"duration_ms"`
+	BatchSummaries  []BatchRun          `json:"batch_summaries,omitempty"`
+	BatchPlan       []BatchPlanRecord   `json:"batch_plan,omitempty"`
+	Classifications map[string][]string `json:"classifications,omitempty"`
+	CallRecords     []CallRecord        `json:"call_records,omitempty"`
 }
 
 type BatchRun struct {

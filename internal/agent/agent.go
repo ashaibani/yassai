@@ -25,7 +25,6 @@ type Agent struct {
 	ctx        contextmgr.Manager
 	memory     *memory.Store
 	skills     *skills.Loader
-	exec       *micropy.Executor
 	clf        *taskclf.Classifier // task-type classifier; nil if unavailable
 	categories map[string][]string // task_id -> predicted categories (best-effort)
 	metrics    Metrics
@@ -50,11 +49,6 @@ func New(cfg Config) (*Agent, error) {
 	if strings.TrimSpace(cfg.APIKey) != "" {
 		ag.llm = llm.New(llm.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: model, Timeout: cfg.Timeout})
 	}
-	exec, err := micropy.New(micropy.Config{Timeout: 20 * time.Second, MemoryBytes: 16 * 1024 * 1024})
-	if err != nil {
-		return nil, err
-	}
-	ag.exec = exec
 
 	// Task-type classifier is best-effort: if it can't load (missing model or
 	// ONNX runtime), log and continue so the agent behaves exactly as before.
@@ -97,7 +91,19 @@ func (a *Agent) classifyTasks(tasks []Task) map[string][]string {
 func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, error) {
 	a.metrics = Metrics{Model: a.model, StartedAt: time.Now()}
 	answers := make(map[string]string, len(tasks))
-	pending := append([]Task(nil), tasks...)
+	pending := make([]Task, 0, len(tasks))
+	if !a.cfg.DisableLocal {
+		for _, task := range tasks {
+			if answer, ok := trySolveLocal(task); ok {
+				answers[task.TaskID] = answer
+				a.metrics.LocalAnswers++
+				continue
+			}
+			pending = append(pending, task)
+		}
+	} else {
+		pending = append([]Task(nil), tasks...)
+	}
 
 	if len(pending) > 0 && a.llm == nil {
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required")
@@ -112,6 +118,8 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	}
 
 	batches := a.planBatches(pending)
+	a.metrics.Classifications = a.categories
+	a.metrics.BatchPlan = a.batchPlanRecords(batches)
 	maxConcurrent := a.cfg.MaxConcurrency
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1
@@ -133,7 +141,12 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			batchAnswers, run := a.solveBatchWithRecovery(ctx, b)
+			exec, err := micropy.New(micropy.Config{Timeout: 20 * time.Second, MemoryBytes: 16 * 1024 * 1024})
+			if err != nil {
+				resultsCh <- batchResult{index: idx, answers: map[string]string{}, run: BatchRun{TaskIDs: taskIDs(b), Error: err.Error()}}
+				return
+			}
+			batchAnswers, run := a.solveBatchWithRecovery(ctx, exec, b)
 			resultsCh <- batchResult{index: idx, answers: batchAnswers, run: run}
 		}(i, batch)
 	}
@@ -164,9 +177,9 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	return results, a.metrics, nil
 }
 
-func (a *Agent) solveBatchWithRecovery(ctx context.Context, batch []Task) (map[string]string, BatchRun) {
+func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
-	answers, calls, tools, err := a.solveBatch(ctx, batch)
+	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
 	run.Calls = calls
 	run.Tools = tools
 	if err == nil {
@@ -179,8 +192,8 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, batch []Task) (map[s
 	}
 
 	mid := len(batch) / 2
-	left, leftRun := a.solveBatchWithRecovery(ctx, batch[:mid])
-	right, rightRun := a.solveBatchWithRecovery(ctx, batch[mid:])
+	left, leftRun := a.solveBatchWithRecovery(ctx, exec, batch[:mid])
+	right, rightRun := a.solveBatchWithRecovery(ctx, exec, batch[mid:])
 	merged := map[string]string{}
 	for k, v := range left {
 		merged[k] = v
@@ -193,9 +206,11 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, batch []Task) (map[s
 	return merged, run
 }
 
-func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string, int, int, error) {
+func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, int, int, error) {
+	a.mu.Lock()
 	a.metrics.BatchCount++
-	a.exec.ResetSubmit()
+	a.mu.Unlock()
+	exec.ResetSubmit()
 	sessionID := "batch-" + strings.Join(taskIDs(batch), "-")
 
 	sys := systemPrompt()
@@ -211,14 +226,23 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 	var tools int
 	var lastText string
 	effort := a.effortForBatch(batch)
+	batchModel := a.model
+	if len(batch) > 0 {
+		batchModel = a.modelForTask(batch[0])
+	}
+	llmClient := a.llm
+	if batchModel != a.model && a.cfg.APIKey != "" {
+		llmClient = llm.New(llm.Config{APIKey: a.cfg.APIKey, BaseURL: a.cfg.BaseURL, Model: batchModel, Timeout: a.cfg.Timeout})
+	}
 
 	for turn := 0; ; turn++ {
 		maxTokens := maxTokensForBatch(batch, turn, effort)
 		callStart := time.Now()
-		text, usage, err := a.llm.Chat(ctx, messages, maxTokens, effort)
+		chat, err := llmClient.ChatDetailed(ctx, messages, maxTokens, effort)
+		text, usage := chat.Content, chat.Usage
 		callDur := time.Since(callStart)
 		if err != nil {
-			a.recordCall(batch, turn, callStart, callDur, usage, "", err)
+			a.recordCall(batch, turn, callStart, callDur, usage, "", chat.ReasoningContent, batchModel, effort, maxTokens, messages, err)
 			return nil, calls, tools, err
 		}
 		calls++
@@ -231,11 +255,11 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 		a.metrics.ReasoningTokens += usage.ReasoningTokens
 		a.mu.Unlock()
 		lastText = strings.TrimSpace(text)
-		a.recordCall(batch, turn, callStart, callDur, usage, lastText, nil)
+		a.recordCall(batch, turn, callStart, callDur, usage, lastText, chat.ReasoningContent, batchModel, effort, maxTokens, messages, nil)
 
 		// Check if the model called submit() during code execution.
-		if a.exec.IsSubmitted() {
-			return a.exec.SubmitResult(), calls, tools, nil
+		if exec.IsSubmitted() {
+			return exec.SubmitResult(), calls, tools, nil
 		}
 
 		// If the model hit max_tokens without producing output, the batch is
@@ -262,7 +286,7 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 
 		observations := make([]map[string]any, 0, len(blocks))
 		for i, block := range blocks {
-			res, err := a.exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
+			res, err := exec.Run(ctx, sessionID, block.Code, map[string]any{"tasks": batch})
 			tools++
 			a.mu.Lock()
 			a.metrics.ToolRuns++
@@ -275,8 +299,8 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 		}
 
 		// Check if submit() was called during this round of code execution.
-		if a.exec.IsSubmitted() {
-			return a.exec.SubmitResult(), calls, tools, nil
+		if exec.IsSubmitted() {
+			return exec.SubmitResult(), calls, tools, nil
 		}
 
 		obsBytes, _ := json.Marshal(observations)
@@ -287,7 +311,7 @@ func (a *Agent) solveBatch(ctx context.Context, batch []Task) (map[string]string
 	}
 }
 
-func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Duration, usage llm.Usage, output string, _ any) {
+func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Duration, usage llm.Usage, output, reasoning, model, effort string, maxTokens int, messages []llm.Message, err error) {
 	rec := CallRecord{
 		Turn:             turn,
 		Timestamp:        start,
@@ -300,10 +324,27 @@ func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Dur
 		BatchSize:        len(batch),
 		TaskIDs:          taskIDs(batch),
 		OutputChars:      len(output),
+		Model:            model,
+		Effort:           effort,
+		MaxTokens:        maxTokens,
+	}
+	if err != nil {
+		rec.Error = err.Error()
+	}
+	if a.cfg.TraceMessages {
+		rec.Messages = cloneMessages(messages)
+		rec.AssistantMessage = output
+		rec.ReasoningContent = reasoning
 	}
 	a.mu.Lock()
 	a.metrics.CallRecords = append(a.metrics.CallRecords, rec)
 	a.mu.Unlock()
+}
+
+func cloneMessages(messages []llm.Message) []llm.Message {
+	out := make([]llm.Message, len(messages))
+	copy(out, messages)
+	return out
 }
 
 func taskText(tasks []Task) string {
@@ -389,6 +430,18 @@ func chooseModel(allowed []string, preferred string) string {
 // of each call's tokens, so fewer, fuller batches cut total tokens sharply (see
 // docs/model-routing.md). solveBatchWithRecovery still halves a batch on failure,
 // so an over-packed batch self-heals.
+func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
+	out := make([]BatchPlanRecord, len(batches))
+	for i, b := range batches {
+		model := ""
+		if len(b) > 0 {
+			model = a.modelForTask(b[0])
+		}
+		out[i] = BatchPlanRecord{Index: i, TaskIDs: taskIDs(b), Size: len(b), Effort: a.effortForBatch(b), Model: model}
+	}
+	return out
+}
+
 func (a *Agent) planBatches(tasks []Task) [][]Task {
 	maxTok := a.cfg.MaxBatchTokens
 	if maxTok <= 0 {

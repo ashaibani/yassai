@@ -49,7 +49,18 @@ func New(cfg Config) *Client {
 	return &Client{client: c, model: cfg.Model}
 }
 
+type ChatResult struct {
+	Content          string
+	ReasoningContent string
+	Usage            Usage
+}
+
 func (c *Client) Chat(ctx context.Context, messages []Message, maxTokens int, reasoningEffort string) (string, Usage, error) {
+	res, err := c.ChatDetailed(ctx, messages, maxTokens, reasoningEffort)
+	return res.Content, res.Usage, err
+}
+
+func (c *Client) ChatDetailed(ctx context.Context, messages []Message, maxTokens int, reasoningEffort string) (ChatResult, error) {
 	wireMessages := make([]map[string]string, len(messages))
 	for i, m := range messages {
 		wireMessages[i] = map[string]string{"role": m.Role, "content": m.Content}
@@ -68,24 +79,31 @@ func (c *Client) Chat(ctx context.Context, messages []Message, maxTokens int, re
 	}
 	var raw json.RawMessage
 	if err := c.client.Post(ctx, "chat/completions", body, &raw); err != nil {
-		return "", Usage{}, err
+		return ChatResult{}, err
 	}
 	var parsed chatResponse
 	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return "", Usage{}, fmt.Errorf("parse chat response: %w: %s", err, string(raw))
+		return ChatResult{}, fmt.Errorf("parse chat response: %w: %s", err, string(raw))
 	}
 	if len(parsed.Choices) == 0 {
-		return "", parsed.Usage.toUsage(), fmt.Errorf("chat response had no choices: %s", string(raw))
+		return ChatResult{Usage: parsed.Usage.toUsage()}, fmt.Errorf("chat response had no choices: %s", string(raw))
 	}
 	content := parsed.Choices[0].Message.Content.String()
 	if strings.TrimSpace(content) == "" && parsed.Choices[0].Text != "" {
 		content = parsed.Choices[0].Text
 	}
-	usage := parsed.Usage.toUsage()
-	if usage.ReasoningTokens == 0 && content != "" {
-		usage.ReasoningTokens = len(parsed.Choices[0].Message.ReasoningContent)
+	reasoning := parsed.Choices[0].Message.ReasoningContent
+	// Some Fireworks reasoning models return useful text only in
+	// reasoning_content. Treat it as content so the agent can parse or follow up
+	// instead of falling into empty-output retries and generic fallbacks.
+	if strings.TrimSpace(content) == "" && strings.TrimSpace(reasoning) != "" {
+		content = reasoning
 	}
-	return content, usage, nil
+	usage := parsed.Usage.toUsage()
+	if usage.ReasoningTokens == 0 && reasoning != "" {
+		usage.ReasoningTokens = len(reasoning)
+	}
+	return ChatResult{Content: content, ReasoningContent: reasoning, Usage: usage}, nil
 }
 
 type apiUsage struct {

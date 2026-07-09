@@ -320,6 +320,16 @@ func (h *ToolHost) doSubmit(args map[string]any) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("'answers' must be a list of dicts")
 	}
+	taskIDs := map[string]bool{}
+	if tasksRaw, ok := args["tasks"].([]any); ok {
+		for _, item := range tasksRaw {
+			if m, ok := item.(map[string]any); ok {
+				if id, _ := m["task_id"].(string); id != "" {
+					taskIDs[id] = true
+				}
+			}
+		}
+	}
 	result := map[string]string{}
 	for i, item := range arr {
 		m, ok := item.(map[string]any)
@@ -330,8 +340,20 @@ func (h *ToolHost) doSubmit(args map[string]any) (any, error) {
 		if taskID == "" {
 			return nil, fmt.Errorf("answers[%d] has no task_id", i)
 		}
+		if len(taskIDs) > 0 && !taskIDs[taskID] {
+			return nil, fmt.Errorf("answers[%d] has unknown task_id %q", i, taskID)
+		}
 		answer := stringifyForSubmit(m["answer"])
 		result[taskID] = answer
+	}
+	if len(taskIDs) > 0 && len(result) != len(taskIDs) {
+		missing := make([]string, 0, len(taskIDs))
+		for id := range taskIDs {
+			if _, ok := result[id]; !ok {
+				missing = append(missing, id)
+			}
+		}
+		return nil, fmt.Errorf("submit() missing answers for task_id(s): %s", strings.Join(missing, ","))
 	}
 	h.submitMu.Lock()
 	h.submitted = true
@@ -750,7 +772,13 @@ def _tool_args(name, args, kwargs):
     return kwargs
 
 def _mk_tool(n):
-    return lambda *args, **kwargs: _call(n, _tool_args(n, args, kwargs))
+    def _tool(*args, **kwargs):
+        payload = _tool_args(n, args, kwargs)
+        if n == "submit":
+            payload = dict(payload)
+            payload["tasks"] = input.get("tasks", []) if isinstance(input, dict) else []
+        return _call(n, payload)
+    return _tool
 
 class _Namespace:
     pass
