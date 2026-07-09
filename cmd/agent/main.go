@@ -61,9 +61,9 @@ func run() error {
 		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),
 		SkillRoots:       splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),
 		Timeout:          time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 120)) * time.Second,
-		ClassifierDir:    getenv("TASKCLF_DIR", ""), // off by default - not needed for lean path
+		ClassifierDir:    getenv("TASKCLF_DIR", "assets/taskclf"),
 		ClassifierLib:    os.Getenv("ONNXRUNTIME_LIB"),
-		DisableHints:     true,
+		DisableHints:     envBool("AGENT_DISABLE_HINTS", false),
 		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", false),
 	}
 
