@@ -131,14 +131,40 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required")
 	}
 
-	// Skip classifier in lean mode unless Categories already supplied - saves latency/tokens noise.
 	if a.cfg.Categories != nil {
 		a.categories = a.cfg.Categories
 	} else {
 		a.categories = a.classifyTasks(tasks)
 	}
 
-	batches := a.planBatches(tasks)
+	// Local action-space pre-solve: math/logic via python3 (zero Fireworks tokens).
+	// Remaining tasks go to a single lean LLM call.
+	var pending []Task
+	for _, t := range tasks {
+		cat := ""
+		if cs := a.categories[t.TaskID]; len(cs) > 0 {
+			cat = cs[0]
+		}
+		if ans, ok := trySolveLocal(ctx, t, cat); ok {
+			answers[t.TaskID] = ans
+			a.metrics.LocalAnswers++
+			continue
+		}
+		pending = append(pending, t)
+	}
+
+	if len(pending) == 0 {
+		out := make([]Result, 0, len(tasks))
+		for _, t := range tasks {
+			out = append(out, Result{TaskID: t.TaskID, Answer: answers[t.TaskID]})
+		}
+		a.metrics.FinishedAt = time.Now()
+		a.metrics.DurationMS = a.metrics.FinishedAt.Sub(a.metrics.StartedAt).Milliseconds()
+		a.metrics.Classifications = a.categories
+		return out, a.metrics, nil
+	}
+
+	batches := a.planBatches(pending)
 	a.metrics.Classifications = a.categories
 	a.metrics.BatchPlan = a.batchPlanRecords(batches)
 
@@ -463,18 +489,16 @@ func shortKindHighError(cat string) string {
 // Caveman-compressed recipes (drop articles/filler; keep technical terms exact).
 var categoryRecipe = map[string]string{
 	"mathematical_reasoning":   "math: lead final number plain digits no commas; multi-part use 1. 2. 3.; skip long derivation",
-	"named_entity_recognition": "ner: Entity:TYPE only; types PERSON ORGANIZATION LOCATION DATE; exhaust text; skip invented names",
+	"named_entity_recognition": "ner: Entity:TYPE only; types PERSON ORGANIZATION LOCATION DATE; exhaust text; skip invented names; do not label programme/mission names as ORGANIZATION",
 	"code_debugging":           "cfix: one-line root cause then full fixed function only",
 }
 
 func systemPrompt(batch []Task, categories map[string][]string) string {
-	// Caveman base: same substance, fewer tokens (caveman skill pattern).
 	var b strings.Builder
-	b.WriteString("One reply. JSON only. No markdown no fence no fluff.\n")
+	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
-	b.WriteString("\nEvery task_id. Answers short. Facts exact. Code keep exact.\n")
-	b.WriteString("Default: fact=1-3 short sentences; sent=Positive|Negative|Neutral + brief reason; sum=obey sentence/bullet limits; logic=Person:value all people; cgen=full function+docstring.\n")
-
+	b.WriteString("\nAll ids. Short. Exact.\n")
+	b.WriteString("fact:<=2 sent; sent:Positive|Negative|Neutral+reason; sum:obey limits; logic:Person:value; cgen:full fn+doc.\n")
 	present := map[string]bool{}
 	for _, t := range batch {
 		for _, c := range categories[t.TaskID] {
@@ -485,13 +509,6 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 	}
 	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging"} {
 		if present[c] {
-			b.WriteString(categoryRecipe[c])
-			b.WriteByte('\n')
-		}
-	}
-	// If no labels, still inject high-error card once (cheap insurance).
-	if len(present) == 0 && len(categories) == 0 {
-		for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging"} {
 			b.WriteString(categoryRecipe[c])
 			b.WriteByte('\n')
 		}

@@ -93,6 +93,7 @@ type Metrics struct {
 	CachedTokens    int                 `json:"cached_tokens"`
 	ReasoningTokens int                 `json:"reasoning_tokens"`
 	ToolRuns        int                 `json:"tool_runs"`
+	LocalAnswers    int                 `json:"local_answers"`
 	BatchCount      int                 `json:"batch_count"`
 	Fallbacks       int                 `json:"fallbacks"`
 	StartedAt       time.Time           `json:"started_at"`
