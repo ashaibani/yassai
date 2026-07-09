@@ -17,7 +17,7 @@ RUN curl -fsSL -o /tmp/tok.tgz \
     && mkdir -p /tok && tar xzf /tmp/tok.tgz -C /tok
 
 # --- build the agent (cgo ON: both bindings are cgo; build on the target platform) ---
-FROM --platform=linux/amd64 golang:1.25-bookworm AS build
+FROM --platform=linux/amd64 golang:1.26-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum* ./
 RUN go mod download
