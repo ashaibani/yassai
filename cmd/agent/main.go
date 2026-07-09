@@ -52,10 +52,10 @@ func run() error {
 		BaseURL:          normaliseBaseURL(getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")),
 		AllowedModels:    splitCSV(os.Getenv("ALLOWED_MODELS")),
 		PreferredModel:   os.Getenv("AGENT_MODEL"),
-		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 4),
+		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 20),
 		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 4),
 		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 8000),
-		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 2),
+		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 3),
 		ReasoningEffort:  os.Getenv("AGENT_REASONING_EFFORT"), // "" = adaptive by category
 		MaxContextTokens: getenvInt("AGENT_CONTEXT_TOKENS", 200000),
 		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),

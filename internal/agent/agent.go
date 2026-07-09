@@ -34,17 +34,13 @@ type Agent struct {
 
 func New(cfg Config) (*Agent, error) {
 	if cfg.MaxBatchSize <= 0 {
-		cfg.MaxBatchSize = 4
-	}
-	if cfg.MaxBatchSize > 6 {
-		// Keep batches small enough that one model turn can submit everything.
-		cfg.MaxBatchSize = 6
+		cfg.MaxBatchSize = 20
 	}
 	if cfg.MaxTurns <= 0 {
 		cfg.MaxTurns = 4
 	}
 	if cfg.MaxConcurrency <= 0 {
-		cfg.MaxConcurrency = 2
+		cfg.MaxConcurrency = 3
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 90 * time.Second
@@ -121,7 +117,7 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 
 	maxConcurrent := a.cfg.MaxConcurrency
 	if maxConcurrent <= 0 {
-		maxConcurrent = 2
+		maxConcurrent = 3
 	}
 	if maxConcurrent > len(batches) {
 		maxConcurrent = len(batches)
@@ -465,13 +461,39 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 			continue
 		}
 
-		// No code blocks: accept complete JSON/prose answers (token-efficient path).
+		// No code blocks: host-promote complete structured JSON into the action space
+		// by synthesising a finish() call (keeps ONE terminal protocol).
 		if answers, ok := parseAnswers(lastText, batch); ok {
 			partial = mergeAnswers(partial, answers)
 			if completeAnswers(answers, batch) {
-				return answers, calls, tools, nil
+				code := synthesiseFinishCode(answers, batch)
+				res, runErr := exec.Run(ctx, sessionID, code, map[string]any{
+					"tasks":    tasksAsMaps(batch),
+					"task_ids": taskIDs(batch),
+				})
+				tools++
+				a.mu.Lock()
+				a.metrics.ToolRuns++
+				a.mu.Unlock()
+				tt := []ToolTrace{{Index: 0, Code: code, Stdout: res.Stdout, JSON: res.JSON}}
+				if runErr != nil {
+					tt[0].Error = runErr.Error()
+				}
+				a.appendToolTraces(batch, turn, tt)
+				if exec.IsSubmitted() {
+					submitted := exec.SubmitResult()
+					if completeAnswers(submitted, batch) {
+						return submitted, calls, tools, nil
+					}
+					return submitted, calls, tools, fmt.Errorf("promoted finish incomplete (%d/%d)", len(submitted), len(batch))
+				}
+				// Validation failed: feed error and continue.
+				messages = append(messages,
+					llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
+					llm.Message{Role: "user", Content: "Host tried finish() from your JSON but validation failed: " + errString(runErr) + ". " + nextStepPrompt(batch)},
+				)
+				continue
 			}
-			// Partial JSON for multi-task batches: split rather than burn turns.
 			if len(batch) > 1 {
 				return answers, calls, tools, fmt.Errorf("partial answers (%d/%d)", len(answers), len(batch))
 			}
@@ -483,12 +505,10 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 
 		if turn == maxTurns-1 {
 			if completeAnswers(partial, batch) {
+				// Last-turn host promote of partials that became complete.
 				return partial, calls, tools, nil
 			}
-			if len(batch) == 1 && lastText != "" {
-				return map[string]string{batch[0].TaskID: lastText}, calls, tools, nil
-			}
-			return partial, calls, tools, fmt.Errorf("max turns reached without complete answers")
+			return partial, calls, tools, fmt.Errorf("max turns reached without finish()")
 		}
 
 		messages = append(messages,
@@ -501,10 +521,10 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 
 func nextStepPrompt(batch []Task) string {
 	ids := strings.Join(taskIDs(batch), ", ")
-	if needsCode(batch) {
-		return "You must finish by submitting answers for EVERY task (" + ids + "). Emit a python/micropy code block that computes what is needed and ends with submit(answers=[{'task_id':'...','answer':'...'}, ...])."
-	}
-	return "Provide final answers for EVERY task (" + ids + "). Preferred: emit a python/micropy code block ending with submit(answers=[...]). Alternatively return only JSON: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}, ...]}."
+	return "Continue in the action space. Emit ONE python/micropy fenced code block. " +
+		"When every task is solved, end that block with finish(answers=[...]) covering task_ids: " + ids + ". " +
+		"You may buffer partials with answers(task_id=..., answer=...) then finish(...). " +
+		"Do not reply with prose-only or raw JSON outside a code block."
 }
 
 func needsCode(batch []Task) bool {
@@ -607,26 +627,45 @@ func taskText(tasks []Task) string {
 func systemPrompt(batch []Task) string {
 	ids := strings.Join(taskIDs(batch), ", ")
 	return strings.Join([]string{
-		"You are a precise task-solving agent for a multi-capability benchmark.",
-		"You will receive one or more tasks. You must produce a non-empty answer for every task_id.",
+		"You are a precise multi-task agent. Everything you do goes through the CODE ACTION SPACE.",
 		"",
-		"HOW TO RETURN ANSWERS (pick one):",
-		"1) PREFERRED for computation/code/puzzles: emit a python or micropy fenced code block that ends with:",
-		"   submit(answers=[{'task_id':'T01','answer':'...'}, ...])",
-		"   Cover every task_id in this batch: " + ids,
-		"2) For pure knowledge/language tasks you may return ONLY this JSON (no prose outside it):",
-		"   {\"answers\":[{\"task_id\":\"T01\",\"answer\":\"...\"}, ...]}",
+		"PROTOCOL (ReAct-style, code-as-harness):",
+		"1. Optional short reasoning in prose.",
+		"2. Act by emitting exactly one fenced code block tagged python, python3, py, or micropy.",
+		"3. The harness runs the block and returns an Observation.",
+		"4. Repeat until you call the terminal action finish(...).",
 		"",
-		"ACTION SPACE inside code blocks:",
-		"- submit(answers=[...])  REQUIRED to finish when using code",
-		"- sh.run(command='python3 -c \"...\"')  for real Python computation",
-		"- fs.read/write/edit/list, web.fetch/search, vars dict",
+		"TERMINAL ACTION (only way to complete the batch):",
+		"  finish(answers=[",
+		"    {'task_id': '<id>', 'answer': '<non-empty string>'},",
+		"    ...",
+		"  ])",
+		"Aliases: submit(...) is identical to finish(...).",
+		"Partial helper: answers(task_id=..., answer=...) buffers one task; still call finish when all ready.",
+		"Batch task_ids (use ONLY these): " + ids,
+		"",
+		"TOOLS inside code blocks:",
+		"  finish / submit / answers",
+		"  sh.run(command='python3 -c \"...\"')  # compute and verify",
+		"  fs.read, fs.write, fs.edit, fs.list",
+		"  web.fetch, web.search",
+		"  vars  # persists across code blocks in this batch",
+		"  tools.help()",
 		"",
 		"RULES:",
-		"1. Arithmetic, projections, train/meeting problems, and constraint puzzles: COMPUTE in code (sh.run python3), do not guess.",
-		"2. Keep answers short and match any format constraints (bullet count, sentence count, labels).",
-		"3. Never refuse. Always give your best complete answer for every task.",
-		"4. Do not invent task_ids. Use only: " + ids,
+		"- Never finish with prose-only or bare JSON. Always end in a code block that calls finish(...).",
+		"- Maths, projections, constraint puzzles: compute via sh.run python3; do not guess.",
+		"- Keep answers short; honour format constraints (bullet counts, labels, etc.).",
+		"- Cover every task_id in one finish call.",
+		"",
+		"EXAMPLES:",
+		"```python",
+		"finish(answers=[{'task_id': 'T01', 'answer': 'Red, green, blue (additive light model).'}])",
+		"```",
+		"```python",
+		"r = sh.run(command='python3 -c \"print(2400 - int(2400*0.37) + 800 - 640)\"')",
+		"finish(answers=[{'task_id': 'T02', 'answer': r['output'].strip()}])",
+		"```",
 	}, "\n")
 }
 
@@ -704,10 +743,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	}
 	maxN := a.cfg.MaxBatchSize
 	if maxN <= 0 {
-		maxN = 4
-	}
-	if maxN > 6 {
-		maxN = 6
+		maxN = 20
 	}
 
 	byGroup := map[string][]Task{}
@@ -818,7 +854,6 @@ func parseAnswers(text string, batch []Task) (map[string]string, bool) {
 	if j := extractJSON(text); j != "" && j != text {
 		candidates = append([]string{j}, candidates...)
 	}
-	// Also try fenced json blocks.
 	for _, block := range markdown.ExtractBlocks(text) {
 		info := strings.ToLower(block.Info)
 		if info == "" || strings.Contains(info, "json") {
@@ -1002,6 +1037,27 @@ func cloneAnswerMap(in map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+func synthesiseFinishCode(answers map[string]string, batch []Task) string {
+	var b strings.Builder
+	b.WriteString("finish(answers=[\n")
+	for _, t := range batch {
+		ans := answers[t.TaskID]
+		esc := strings.ReplaceAll(ans, "\\", "\\\\")
+		esc = strings.ReplaceAll(esc, "'", "\\'")
+		esc = strings.ReplaceAll(esc, "\n", "\\n")
+		fmt.Fprintf(&b, "  {'task_id': '%s', 'answer': '%s'},\n", t.TaskID, esc)
+	}
+	b.WriteString("])\n")
+	return b.String()
+}
+
+func errString(err error) string {
+	if err == nil {
+		return "unknown error"
+	}
+	return err.Error()
 }
 
 func compactAssistantEcho(s string) string {

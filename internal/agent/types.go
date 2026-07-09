@@ -19,7 +19,7 @@ type Config struct {
 	MaxBatchSize     int
 	MaxTurns         int                 // per-batch LLM turn limit (0 = default 4)
 	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default 8000)
-	MaxConcurrency   int                 // max parallel batch workers (0 = default 2)
+	MaxConcurrency   int                 // max parallel batch workers (0 = default 3)
 	ReasoningEffort  string              // "", "low", "medium", "high", "xhigh"; "" = adaptive by category (see effortForTask)
 	Categories       map[string][]string // optional task_id -> categories override (eval); nil = classify at runtime
 	DisableHints     bool                // if true, skip category technique-hint injection (for eval A/B)

@@ -45,8 +45,8 @@ func main() {
 	jd := judge.New(umansKey, getenv("UMANS_BASE_URL", ""), getenv("UMANS_JUDGE_MODEL", "accounts/fireworks/models/minimax-m3"), getenv("UMANS_JUDGE_EFFORT", "xhigh"))
 	type row struct {
 		id, via string
-		pass bool
-		reason string
+		pass    bool
+		reason  string
 	}
 	out := make([]row, len(cases))
 	sem := make(chan struct{}, 3)

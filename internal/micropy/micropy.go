@@ -357,7 +357,10 @@ func (h *ToolHost) doSubmit(args map[string]any) (any, error) {
 		if len(taskIDs) > 0 && !taskIDs[taskID] {
 			return nil, fmt.Errorf("answers[%d] has unknown task_id %q", i, taskID)
 		}
-		answer := stringifyForSubmit(m["answer"])
+		answer := strings.TrimSpace(stringifyForSubmit(m["answer"]))
+		if answer == "" {
+			return nil, fmt.Errorf("answers for task_id %q is empty", taskID)
+		}
 		result[taskID] = answer
 	}
 	if len(taskIDs) > 0 && len(result) != len(taskIDs) {
@@ -400,7 +403,7 @@ func (h *ToolHost) ResetSubmit() {
 	h.submitMu.Unlock()
 }
 
-// SetExpectedTasks configures which task_ids submit() must cover.
+// SetExpectedTasks configures which task_ids submit()/finish() must cover.
 func (h *ToolHost) SetExpectedTasks(ids []string) {
 	h.submitMu.Lock()
 	defer h.submitMu.Unlock()
@@ -414,6 +417,46 @@ func (h *ToolHost) SetExpectedTasks(ids []string) {
 			h.expectedTaskIDs[id] = true
 		}
 	}
+}
+
+// doAnswer merges a single task answer into the submit buffer without completing.
+// Useful for multi-step batches: answers(task_id=..., answer=...) then finish().
+func (h *ToolHost) doAnswer(args map[string]any) (any, error) {
+	taskID, _ := args["task_id"].(string)
+	if taskID == "" {
+		return nil, fmt.Errorf("answers(task_id=..., answer=...) requires task_id")
+	}
+	h.submitMu.Lock()
+	if len(h.expectedTaskIDs) > 0 && !h.expectedTaskIDs[taskID] {
+		h.submitMu.Unlock()
+		return nil, fmt.Errorf("unknown task_id %q", taskID)
+	}
+	h.submitMu.Unlock()
+	answer := strings.TrimSpace(stringifyForSubmit(args["answer"]))
+	if answer == "" {
+		return nil, fmt.Errorf("answer for task_id %q is empty", taskID)
+	}
+	h.submitMu.Lock()
+	if h.submitResult == nil {
+		h.submitResult = map[string]string{}
+	}
+	h.submitResult[taskID] = answer
+	// Only mark submitted if all expected ids are present.
+	complete := len(h.expectedTaskIDs) > 0
+	if complete {
+		for id := range h.expectedTaskIDs {
+			if strings.TrimSpace(h.submitResult[id]) == "" {
+				complete = false
+				break
+			}
+		}
+	}
+	if complete {
+		h.submitted = true
+	}
+	count := len(h.submitResult)
+	h.submitMu.Unlock()
+	return map[string]any{"ok": true, "task_id": taskID, "buffered": count, "complete": complete}, nil
 }
 
 func stringifyForSubmit(v any) string {
@@ -460,8 +503,13 @@ func (h *ToolHost) Dispatch(ctx context.Context, name string, payload []byte) (a
 		return h.webSearch(ctx, args)
 	case "browser.drive":
 		return h.browserDrive(ctx, args)
-	case "submit":
+	case "submit", "finish":
+		// finish is the preferred terminal action; submit is kept as an alias.
 		return h.doSubmit(args)
+	case "answers":
+		// answers(task_id=..., answer=...) is a one-task helper that merges into
+		// the current submit buffer (does not complete the batch alone).
+		return h.doAnswer(args)
 	case "tools.help":
 		return map[string]any{"tools": toolSurfaceBindings()}, nil
 	default:
@@ -479,7 +527,9 @@ func toolSurfaceBindings() []map[string]any {
 		{"tool": "web.fetch", "namespace": []string{"web"}, "member": "fetch", "args": "url string, optional limit int bytes", "example": "web.fetch(url='https://example.com', limit=20000)"},
 		{"tool": "web.search", "namespace": []string{"web"}, "member": "search", "args": "query string", "example": "web.search(query='AMD Developer Hackathon')"},
 		{"tool": "browser.drive", "namespace": []string{"browser"}, "member": "drive", "args": "action string, url string for navigate/new_page", "example": "browser.drive(action='navigate', url='https://example.com')"},
-		{"tool": "submit", "namespace": []string{}, "member": "submit", "args": "answers list of {task_id, answer} dicts", "example": "submit(answers=[{'task_id':'t1','answer':'42'},{'task_id':'t2','answer':'Paris'}])"},
+		{"tool": "finish", "namespace": []string{}, "member": "finish", "args": "answers list of {task_id, answer} dicts covering EVERY batch task", "example": "finish(answers=[{'task_id':'t1','answer':'42'},{'task_id':'t2','answer':'Paris'}])"},
+		{"tool": "submit", "namespace": []string{}, "member": "submit", "args": "alias of finish(answers=[...])", "example": "submit(answers=[{'task_id':'t1','answer':'42'}])"},
+		{"tool": "answers", "namespace": []string{}, "member": "answers", "args": "task_id string, answer any - buffer one answer; call finish when all ready", "example": "answers(task_id='t1', answer='42')"},
 		{"tool": "tools.help", "namespace": []string{"tools"}, "member": "help", "args": "none", "example": "tools.help()"},
 	}
 }
