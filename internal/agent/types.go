@@ -45,6 +45,15 @@ type Config struct {
 	// TraceMessages stores full request messages, assistant outputs, and any
 	// provider reasoning_content in metrics.call_records for callback telemetry.
 	TraceMessages bool
+
+	// TextImg renders non-code batch content as 1-bit PNGs (scale=1 bitmap font)
+	// so Fireworks vision tokenisation (~1 token/32x32px) undercuts BPE text.
+	// "" or "off" = plain text; "auto"/"hybrid" = quoted source passages only;
+	// "tasks" = category-grouped full task sheets;
+	// "dense" = one mixed task sheet (experimental); "full" = category recipes
+	// plus grouped task sheets. The JSON output contract always stays as text.
+	// Code-exec batches always stay text: maths/logic need digit-exact reads.
+	TextImg string
 }
 
 type BatchPlanRecord struct {

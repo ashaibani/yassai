@@ -6,7 +6,7 @@ the results. Submissions are ranked by **fewest Fireworks tokens, subject to an
 accuracy gate**, so the design goal is: be correct first, then spend as few
 tokens as possible getting there.
 
-**Current result:** 19/19 on the real Track-1 eval set at **~4,960 Fireworks
+**Current result:** 19/19 on the real Track-1 eval set at **4,826 Fireworks
 tokens** (2 model calls, 0 fallbacks, ~10s), graded by a local judge matched to
 the organisers' reference judge (`internal/judge`, default model `glm-5p2`).
 
@@ -91,49 +91,40 @@ is minimised aggressively while keeping everything load-bearing for accuracy:
   for the categories present** in a batch, so they cost tokens only where they
   help. Currently: mathematical reasoning ("always compute with code"),
   logical/deductive puzzles ("solve programmatically"), and NER ("be exhaustive").
-- **Adaptive reasoning effort** (below): high effort only where it changes the
-  answer.
+- **No paid reasoning tokens**: every category runs at `reasoning_effort=none`;
+  maths and logic use executed Python instead.
 - **Empty context is omitted**: the memory and skills blocks are dropped from the
   prompt entirely when they carry nothing (the default at runtime).
+- **Text2img for genuinely long source passages** (`internal/textimg`): `auto`
+  keeps task ids, instructions, format constraints, code, and arithmetic as text,
+  but renders an individually labelled quoted passage once it reaches ~2,000
+  characters (~500 text tokens). Live Fireworks measurements found 52% prompt
+  savings at 2,000 characters and 62-69% for 5,000-40,000 characters. The real
+  19-task set has no passage long enough, so `auto` correctly stays text-only and
+  preserves the 19/19 accuracy floor. Aggressive `tasks`, `dense`, and `full`
+  modes remain available for experiments.
 
-## Action space (MicroPython)
+## Action space (Python 3)
 
-Everything flows through the action space. The model emits fenced `micropy` or
-`python` code blocks; the host extracts them, runs them in a MicroPython WASM
-sandbox (wazero), and feeds observations back. The model calls `submit()` to
-return final answers - there is no manual JSON parsing of the model's text
-output as the primary path.
+Maths and logic batches expose one native function tool: `run_python(code)`.
+The host executes the code in a bounded Python 3 subprocess (`internal/pyexec`)
+with the full standard library and a pre-defined `submit(answers=[...])`.
+Direct batches do not expose a tool and return JSON immediately.
 
 ### submit(answers=[...])
 
-The primary output mechanism. The model calls this with a list of
-`{task_id, answer}` dicts to submit final answers for all tasks in the batch.
-The host validates the submission and signals completion of the agent loop.
-
-### Available tools (Python globals inside a code block)
-
-- `submit(answers=[...])` - submit final answers
-- `sh.run(command='...')` - run shell commands (python3 available in the image)
-- `fs.read/write/edit/list` - file operations
-- `web.fetch/search` - web access
-- `vars` - persistent dict for storing intermediate results across code blocks
-- `tools.help()` - list available tools
+The model calls the pre-defined function with every task id. It must interpolate
+answers from computed variables rather than hand-type numbers or names; this
+prevents a correct calculation from being copied incorrectly into the answer.
 
 ### Example
 
-```micropy
-# Compute answers for all tasks, then submit
-r1 = sh.run(command='python3 -c "print(17*23)"')
-vars['t1'] = r1['output'].strip()
-vars['t2'] = 'Paris'
+```python
+product = 17 * 23
 submit(answers=[
-    {'task_id': 't1', 'answer': vars['t1']},
-    {'task_id': 't2', 'answer': vars['t2']},
+    {'task_id': 'm1', 'answer': str(product)},
 ])
 ```
-
-The runtime image ships a real shell and `python3`, so `sh.run` and
-`python3 -c ...` work in the container.
 
 ## Model selection
 
@@ -145,14 +136,11 @@ through `FIREWORKS_BASE_URL`.
 
 ## Reasoning effort
 
-By default (`AGENT_REASONING_EFFORT` unset) the effort is **adaptive per category
-tier**: only categories that empirically benefit from more reasoning are
-elevated. On the real-task eval only logical/deductive puzzles improved with more
-effort (they are routed to `xhigh`); every other category was already at ceiling
-on `low`, so raising it only burned tokens. Batches are grouped by tier so one
-`reasoning_effort` applies to the whole call, and `max_tokens` scales with the
-tier. Setting `AGENT_REASONING_EFFORT` to a fixed value (`low`/`medium`/`high`/
-`xhigh`) overrides the adaptivity.
+By default (`AGENT_REASONING_EFFORT=auto`) every deployed category resolves to
+`none`. Maths and logic get deterministic work from `run_python`; the other
+categories were already accurate without paid reasoning. Setting
+`AGENT_REASONING_EFFORT` to `low`, `medium`, `high`, or `xhigh` remains available
+for experiments but increases ranked token use.
 
 ## Memory and skills
 
@@ -174,16 +162,17 @@ All configuration is via environment variables (nothing is baked in):
 | `FIREWORKS_BASE_URL` | `https://api.fireworks.ai/inference/v1` | All model calls go through this. |
 | `ALLOWED_MODELS` | - | Comma-separated allow-list; first = default. |
 | `AGENT_MODEL` | - | Optional pin, used only if in `ALLOWED_MODELS`. |
-| `AGENT_REASONING_EFFORT` | *(unset = adaptive)* | Fix effort to `low`/`medium`/`high`/`xhigh`. |
-| `AGENT_BATCH_SIZE` | `20` | Max tasks per batch. |
-| `AGENT_BATCH_TOKENS` | `12000` | Max estimated prompt tokens per batch. |
-| `AGENT_MAX_CONCURRENCY` | `3` | Max parallel batch solving (1 = sequential). |
+| `AGENT_REASONING_EFFORT` | `auto` (all tiers currently `none`) | Override with `none`/`low`/`medium`/`high`/`xhigh`. |
+| `AGENT_BATCH_SIZE` | `40` | Max tasks per batch. |
+| `AGENT_BATCH_TOKENS` | `50000` | Max estimated prompt tokens per batch. |
+| `AGENT_MAX_CONCURRENCY` | `1` | Max parallel batch solving. |
 | `AGENT_CONTEXT_TOKENS` | `200000` | Assumed context window. |
+| `AGENT_TEXTIMG` | `auto` | Compress quoted sources >=2,000 chars; also supports `off`, `tasks`, `dense`, and `full`. |
 | `TASKCLF_DIR` | `assets/taskclf` | Classifier artefacts; set empty to disable. |
 | `ONNXRUNTIME_LIB` | *(set in image)* | Path to `libonnxruntime`; if unset locally, the classifier is skipped. |
 | `AGENT_MEMORY_ROOT` | `.` | Root for the memory store. |
 | `AGENT_SKILL_ROOTS` | - | Comma-separated extra skill dirs. |
-| `LLM_TIMEOUT_SECONDS` | `180` | Per-call timeout. |
+| `LLM_TIMEOUT_SECONDS` | `120` | Per-call timeout. |
 | `TASKS_PATH` / `RESULTS_PATH` | `/input/tasks.json` / `/output/results.json` | I/O paths (for local testing). |
 
 A `metrics.json` (tokens, latency, batch/tool counts, per-call records) is written
@@ -217,11 +206,11 @@ export ONNXRUNTIME_LIB=~/lib/onnxruntime/libonnxruntime.dylib
 
 ## Docker build
 
-The judging VM is `linux/amd64`. The runtime image is `python:3.12-slim` (it
-needs a real shell and `python3` for the `sh.run` action path; a distroless/static
-image cannot run those). The build is cgo (`CGO_ENABLED=1`): it statically links
-`libtokenizers.a` and bundles `libonnxruntime.so`, plus the `assets/taskclf/`
-artefacts. The result is well under the 10 GB limit (~115 MB in the last build).
+The judging VM is `linux/amd64`. The runtime image is `python:3.12-slim`, which
+provides the interpreter used by the native `run_python` tool. The build is cgo
+(`CGO_ENABLED=1`): it statically links `libtokenizers.a` and bundles
+`libonnxruntime.so` plus the int8 `assets/taskclf/` artefacts. The result is far
+under the 10 GB limit.
 
 CI builds and publishes the image automatically (see [Images](#images)); to build
 it by hand:
@@ -236,7 +225,7 @@ image or a bad reference is the most common way to fail to qualify.
 ## Images
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds + tests on every
-push to `main` and every pull request, then publishes to GHCR as
+push to `main` and every pull request, then publishes to
 `ghcr.io/<owner>/yassai`:
 
 | Trigger | Tags |
@@ -259,6 +248,12 @@ Three harnesses under `cmd/`:
 - **`cmd/routeprobe`** - probe accuracy/tokens per (model, category) to build a
   routing preference map.
 
+Fireworks-backed text2img tests are deliberately excluded from required CI so
+provider variability cannot block an image build. Run them locally with
+`TEXTIMG_LIVE_TESTS=1 FIREWORKS_API_KEY=... go test ./internal/textimg -v`, or
+launch the manual **Text2img live experiments** workflow. Responses with
+`content: null` are recorded as empty experimental results rather than panics.
+
 ### Test data (`testdata/`)
 
 | file | what |
@@ -272,5 +267,7 @@ Three harnesses under `cmd/`:
 
 ## Design notes
 
-`docs/model-routing.md` is the working decision log. `docs/memory-and-context.md`
-and `docs/phase1-design.md` cover the memory model and the original system design.
+`docs/model-routing.md` is the working decision log, `docs/text2img.md` records
+the image-tokenisation experiments, and `docs/action-space-and-finish.md`
+documents native Python execution. `docs/phase1-design.md` preserves the
+original system design and its superseded decisions.

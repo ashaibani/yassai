@@ -57,15 +57,15 @@ func New(dir, onnxFile, libPath string) (*Classifier, error) {
 		return nil, fmt.Errorf("parse onnx_config.json: %w", err)
 	}
 	if onnxFile == "" {
-		// Prefer the FP32 model (deterministic across platforms) when available;
-		// fall back to int8 if only the quantized model is shipped.
-		onnxFile = cfg.ModelFP32
+		// Production ships the compact int8 model. Keep FP32 as a local
+		// fallback for artefact/debug builds that omit the quantized file.
+		onnxFile = cfg.ModelInt8
 		if onnxFile == "" {
-			onnxFile = cfg.ModelInt8
+			onnxFile = cfg.ModelFP32
 		}
 		// Check that the chosen model file actually exists; fall back to whichever does.
 		if _, err := os.Stat(filepath.Join(dir, onnxFile)); err != nil {
-			for _, candidate := range []string{cfg.ModelFP32, cfg.ModelInt8} {
+			for _, candidate := range []string{cfg.ModelInt8, cfg.ModelFP32} {
 				if candidate != "" && candidate != onnxFile {
 					if _, err2 := os.Stat(filepath.Join(dir, candidate)); err2 == nil {
 						onnxFile = candidate

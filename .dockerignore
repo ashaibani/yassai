@@ -1,6 +1,13 @@
 .git
 .DS_Store
 bin
+/agent
+/eval
+/localmodeleval
+/realeval
+/routeprobe
+/scorefile
+/yassai
 /output
 /input
 *.log
@@ -11,6 +18,15 @@ lib
 # Large / irrelevant to the image build (only ./cmd/agent is compiled).
 inspo
 .github
+docs
+finetune
+leaderboard-watch
+models
+scripts
+testdata
+tmp
+assets/taskclf_backup_*
+assets/taskclf/model.onnx
 # Never ship seeded/host-generated agent memory into the build context.
 MEMORY.md
 memories/

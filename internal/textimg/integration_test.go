@@ -1,22 +1,14 @@
 package textimg
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestSystemPromptCompression(t *testing.T) {
-	apiKey := os.Getenv("FIREWORKS_API_KEY")
-	if apiKey == "" {
-		t.Skip("FIREWORKS_API_KEY not set")
-	}
+	apiKey := requireLiveAPI(t)
 
 	sysParts := []string{
 		"You are a compact, high-accuracy AI agent.",
@@ -76,10 +68,7 @@ func TestSystemPromptCompression(t *testing.T) {
 }
 
 func TestLargePromptCompression(t *testing.T) {
-	apiKey := os.Getenv("FIREWORKS_API_KEY")
-	if apiKey == "" {
-		t.Skip("FIREWORKS_API_KEY not set")
-	}
+	apiKey := requireLiveAPI(t)
 
 	var sb strings.Builder
 	for i := 0; i < 50; i++ {
@@ -145,46 +134,8 @@ func TestLargePromptCompression(t *testing.T) {
 }
 
 func callAndParse2(t *testing.T, apiKey string, body map[string]any) (string, int, int) {
-	jsonBody, _ := json.Marshal(body)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.fireworks.ai/inference/v1/chat/completions", strings.NewReader(string(jsonBody)))
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("API call: %v", err)
-	}
-	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		t.Skipf("API returned status %d: %s", resp.StatusCode, string(raw))
-	}
-	var result map[string]any
-	json.Unmarshal(raw, &result)
-	usage, _ := result["usage"].(map[string]any)
-	pt := 0
-	ct := 0
-	if usage != nil {
-		if v, ok := usage["prompt_tokens"].(float64); ok {
-			pt = int(v)
-		}
-		if v, ok := usage["completion_tokens"].(float64); ok {
-			ct = int(v)
-		}
-	}
-	choices, _ := result["choices"].([]any)
-	var response string
-	if len(choices) > 0 {
-		if choice, ok := choices[0].(map[string]any); ok {
-			if msg, ok := choice["message"].(map[string]any); ok {
-				if content, ok := msg["content"].(string); ok {
-					response = content
-				}
-			}
-		}
-	}
-	return response, pt, ct
+	result := callLiveAPI(t, apiKey, body, 60*time.Second)
+	return result.Content, result.PromptTokens, result.CompletionTokens
 }
 
 func countCorrect2(response string, expected map[string]string) int {

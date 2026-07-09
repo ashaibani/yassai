@@ -1,5 +1,23 @@
 # Category → model routing (working notes)
 
+## Current production decision (09 Jul 2026)
+
+- Use one Fireworks model, MiniMax-M3. Kimi's small coding edge did not improve
+  the easy code tasks and fragmented batching/cache behaviour.
+- Run every category at `reasoning_effort=none`. Maths and logic get correctness
+  from native Python execution rather than billed reasoning tokens.
+- Plan two batches: one direct batch and one maths+logic code batch. This is the
+  lowest system-prompt copy count that preserves deterministic computation.
+- The matched reference judge scores the real 19 tasks at **19/19 for 4,826
+  total tokens** (two calls, zero reasoning tokens, zero fallbacks).
+- The deployed v4 Granite/ModernBERT classifier is used for local capability
+  labels and execution-mode routing; it is not a model router.
+- Text2img is `auto` only for quoted passages >=2,000 characters. The measured
+  500+ token regime saves 52-69%; shorter real-task passages failed the
+  accuracy/cost trade-off. See [`text2img.md`](text2img.md).
+
+Everything below is the chronological experiment log that led to this decision.
+
 Candidates (from `ALLOWED_MODELS`, expected IDs):
 - `accounts/fireworks/models/minimax-m3` — MiniMax-M3 (428B total / 23B active MoE, reasoning)
 - `accounts/fireworks/models/kimi-k2p7-code` — Kimi K2.7 Code (1T total / 32B active MoE)

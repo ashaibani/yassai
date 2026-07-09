@@ -107,26 +107,10 @@ func RenderText(text string, cfg RenderConfig) ([]RenderResult, error) {
 				}
 				glyph, ok := fontAtlas[ch]
 				if !ok {
-					if ch >= 128 {
-						// Non-ASCII: draw a filled box
-						for py := 0; py < 7; py++ {
-							for px := 0; px < 5; px++ {
-								if glyph[py]&(1<<(4-px)) != 0 {
-									for sy := 0; sy < scale; sy++ {
-										for sx := 0; sx < scale; sx++ {
-											px2 := padX*scale + col*cellW*scale + px*scale + sx
-											py2 := yBase + py*scale + sy
-											if px2 < imgW && py2 < imgH {
-												img.Set(px2, py2, color.RGBA{R: 0, G: 0, B: 0, A: 255})
-											}
-										}
-									}
-								}
-							}
-						}
-						continue
-					}
-					continue // skip unknown chars
+					// Keep unsupported bytes visible rather than silently punching
+					// holes in the rendered text. Production input is UTF-8 folded
+					// before this point, but RenderText is also a public package API.
+					glyph = fontAtlas['?']
 				}
 				for py := 0; py < 7; py++ {
 					for px := 0; px < 5; px++ {

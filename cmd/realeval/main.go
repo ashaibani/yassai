@@ -26,6 +26,27 @@ import (
 )
 
 func categoryOf(id string) string {
+	// Golden real-benchmark ids: T01..T10 with b/c variants (testdata/downloads_tasks_golden.json).
+	if len(id) >= 3 && id[0] == 'T' {
+		switch id[:3] {
+		case "T01":
+			return "factual"
+		case "T02", "T08", "T10":
+			return "maths"
+		case "T03":
+			return "sentiment"
+		case "T04":
+			return "summarisation"
+		case "T05":
+			return "ner"
+		case "T06":
+			return "code_debugging"
+		case "T07":
+			return "logical"
+		case "T09":
+			return "code_generation"
+		}
+	}
 	switch {
 	case strings.HasPrefix(id, "su"):
 		return "summarisation"
@@ -123,6 +144,8 @@ func main() {
 		MaxContextTokens: 200000,
 		MemoryRoot:       tmpMem,
 		Timeout:          180 * time.Second,
+		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
+		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
 	}
 	mode := getenv("EFFORT_MODE", "") // "adaptive" = per-category tier; else uniform AGENT_REASONING_EFFORT
 	ansByID := map[string]string{}
@@ -156,7 +179,17 @@ func main() {
 		metrics.PromptTokens += m.PromptTokens
 		metrics.OutputTokens += m.OutputTokens
 		metrics.ReasoningTokens += m.ReasoningTokens
+		metrics.CachedTokens += m.CachedTokens
 		metrics.Calls += m.Calls
+		metrics.ToolRuns += m.ToolRuns
+		metrics.LocalAnswers += m.LocalAnswers
+		metrics.BatchCount += m.BatchCount
+		metrics.Fallbacks += m.Fallbacks
+		metrics.CallRecords = append(metrics.CallRecords, m.CallRecords...)
+		metrics.BatchPlan = append(metrics.BatchPlan, m.BatchPlan...)
+		if metrics.Model == "" {
+			metrics.Model = m.Model
+		}
 	}
 	if mode == "adaptive" {
 		codeModel := getenv("CODE_MODEL", "") // route code_debugging/code_generation here if set

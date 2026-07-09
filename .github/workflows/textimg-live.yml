@@ -1,0 +1,32 @@
+name: Text2img live experiments
+
+# Network/model experiments are deliberately separate from required CI. Run
+# this workflow manually when changing rendering, prompts, or Fireworks models.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Fireworks token and OCR experiments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify API secret
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        run: test -n "$FIREWORKS_API_KEY"
+
+      - name: Run text2img experiments
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          TEXTIMG_LIVE_TESTS: "1"
+        run: go test ./internal/textimg -run 'Test(TokenSavingsBySize|ScaleComparison|SystemPromptCompression|LargePromptCompression|OCRAccuracy)$' -v -count=1

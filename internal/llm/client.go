@@ -24,11 +24,13 @@ type Client struct {
 }
 
 type Message struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
-	Name       string     `json:"name,omitempty"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	Role        string     `json:"role"`
+	Content     string     `json:"content,omitempty"`
+	ImageURLs   []string   `json:"image_urls,omitempty"`   // data URIs; wired as image_url content parts after the text
+	ImageLabels []string   `json:"image_labels,omitempty"` // optional text emitted immediately before each image
+	ToolCallID  string     `json:"tool_call_id,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	ToolCalls   []ToolCall `json:"tool_calls,omitempty"`
 }
 
 // ToolDef is an OpenAI-compatible function tool definition.
@@ -115,8 +117,20 @@ func (c *Client) ChatWithOptions(ctx context.Context, messages []Message, opts C
 				msg["name"] = m.Name
 			}
 		default:
-			// Assistant messages that only carry tool_calls may have empty content.
-			if m.Content != "" || len(m.ToolCalls) == 0 {
+			if len(m.ImageURLs) > 0 {
+				parts := make([]map[string]any, 0, 1+2*len(m.ImageURLs))
+				if m.Content != "" {
+					parts = append(parts, map[string]any{"type": "text", "text": m.Content})
+				}
+				for i, u := range m.ImageURLs {
+					if i < len(m.ImageLabels) && m.ImageLabels[i] != "" {
+						parts = append(parts, map[string]any{"type": "text", "text": m.ImageLabels[i]})
+					}
+					parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]string{"url": u}})
+				}
+				msg["content"] = parts
+			} else if m.Content != "" || len(m.ToolCalls) == 0 {
+				// Assistant messages that only carry tool_calls may have empty content.
 				msg["content"] = m.Content
 			}
 			if len(m.ToolCalls) > 0 {

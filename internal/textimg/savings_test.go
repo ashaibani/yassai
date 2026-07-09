@@ -1,12 +1,7 @@
 package textimg
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -15,10 +10,7 @@ import (
 // TestTokenSavingsBySize measures token savings at different content sizes.
 // This determines the break-even point where image compression becomes worthwhile.
 func TestTokenSavingsBySize(t *testing.T) {
-	apiKey := os.Getenv("FIREWORKS_API_KEY")
-	if apiKey == "" {
-		t.Skip("FIREWORKS_API_KEY not set")
-	}
+	apiKey := requireLiveAPI(t)
 
 	// Generate content at different sizes
 	sizes := []int{500, 2000, 5000, 10000, 20000, 40000}
@@ -33,7 +25,7 @@ func TestTokenSavingsBySize(t *testing.T) {
 			"messages":   []map[string]any{{"role": "user", "content": "Answer: what is 2+2?\n\nContext:\n" + content}},
 			"max_tokens": 10,
 		}
-		textPT := callAPI3(t, apiKey, textBody)
+		textPT := callLiveAPI(t, apiKey, textBody, 30*time.Second).PromptTokens
 
 		// 2. Measure image token cost at scale=1 (densest)
 		cfg := DefaultRenderConfig()
@@ -63,7 +55,7 @@ func TestTokenSavingsBySize(t *testing.T) {
 			"messages":   []map[string]any{{"role": "user", "content": content2}},
 			"max_tokens": 10,
 		}
-		imgPT := callAPI3(t, apiKey, imgBody)
+		imgPT := callLiveAPI(t, apiKey, imgBody, 30*time.Second).PromptTokens
 
 		savings := textPT - imgPT
 		savingsPct := 0.0
@@ -114,26 +106,4 @@ func generateContent(targetChars int) string {
 		result = result[:targetChars]
 	}
 	return result
-}
-
-func callAPI3(t *testing.T, apiKey string, body map[string]any) int {
-	jsonBody, _ := json.Marshal(body)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.fireworks.ai/inference/v1/chat/completions", strings.NewReader(string(jsonBody)))
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("API call: %v", err)
-	}
-	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
-	var result map[string]any
-	json.Unmarshal(raw, &result)
-	usage, ok := result["usage"].(map[string]any)
-	if !ok {
-		t.Fatalf("No usage in response: %s", string(raw))
-	}
-	return int(usage["prompt_tokens"].(float64))
 }

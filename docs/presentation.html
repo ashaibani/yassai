@@ -1,359 +1,339 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>yassai - AMD Developer Hackathon Act 2</title>
 <style>
 :root {
-  --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e;
-  --accent: #58a6ff; --accent2: #3fb950; --accent3: #f0883e;
-  --card: #161b22; --border: #30363d;
-  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --ink: #f4f7fb;
+  --muted: #9aa8ba;
+  --bg: #080b12;
+  --panel: #111722;
+  --line: #273246;
+  --blue: #5da8ff;
+  --cyan: #56d8d0;
+  --green: #62d891;
+  --orange: #ffad66;
+  --red: #ff7373;
+  --mono: "SFMono-Regular", "Cascadia Code", Consolas, monospace;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased; }
-.deck { width: 100vw; overflow-x: auto; scroll-snap-type: x mandatory;
-  display: flex; height: 100vh; }
-.slide { flex: 0 0 100vw; height: 100vh; scroll-snap-align: start;
-  padding: 3vh 4vw; display: flex; flex-direction: column;
-  justify-content: center; position: relative; overflow: hidden; }
-.slide-num { position: absolute; bottom: 2vh; right: 3vw;
-  color: var(--muted); font-size: 0.85rem; font-family: var(--mono); }
-.slide-tag { position: absolute; top: 2.5vh; left: 4vw;
-  color: var(--accent); font-size: 0.8rem; font-family: var(--mono);
-  text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
-h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -1px;
-  margin-bottom: 0.5rem; line-height: 1.15; }
-h2 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.5px;
-  margin-bottom: 1.2rem; line-height: 1.2; }
-h3 { font-size: 1.05rem; font-weight: 600; color: var(--accent);
-  margin-bottom: 0.5rem; }
-p { font-size: 1.05rem; line-height: 1.55; color: #c9d1d9; }
-.subtitle { font-size: 1.25rem; color: var(--muted); margin-bottom: 2rem; }
-.metric-row { display: flex; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
-.metric { background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 1.2rem 1.5rem; min-width: 180px; }
-.metric .val { font-size: 1.8rem; font-weight: 700;
-  color: var(--accent); font-family: var(--mono); }
-.metric .val.green { color: var(--accent2); }
-.metric .val.orange { color: var(--accent3); }
-.metric .label { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
-.two-col { display: flex; gap: 2rem; margin-top: 1rem; }
-.col { flex: 1; }
-ul { list-style: none; }
-ul li { font-size: 1rem; line-height: 1.6; color: #c9d1d9;
-  padding-left: 1.2rem; position: relative; }
-ul li::before { content: '\2192'; position: absolute; left: 0;
-  color: var(--accent); font-weight: 700; }
-.code-block { background: var(--card); border: 1px solid var(--border);
-  border-radius: 8px; padding: 1rem 1.2rem; font-family: var(--mono);
-  font-size: 0.85rem; line-height: 1.5; color: #c9d1d9;
-  margin-top: 0.8rem; overflow-x: auto; }
-.code-block .kw { color: var(--accent3); }
-.code-block .fn { color: var(--accent); }
-.code-block .cm { color: var(--muted); }
-.code-block .st { color: var(--accent2); }
-.flow { display: flex; align-items: center; gap: 0.5rem;
-  flex-wrap: wrap; margin-top: 1.5rem; }
-.flow-box { background: var(--card); border: 1px solid var(--border);
-  border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem;
-  font-family: var(--mono); text-align: center; min-width: 120px; }
-.flow-box.highlight { border-color: var(--accent); color: var(--accent); }
-.flow-arrow { color: var(--muted); font-size: 1.2rem; }
-.badge { display: inline-block; background: var(--card);
-  border: 1px solid var(--border); border-radius: 20px;
-  padding: 0.3rem 0.8rem; font-size: 0.8rem; color: var(--muted); margin: 0.15rem; }
-.badge.accent { border-color: var(--accent); color: var(--accent); }
-.badge.green { border-color: var(--accent2); color: var(--accent2); }
-.badge.orange { border-color: var(--accent3); color: var(--accent3); }
-table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: 0.9rem; }
-table th { text-align: left; color: var(--muted); font-weight: 600;
-  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
-  padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); }
-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); color: #c9d1d9; }
-table td.num { font-family: var(--mono); text-align: right; }
-table tr:last-child td { border-bottom: none; }
-.future-card { background: var(--card); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent3); border-radius: 8px;
-  padding: 1rem 1.2rem; margin-top: 0.6rem; }
-.future-card h3 { color: var(--accent3); margin-bottom: 0.3rem; }
-.future-card p { font-size: 0.92rem; line-height: 1.45; }
-code.inline { color: var(--accent3); font-family: var(--mono); font-size: 0.9rem; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+body {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.deck { display: flex; width: 100vw; height: 100vh; overflow-x: auto; scroll-snap-type: x mandatory; }
+.slide {
+  position: relative;
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  scroll-snap-align: start;
+  padding: 5.2vh 5.2vw 4.4vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(93,168,255,.13), transparent 32%),
+    radial-gradient(circle at 8% 92%, rgba(86,216,208,.08), transparent 28%),
+    var(--bg);
+}
+.slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+}
+.eyebrow {
+  position: absolute;
+  left: 5.2vw;
+  top: 3.2vh;
+  z-index: 2;
+  color: var(--cyan);
+  font: 700 .76rem/1 var(--mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.page {
+  position: absolute;
+  right: 4vw;
+  bottom: 2.6vh;
+  z-index: 2;
+  color: #627087;
+  font: .72rem/1 var(--mono);
+}
+.content { position: relative; z-index: 1; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(3.5rem, 7.2vw, 6.9rem); line-height: .92; letter-spacing: -.065em; }
+h2 { font-size: clamp(2.2rem, 4vw, 4rem); line-height: 1.02; letter-spacing: -.045em; max-width: 980px; }
+h3 { font-size: 1rem; line-height: 1.2; color: var(--blue); }
+p, li, td { color: #c9d3e1; }
+.subtitle { margin-top: 1rem; color: var(--muted); font-size: clamp(1.05rem, 1.8vw, 1.5rem); line-height: 1.45; max-width: 980px; }
+.accent { color: var(--blue); }
+.green { color: var(--green) !important; }
+.orange { color: var(--orange) !important; }
+.red { color: var(--red) !important; }
+.mono { font-family: var(--mono); }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; margin-top: 2rem; }
+.metric, .card {
+  background: linear-gradient(145deg, rgba(20,28,42,.95), rgba(13,18,29,.95));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.2);
+}
+.metric { padding: 1.2rem 1.35rem; min-height: 112px; }
+.metric .value { font: 750 clamp(1.8rem, 3vw, 3rem)/1 var(--mono); color: var(--blue); }
+.metric .label { margin-top: .55rem; color: var(--muted); font-size: .82rem; line-height: 1.35; }
+.chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.6rem; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: .38rem .72rem; color: var(--muted); font: .75rem/1 var(--mono); background: rgba(17,23,34,.7); }
+.chip.primary { border-color: rgba(93,168,255,.55); color: var(--blue); }
+.chip.success { border-color: rgba(98,216,145,.5); color: var(--green); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.3rem; margin-top: 1.65rem; }
+.grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 1.5rem; }
+.card { padding: 1.2rem 1.3rem; }
+.card h3 { margin-bottom: .65rem; }
+.card p { font-size: .9rem; line-height: 1.52; }
+ul { list-style: none; padding: 0; margin: .4rem 0 0; }
+li { position: relative; padding-left: 1rem; font-size: .9rem; line-height: 1.5; margin: .32rem 0; }
+li::before { content: "+"; position: absolute; left: 0; color: var(--cyan); font-family: var(--mono); }
+.flow { display: grid; grid-template-columns: 1fr auto 1.2fr auto 1.5fr auto 1fr; align-items: stretch; gap: .55rem; margin-top: 1.7rem; }
+.node { border: 1px solid var(--line); border-radius: 12px; background: rgba(17,23,34,.92); padding: 1rem; min-height: 118px; display: flex; flex-direction: column; justify-content: center; }
+.node strong { color: var(--ink); font-size: .9rem; }
+.node span { color: var(--muted); font-size: .75rem; line-height: 1.4; margin-top: .4rem; }
+.node.hot { border-color: rgba(93,168,255,.65); box-shadow: inset 0 0 0 1px rgba(93,168,255,.12); }
+.arrow { align-self: center; color: #59677c; font: 1.2rem/1 var(--mono); }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: .65rem; }
+.mini { border-radius: 9px; border: 1px solid var(--line); padding: .75rem; background: #0b1019; }
+.mini b { display: block; color: var(--blue); font-size: .78rem; }
+.mini small { display: block; color: var(--muted); line-height: 1.35; margin-top: .3rem; }
+table { width: 100%; border-collapse: collapse; margin-top: .7rem; font-size: .82rem; }
+th { text-align: left; color: #78869a; font: 700 .68rem/1.2 var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: .55rem .65rem; border-bottom: 1px solid var(--line); }
+td { padding: .55rem .65rem; border-bottom: 1px solid rgba(39,50,70,.75); }
+td.num, th.num { text-align: right; font-family: var(--mono); }
+tr:last-child td { border-bottom: 0; }
+.bars { margin-top: 1rem; }
+.bar-row { display: grid; grid-template-columns: 90px 1fr 74px; align-items: center; gap: .8rem; margin: .72rem 0; }
+.bar-label { color: var(--muted); font: .72rem/1 var(--mono); }
+.bar-track { height: 16px; border-radius: 999px; background: #0a0f18; border: 1px solid var(--line); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+.bar-value { text-align: right; color: var(--ink); font: .75rem/1 var(--mono); }
+.callout { margin-top: 1rem; border-left: 3px solid var(--green); padding: .7rem 1rem; background: rgba(98,216,145,.06); color: #cfe7d8; font-size: .86rem; line-height: 1.45; }
+.code { margin-top: .8rem; border: 1px solid var(--line); border-radius: 10px; background: #090d14; padding: .85rem 1rem; color: #b9c6d8; font: .76rem/1.45 var(--mono); white-space: pre-wrap; }
+.footnote { margin-top: 1rem; color: #6f7e92; font-size: .72rem; line-height: 1.4; }
 @page { size: A4 landscape; margin: 0; }
 @media print {
-  html, body { margin: 0; padding: 0; }
-  .deck { display: block; overflow: visible; height: auto; scroll-snap-type: none; }
-  .slide { width: 100%; height: 100vh; page-break-after: always; page-break-inside: avoid; break-after: page; break-inside: avoid; padding: 3vh 4vw; box-sizing: border-box; }
-  .slide:last-child { page-break-after: auto; }
+  html, body { width: 297mm; height: 210mm; }
+  .deck { display: block; width: 297mm; height: auto; overflow: visible; }
+  .slide { width: 297mm; height: 210mm; min-height: 210mm; padding: 15mm 16mm 13mm; break-after: page; page-break-after: always; scroll-snap-align: none; }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  .eyebrow { left: 16mm; top: 9mm; }
+  .page { right: 12mm; bottom: 8mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 </style>
 </head>
 <body>
-<div class="deck">
+<main class="deck">
 
-<!-- SLIDE 1: TITLE -->
 <section class="slide">
-  <div class="slide-tag">Track 1 / Token-Efficient AI Agent</div>
-  <h1>yassai</h1>
-  <p class="subtitle">Yet Another Super Simple AI agent<br>for the AMD Developer Hackathon Act 2</p>
-  <div class="metric-row">
-    <div class="metric">
-      <div class="val green">100%</div>
-      <div class="label">Task accuracy (40/40 on benchmark)</div>
+  <div class="eyebrow">AMD Developer Hackathon Act 2 / Track 1</div>
+  <div class="content">
+    <h1>yassai<span class="accent">.</span></h1>
+    <p class="subtitle">Yet Another Stupid Simple AI agent.<br>Correct first, then ruthlessly token-efficient.</p>
+    <div class="metrics">
+      <div class="metric"><div class="value green">19/19</div><div class="label">Matched real-task judge accuracy</div></div>
+      <div class="metric"><div class="value">4,826</div><div class="label">Total Fireworks tokens</div></div>
+      <div class="metric"><div class="value orange">2</div><div class="label">Model calls for all tasks</div></div>
+      <div class="metric"><div class="value green">0</div><div class="label">Reasoning tokens and fallbacks</div></div>
     </div>
-    <div class="metric">
-      <div class="val">71%</div>
-      <div class="label">Token reduction via batching</div>
+    <div class="chips">
+      <span class="chip primary">Go 1.26</span><span class="chip primary">MiniMax-M3</span><span class="chip success">Python 3 tool execution</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">linux/amd64</span><span class="chip">Git LFS</span>
     </div>
-    <div class="metric">
-      <div class="val orange">~48 MB</div>
-      <div class="label">In-process classifier (int8 ONNX)</div>
-    </div>
-    <div class="metric">
-      <div class="val">~5 ms</div>
-      <div class="label">Classifier latency per task</div>
-    </div>
+    <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate.</p>
   </div>
-  <div style="margin-top: 1.8rem;">
-    <span class="badge accent">Golang</span>
-    <span class="badge accent">Fireworks (minimax-m3)</span>
-    <span class="badge accent">MicroPython + Wazero WASM</span>
-    <span class="badge green">ModernBERT classifier</span>
-    <span class="badge orange">Trained on AMD ROCm</span>
-    <span class="badge">OpenAI SDK</span>
-  </div>
-  <p style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--muted); max-width: 700px;">
-    Ranked by fewest Fireworks tokens subject to an accuracy gate.
-    Design goal: be correct first, then spend as few tokens as possible getting there.
-  </p>
-  <div class="slide-num">1 / 5</div>
+  <div class="page">01 / 06</div>
 </section>
 
-<!-- SLIDE 2: ACTION SPACE -->
 <section class="slide">
-  <div class="slide-tag">Action Space</div>
-  <h2>Code as Agent Harness</h2>
-  <div class="two-col">
-    <div class="col">
-      <h3>The loop</h3>
-      <ul>
-        <li>Model emits fenced <code class="inline">micropy</code> code blocks</li>
-        <li>Host extracts, runs them in a MicroPython WASM sandbox (wazero)</li>
-        <li>Observations fed back as user messages</li>
-        <li>Loop continues until <code class="inline">submit()</code> is called</li>
-        <li>No turn limit, no JSON parsing as primary path</li>
-        <li>State persists across code blocks in <code class="inline">vars</code></li>
-      </ul>
-      <div class="code-block"><span class="cm"># Compute, store, submit</span>
-r1 = <span class="fn">sh.run</span>(command=<span class="st">'python3 -c "print(17*23)"'</span>)
-vars[<span class="st">'t1'</span>] = r1[<span class="st">'output'</span>].strip()
-<span class="fn">submit</span>(answers=[
-  {<span class="st">'task_id'</span>: <span class="st">'t1'</span>, <span class="st">'answer'</span>: vars[<span class="st">'t1'</span>]}
-])</div>
-    </div>
-    <div class="col">
-      <h3>Available tools (sandbox globals)</h3>
-      <div style="margin-top: 0.5rem;">
-        <span class="badge accent">submit()</span>
-        <span class="badge accent">sh.run()</span>
-        <span class="badge accent">fs.read/write/edit/list</span>
-        <span class="badge accent">web.fetch/search</span>
-        <span class="badge accent">vars</span>
-        <span class="badge accent">tools.help()</span>
-      </div>
-      <h3 style="margin-top: 1.5rem;">Pipeline</h3>
-      <div class="flow">
-        <div class="flow-box">tasks.json</div>
-        <span class="flow-arrow">&#8594;</span>
-        <div class="flow-box highlight">Classifier</div>
-        <span class="flow-arrow">&#8594;</span>
-        <div class="flow-box highlight">Batcher</div>
-        <span class="flow-arrow">&#8594;</span>
-        <div class="flow-box highlight">Agent Loop</div>
-        <span class="flow-arrow">&#8594;</span>
-        <div class="flow-box">results.json</div>
-      </div>
-      <p style="margin-top: 1.2rem; font-size: 0.88rem; color: var(--muted);">
-        Grounded in <em>Hitchhiker's Guide to Agentic AI</em> and
-        <em>Code as Agent Harness Survey</em>. The agent reasons freely, builds
-        state in <code class="inline">vars</code>, and computes answers
-        programmatically instead of guessing.
-      </p>
-    </div>
-  </div>
-  <div class="slide-num">2 / 5</div>
-</section>
-
-<!-- SLIDE 3: CLASSIFIER -->
-<section class="slide">
-  <div class="slide-tag">Task Classifier</div>
-  <h2>In-Process Task Routing Classifier</h2>
-  <div class="two-col">
-    <div class="col">
-      <h3>Model</h3>
-      <ul>
-        <li>Backbone: IBM Granite Embedding R2 (ModernBERT, ~47M params)</li>
-        <li>Fine-tuned as 8-way multi-label head (sigmoid + per-label thresholds)</li>
-        <li>Exported to int8 ONNX, runs in-process on CPU via Go</li>
-        <li>Pure-Go BPE tokeniser (verified byte-identical to HuggingFace)</li>
-        <li>Head+tail truncation to 1024 tokens (leading or trailing instruction survives)</li>
-        <li><strong style="color:var(--accent3);">Trained on AMD ROCm notebook</strong></li>
-      </ul>
-      <h3 style="margin-top: 1.2rem;">8 capability categories</h3>
-      <div style="margin-top: 0.3rem;">
-        <span class="badge">factual_knowledge</span>
-        <span class="badge">mathematical_reasoning</span>
-        <span class="badge">sentiment_classification</span>
-        <span class="badge">text_summarisation</span>
-        <span class="badge">named_entity_recognition</span>
-        <span class="badge">code_debugging</span>
-        <span class="badge">logical_deductive_reasoning</span>
-        <span class="badge">code_generation</span>
-      </div>
-    </div>
-    <div class="col">
-      <h3>Accuracy (held-out hard real-benchmark)</h3>
-      <table>
-        <tr><th>Metric</th><th>Result</th></tr>
-        <tr><td>micro-F1</td><td class="num" style="color:var(--accent2);font-weight:700;">0.977</td></tr>
-        <tr><td>macro-F1</td><td class="num">0.967</td></tr>
-        <tr><td>subset accuracy</td><td class="num">0.930</td></tr>
-        <tr><td>prev. MiniLM v1 (micro-F1)</td><td class="num" style="color:var(--muted);">0.889</td></tr>
-      </table>
-      <h3 style="margin-top: 1.2rem;">Training data</h3>
-      <ul>
-        <li>14,388 synthetic + real prompts (7,142 train / 400 val / 199 test)</li>
-        <li>Independent blind re-label adopted as ground truth to remove noise</li>
-        <li>Sources: Umans synthetic gen, real benchmark fetch, easy short prompts</li>
-      </ul>
-      <h3 style="margin-top: 1.2rem;">Why it pays for itself</h3>
-      <p style="font-size: 0.92rem;">
-        Adding predicted categories to the prompt costs ~10 tokens per task but
-        nets <strong style="color:var(--accent2);">~12% fewer Fireworks tokens</strong>
-        overall, because the model reasons less when told the task type up front.
-      </p>
-    </div>
-  </div>
-  <div class="slide-num">3 / 5</div>
-</section>
-
-<!-- SLIDE 4: BATCHING + TOKEN EFFICIENCY -->
-<section class="slide">
-  <div class="slide-tag">Token Efficiency</div>
-  <h2>Batching and Adaptive Routing</h2>
-  <div class="two-col">
-    <div class="col">
-      <h3>Batch size vs token cost (40 tasks)</h3>
-      <table>
-        <tr><th>Batch size</th><th>Calls</th><th>Tokens</th><th>Accuracy</th></tr>
-        <tr><td>1 (no batching)</td><td class="num">42</td><td class="num">78,865</td><td class="num">95%</td></tr>
-        <tr><td>10</td><td class="num">4</td><td class="num">31,985</td><td class="num">100%</td></tr>
-        <tr style="background: rgba(88,166,255,0.08);">
-          <td style="color:var(--accent);font-weight:700;">20</td>
-          <td class="num" style="color:var(--accent);">2</td>
-          <td class="num" style="color:var(--accent);font-weight:700;">23,141</td>
-          <td class="num" style="color:var(--accent2);font-weight:700;">100%</td>
-        </tr>
-      </table>
-      <p style="margin-top: 0.8rem; font-size: 0.88rem; color: var(--muted);">
-        Batching amortises the fixed per-call prompt overhead (~260-token system
-        prompt) over many tasks. Fewer, fuller batches = fewer tokens.
-      </p>
-      <h3 style="margin-top: 1.2rem;">Adaptive reasoning effort</h3>
-      <ul>
-        <li>Tasks grouped by capability tier; one effort level per batch</li>
-        <li>Only logical/deductive puzzles get <code class="inline">xhigh</code></li>
-        <li>Everything else at <code class="inline">low</code> (already at ceiling)</li>
-        <li>Category hints injected only for categories present in batch</li>
-        <li>Memory and skills blocks omitted when empty (zero cost)</li>
-      </ul>
-    </div>
-    <div class="col">
-      <h3>Token breakdown (3 hard math tasks, batched)</h3>
-      <div class="metric-row">
-        <div class="metric">
-          <div class="val">26,112</div>
-          <div class="label">Total tokens</div>
-        </div>
-        <div class="metric">
-          <div class="val green">20,802</div>
-          <div class="label">Cached (80% hit rate)</div>
-        </div>
-        <div class="metric">
-          <div class="val orange">1,780</div>
-          <div class="label">Reasoning tokens</div>
+  <div class="eyebrow">Final architecture</div>
+  <div class="content">
+    <h2>Two calls. One deterministic escape hatch.</h2>
+    <p class="subtitle">The classifier decides execution mode locally; it does not spend Fireworks tokens.</p>
+    <div class="flow">
+      <div class="node"><strong>tasks.json</strong><span>19 independent tasks<br>8 capability types</span></div>
+      <div class="arrow">-&gt;</div>
+      <div class="node hot"><strong>ONNX classifier</strong><span>Granite ModernBERT<br>in-process CPU</span></div>
+      <div class="arrow">-&gt;</div>
+      <div class="node hot">
+        <strong>Execution-mode planner</strong>
+        <div class="split">
+          <div class="mini"><b>DIRECT</b><small>facts, sentiment, summaries, NER, code</small></div>
+          <div class="mini"><b>PYTHON</b><small>maths and logic only</small></div>
         </div>
       </div>
-      <h3 style="margin-top: 1.2rem;">Per-category token profile (routeprobe)</h3>
-      <table>
-        <tr><th>Category</th><th>Effort</th><th>Tokens</th><th>Pass</th></tr>
-        <tr><td>factual</td><td>low</td><td class="num">3,609</td><td class="num">5/5</td></tr>
-        <tr><td>maths</td><td>high</td><td class="num">4,123</td><td class="num">5/5</td></tr>
-        <tr><td>sentiment</td><td>low</td><td class="num">3,789</td><td class="num">5/5</td></tr>
-        <tr><td>NER</td><td>low</td><td class="num">8,442</td><td class="num">5/5</td></tr>
-        <tr><td>summarisation</td><td>low</td><td class="num">8,193</td><td class="num">5/5</td></tr>
-        <tr><td>logical_reasoning</td><td>high</td><td class="num">21,835</td><td class="num">5/5</td></tr>
-        <tr><td>code_debugging</td><td>high</td><td class="num">6,914</td><td class="num">5/5</td></tr>
-        <tr><td>code_generation</td><td>high</td><td class="num">6,400</td><td class="num">5/5</td></tr>
-      </table>
+      <div class="arrow">-&gt;</div>
+      <div class="node"><strong>results.json</strong><span>validated ids<br>complete answers</span></div>
+    </div>
+    <div class="grid3">
+      <div class="card"><h3>reasoning_effort=none</h3><p>Paid reasoning was the largest controllable cost. Exact computation replaces it where correctness needs work.</p></div>
+      <div class="card"><h3>Native run_python tool</h3><p>Full Python standard library, required first tool call, bounded subprocess, and structured observations.</p></div>
+      <div class="card"><h3>Authoritative submit()</h3><p>Numbers and names are interpolated from computed variables, eliminating correct-code / wrong-copy failures.</p></div>
     </div>
   </div>
-  <div class="slide-num">4 / 5</div>
+  <div class="page">02 / 06</div>
 </section>
 
-<!-- SLIDE 5: WHAT IS LEFT ON THE TABLE -->
 <section class="slide">
-  <div class="slide-tag">Future Work</div>
-  <h2>What is Left on the Table</h2>
-  <div class="two-col">
-    <div class="col">
-      <div class="future-card">
-        <h3>Smarter routing across models</h3>
-        <p>Currently all tasks go to one model (minimax-m3). The classifier already
-        tags capability; routing factual/sentiment to a cheaper model and
-        logical/code to a stronger one could cut tokens further while maintaining
-        accuracy.</p>
+  <div class="eyebrow">Classifier v4</div>
+  <div class="content">
+    <h2>Semantic routing that survives messy prompts.</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Model and runtime</h3>
+        <ul>
+          <li>IBM Granite Embedding R2 backbone, ~47M parameters</li>
+          <li>8-way multi-label classification head</li>
+          <li>ModernBERT, 1,024 tokens, head+tail truncation</li>
+          <li>int8 ONNX, ~48 MB, in-process Go inference</li>
+          <li>Native amd64 verified; large models stored with Git LFS</li>
+        </ul>
+        <div class="chips"><span class="chip success">misspelling augmentation</span><span class="chip success">semantic categories</span><span class="chip">AMD ROCm training</span></div>
       </div>
-      <div class="future-card">
-        <h3>Cost / quality / speed tradeoff dial</h3>
-        <p>The adaptive effort tier is binary (low vs xhigh). A continuous
-        per-category effort slider, tuned from routeprobe data, would find the
-        Pareto frontier of accuracy vs token cost for each category.</p>
-      </div>
-      <div class="future-card">
-        <h3>Load-bearing vs decorative classification</h3>
-        <p>The classifier currently feeds categories to the prompt. It could also
-        drive batch composition (group similar-difficulty tasks), max_tokens
-        allocation, and concurrency priority. Right now only the effort tier uses it.</p>
+      <div class="card">
+        <h3>Held-out hard benchmark</h3>
+        <table>
+          <tr><th>Metric</th><th class="num">v4</th></tr>
+          <tr><td>micro-F1</td><td class="num green">0.977</td></tr>
+          <tr><td>macro-F1</td><td class="num">0.967</td></tr>
+          <tr><td>subset accuracy</td><td class="num">0.930</td></tr>
+          <tr><td>previous MiniLM v1 micro-F1</td><td class="num">0.889</td></tr>
+        </table>
+        <div class="callout">Labels cost roughly 10 tokens per task but previously measured about 12% lower total Fireworks use by focusing answer recipes and execution mode.</div>
       </div>
     </div>
-    <div class="col">
-      <div class="future-card">
-        <h3>Fine-tuning for compact reasoning (Grug-style)</h3>
-        <p>Base model reasoning is verbose (1,780 reasoning tokens for 3 tasks).
-        A Grug-style compact-reasoning LoRA fine-tune on agent trajectories could
-        halve reasoning tokens while preserving code-block quality. Fireworks
-        managed LoRA ($50 credits available) on Gemma 4 26B-A4B / 31B.</p>
+    <div class="chips">
+      <span class="chip">factual</span><span class="chip">maths</span><span class="chip">sentiment</span><span class="chip">summarisation</span><span class="chip">NER</span><span class="chip">debugging</span><span class="chip">logic</span><span class="chip">code generation</span>
+    </div>
+  </div>
+  <div class="page">03 / 06</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Token optimisation</div>
+  <div class="content">
+    <h2>The path from unstable to 19/19.</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Measured run history</h3>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-label">broken base</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,var(--red),var(--orange));"></div></div><span class="bar-value">10,659</span></div>
+          <div class="bar-row"><span class="bar-label">lean effort</span><div class="bar-track"><div class="bar-fill" style="width:56.7%"></div></div><span class="bar-value">6,046</span></div>
+          <div class="bar-row"><span class="bar-label">prompt trim</span><div class="bar-track"><div class="bar-fill" style="width:54.2%"></div></div><span class="bar-value">5,773</span></div>
+          <div class="bar-row"><span class="bar-label">two batches</span><div class="bar-track"><div class="bar-fill" style="width:46.9%"></div></div><span class="bar-value">4,999</span></div>
+          <div class="bar-row"><span class="bar-label">final</span><div class="bar-track"><div class="bar-fill" style="width:45.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">4,826</span></div>
+        </div>
       </div>
-      <div class="future-card">
-        <h3>Caching and context compression</h3>
-        <p>80% cache hit is already strong, but prompt-prefix caching could be
-        improved further by stabilising batch ordering. Context compression
-        (pxpipe-inspired) for long agent loops would reduce per-turn growth.</p>
+      <div class="card">
+        <h3>What actually moved the score</h3>
+        <ul>
+          <li>Disabled reasoning tokens in every category</li>
+          <li>Moved maths and logic into one real-Python batch</li>
+          <li>Forced computed-variable interpolation in submit()</li>
+          <li>Merged all other categories into one direct batch</li>
+          <li>Kept terse, category-specific answer recipes</li>
+          <li>Matched the organiser-style reference judge locally</li>
+        </ul>
+        <div class="code">prompt  + output + reasoning = ranked tokens
+3,013  + 1,813  + 0         = 4,826</div>
       </div>
-      <div class="future-card">
-        <h3>Classifier ensemble and confidence routing</h3>
-        <p>Low-confidence classifications could trigger a fallback (second model
-        or majority vote). Currently best-effort with no confidence threshold.</p>
+    </div>
+    <div class="callout">The leaderboard target was ~4,300. The current cloud-only result is 4,826 at 19/19; further reduction needs a reliable zero-token local offload, not weaker answers.</div>
+  </div>
+  <div class="page">04 / 06</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Text2img research</div>
+  <div class="content">
+    <h2>Useful at 500+ tokens - gated by accuracy.</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Fireworks prompt-token measurements</h3>
+        <table>
+          <tr><th>Source</th><th class="num">Text</th><th class="num">Image</th><th class="num">Saved</th></tr>
+          <tr><td>500 chars</td><td class="num">262</td><td class="num">216</td><td class="num">18%</td></tr>
+          <tr><td>2,000 chars</td><td class="num">645</td><td class="num">312</td><td class="num green">52%</td></tr>
+          <tr><td>5,000 chars</td><td class="num">1,390</td><td class="num">528</td><td class="num green">62%</td></tr>
+          <tr><td>20,000 chars</td><td class="num">5,141</td><td class="num">1,632</td><td class="num green">68%</td></tr>
+          <tr><td>40,000 chars</td><td class="num">10,144</td><td class="num">3,096</td><td class="num green">69%</td></tr>
+        </table>
+        <p class="footnote">19,250-character probe: 4,312 -&gt; 1,421 prompt tokens, 2/2 answers preserved.</p>
+      </div>
+      <div class="card">
+        <h3>Production auto mode</h3>
+        <ul>
+          <li>Keep ids, questions, constraints, code, maths, and logic as text</li>
+          <li>Render only quoted sources >=2,000 characters (~500 tokens)</li>
+          <li>Label every image immediately before its image_url wire part</li>
+          <li>Fall back to text on threshold, render, or mode mismatch</li>
+          <li>Keep aggressive tasks/dense/full modes for research</li>
+        </ul>
+        <div class="callout">Rejected experiment: two ~450-character images saved only 13 prompt tokens and scored 18/19. Auto now stays text on the real set, preserving 19/19.</div>
       </div>
     </div>
   </div>
-  <div class="slide-num">5 / 5</div>
+  <div class="page">05 / 06</div>
 </section>
 
-</div>
+<section class="slide">
+  <div class="eyebrow">Shipping and observability</div>
+  <div class="content">
+    <h2>A reproducible submission, not a notebook demo.</h2>
+    <div class="grid3">
+      <div class="card">
+        <h3>Deterministic CI</h3>
+        <ul>
+          <li>Go 1.26 matches go.mod and Docker</li>
+          <li>Native amd64 ONNX integration test</li>
+          <li>Network experiments isolated from required CI</li>
+          <li>content:null handled without panics</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Portable image</h3>
+        <ul>
+          <li>linux/amd64 multi-stage Docker build</li>
+          <li>Static libtokenizers + bundled ONNX Runtime</li>
+          <li>Python 3 runtime for deterministic tools</li>
+          <li>GHCR latest, main, and immutable SHA tags</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Telemetry loop</h3>
+        <ul>
+          <li>Per-call prompt/output/reasoning tokens</li>
+          <li>Batch plans, classifications, and tool traces</li>
+          <li>KV-backed Cloudflare dashboard</li>
+          <li>Token history exposes regressions immediately</li>
+        </ul>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="value green">PASS</div><div class="label">Matched accuracy gate</div></div>
+      <div class="metric"><div class="value">amd64</div><div class="label">Judge-native target</div></div>
+      <div class="metric"><div class="value orange">manual</div><div class="label">Live text2img workflow</div></div>
+      <div class="metric"><div class="value green">ready</div><div class="label">Commit, image, and docs</div></div>
+    </div>
+  </div>
+  <div class="page">06 / 06</div>
+</section>
+
+</main>
 </body>
 </html>

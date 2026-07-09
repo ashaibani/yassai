@@ -1,39 +1,72 @@
 # Action space and terminal finish protocol
 
-## Research synthesis
+Updated: 09 July 2026
 
-Sources:
-- *The Hitchhiker’s Guide to Agentic AI* (Roitman, arXiv:2606.24937) - ReAct loops, action-space design, structured outputs, MCP-style standardised tools.
-- *Code as Agent Harness* (arXiv:2605.18747) - code as the executable/inspectable/stateful interface for reason-act-verify; verification-driven tool use; plan-execute-verify control.
-- λ-RLM / RLM REPL (`inspo/lambda-RLM`) - single REPL action medium; terminal `FINAL(...)` / `FINAL_VAR(...)` extracted from trajectory; variables as buffers before finish.
-- Industry practice (OpenAI Agents SDK, ReAct derivatives) - explicit tool schemas; optional `tool_choice=required`; separate terminal action; validate structured outputs host-side.
+## Current design
 
-## Design principles for yassai
+yassai has two execution paths, selected by the local task classifier:
 
-1. **One medium for all work**: fenced Python/micropy code blocks are the only action channel (code-as-harness).
-2. **One terminal action**: `finish(answers=[...])` (alias `submit`) is the only way a batch completes. Host validates coverage + non-empty answers against expected `task_id`s.
-3. **Buffers then commit**: optional `answers(task_id=..., answer=...)` merges into a buffer; `finish` commits the full set (RLM `FINAL_VAR` pattern).
-4. **No dual-path conflict**: do not ask the model to either emit free JSON *or* call a tool as peer options. If the model still emits bare JSON, the **host promotes** it into a synthetic `finish(...)` so validation stays unified.
-5. **Structured observations**: tool results return as Observation messages (ReAct observe step).
-6. **Deterministic verification**: maths/puzzles via `sh.run(python3)` inside the same action space (verification-driven tool use).
+1. Direct tasks (factual, sentiment, summarisation, NER, code debugging, and
+   code generation) receive no tools and return the answer JSON in one call.
+2. Maths and logic tasks receive one native function tool,
+   `run_python(code)`, backed by a bounded Python 3 subprocess.
 
-## Protocol the model sees
+The split is deliberate. Tool schemas and an observation turn cost tokens, so
+they are exposed only where deterministic computation materially improves the
+accuracy gate.
 
-```
-optional prose thought
+## Tool contract
+
+The Python runtime pre-defines:
+
 ```python
-# tools: sh.run, fs.*, web.*, vars, answers, finish/submit
-finish(answers=[{'task_id':'T01','answer':'...'}, ...])
+submit(answers=[
+    {"task_id": "T02", "answer": answer_text},
+])
 ```
-→ Observation → (more acts) → finish
 
-## Host validation
+The generated program may import the full standard library. It must call
+`submit` once with every id in the batch and must not redefine `submit`.
+`internal/pyexec` validates ids, rejects empty/incomplete submissions, and
+returns the submitted JSON to the agent.
 
-- `SetExpectedTasks(ids)` before each batch.
-- `finish`/`submit` rejects unknown ids, empty answers, and incomplete coverage.
-- Incomplete finish keeps partials and recovery splits only missing tasks.
-- Bare complete JSON is host-promoted to `finish` (still runs through the executor).
+## Computed-answer invariant
 
-## Why not native function-calling only?
+Every computed number and every selected logic value is interpolated from a
+variable into the final answer. For example:
 
-Fireworks models vary; fenced code works across models, composes tools in one turn, and matches the code-as-harness survey. Native tools can be layered later without changing the finish contract.
+```python
+remaining = start * (1 - sold_rate) + restock - sold_q3
+submit(answers=[{
+    "task_id": "T02",
+    "answer": str(round(remaining)) + " units",
+}])
+```
+
+This rule fixed the most damaging failure mode in the real task set: the model
+could write correct Python but then hand-type a different number in `submit`.
+The executed variables are now authoritative.
+
+## Turn and recovery behaviour
+
+- Code batches require a tool call on the first turn.
+- After a successful execution, tools are disabled and the model may only
+  format a final response if the submitted JSON was not already complete.
+- Complete tool submissions terminate immediately, avoiding a formatting turn.
+- Malformed or incomplete batches are split recursively; only missing tasks are
+  retried.
+- Direct JSON parsing remains a compatibility path, not a peer action channel.
+
+## Why native function calling replaced fenced MicroPython
+
+The original Phase-1 prototype used fenced `micropy` blocks in a WASM REPL.
+Production moved to native function calling plus real Python 3 because it:
+
+- has the full standard library (`itertools` is essential for logic puzzles);
+- removes code-block extraction ambiguity;
+- provides explicit tool-call ids and structured observations;
+- makes `tool_choice=required` enforceable; and
+- uses fewer turns on the validated 19-task workload.
+
+The old MicroPython package remains in the repository as historical prototype
+code, but it is not on the submission hot path.

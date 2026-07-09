@@ -32,11 +32,11 @@ jobs:
     name: Build & test (native amd64)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -74,16 +74,15 @@ jobs:
         run: go build ./...
 
       # ONNXRUNTIME_LIB makes the taskclf integration test run for real, so this
-      # verifies the ONNX classifier on genuine amd64 hardware. FIREWORKS_API_KEY
-      # (if set as a repo secret) enables the network-dependent textimg tests;
-      # when unset they self-skip.
+      # verifies the ONNX classifier on genuine amd64 hardware. Fireworks-backed
+      # textimg experiments are opt-in in textimg-live.yml; required CI is fully
+      # deterministic and never depends on an external model response.
       - name: Test
         env:
           CGO_ENABLED: "1"
           CGO_LDFLAGS: -L/opt/tokenizers
           ONNXRUNTIME_LIB: /opt/onnxruntime/lib/libonnxruntime.so
           LD_LIBRARY_PATH: /opt/onnxruntime/lib
-          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
         run: go test ./... -count=1
 
   docker:
@@ -98,15 +97,15 @@ jobs:
       # so they build only (which still validates the Dockerfile).
       PUSH: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: env.PUSH == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -116,7 +115,7 @@ jobs:
       # lowercases it, so an uppercase owner still yields a valid name.
       - name: Image metadata (tags + labels)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -126,7 +125,7 @@ jobs:
             type=sha
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
@@ -146,15 +145,15 @@ jobs:
     # Only run on main pushes (skip PRs to save minutes)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

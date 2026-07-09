@@ -1,21 +1,13 @@
 package textimg
 
 import (
-	"context"
-	"encoding/json"
-	"io"
-	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestScaleComparison(t *testing.T) {
-	apiKey := os.Getenv("FIREWORKS_API_KEY")
-	if apiKey == "" {
-		t.Skip("FIREWORKS_API_KEY not set")
-	}
+	apiKey := requireLiveAPI(t)
 
 	systemPrompt := "You are a compact, high-accuracy AI agent for AMD Developer Hackathon Track 1. Return exactly this JSON object and nothing else: {\"answers\":[{\"task_id\":\"...\",\"answer\":\"...\"}]}. Preserve each task_id. Keep answers concise but complete."
 
@@ -29,7 +21,7 @@ func TestScaleComparison(t *testing.T) {
 		"messages":   []map[string]any{{"role": "user", "content": fullContent + "\n\nReturn only the JSON answers."}},
 		"max_tokens": 10,
 	}
-	textPT := callAPI2(t, apiKey, textBody)
+	textPT := callLiveAPI(t, apiKey, textBody, 30*time.Second).PromptTokens
 	t.Logf("Text only: prompt_tokens=%d (content=%d chars)", textPT, len(fullContent))
 
 	scales := []int{1, 2, 3}
@@ -64,33 +56,8 @@ func TestScaleComparison(t *testing.T) {
 			"max_tokens": 500,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		jsonBody, _ := json.Marshal(imgBody)
-		req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.fireworks.ai/inference/v1/chat/completions", strings.NewReader(string(jsonBody)))
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Errorf("scale=%d API call: %v", scale, err)
-			continue
-		}
-		raw, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		var result map[string]any
-		json.Unmarshal(raw, &result)
-		usage := result["usage"].(map[string]any)
-		pt := int(usage["prompt_tokens"].(float64))
-		ct := int(usage["completion_tokens"].(float64))
-
-		choices, _ := result["choices"].([]any)
-		var response string
-		if len(choices) > 0 {
-			choice := choices[0].(map[string]any)
-			msg := choice["message"].(map[string]any)
-			response = msg["content"].(string)
-		}
+		result := callLiveAPI(t, apiKey, imgBody, 60*time.Second)
+		pt, ct, response := result.PromptTokens, result.CompletionTokens, result.Content
 
 		expected := []string{"Paris", "255", "Au", "8", "100", "Shakespeare", "12", "Pacific"}
 		correct := 0
@@ -113,21 +80,4 @@ func TestScaleComparison(t *testing.T) {
 			t.Logf("  Response: %s", response)
 		}
 	}
-}
-
-func callAPI2(t *testing.T, apiKey string, body map[string]any) int {
-	jsonBody, _ := json.Marshal(body)
-	req, _ := http.NewRequest("POST", "https://api.fireworks.ai/inference/v1/chat/completions", strings.NewReader(string(jsonBody)))
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("API call: %v", err)
-	}
-	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
-	var result map[string]any
-	json.Unmarshal(raw, &result)
-	usage := result["usage"].(map[string]any)
-	return int(usage["prompt_tokens"].(float64))
 }

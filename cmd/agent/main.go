@@ -67,6 +67,7 @@ func run() error {
 		ClassifierLib:    os.Getenv("ONNXRUNTIME_LIB"),
 		DisableHints:     envBool("AGENT_DISABLE_HINTS", false),
 		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", false),
+		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
 	}
 
 	ag, err := agent.New(cfg)

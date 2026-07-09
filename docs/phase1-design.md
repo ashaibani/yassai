@@ -7,6 +7,17 @@ Date: 07 July 2026
 > [`model-routing.md`](model-routing.md). Points where the implementation diverged
 > from this plan are flagged inline.
 
+Major shipped divergences (09 July 2026):
+
+| Phase-1 proposal | Shipped path |
+|---|---|
+| Fenced MicroPython/WASM action loop | Native `run_python` function tool backed by Python 3 |
+| Tools for every task | Tool exposed only to maths and logic |
+| Adaptive/high reasoning effort | `reasoning_effort=none` for every category |
+| General context/memory assembly | Compact task JSON; memory and skills stay off the hot path |
+| Fixed-size category batching | Two execution-mode batches (direct and code) |
+| pxpipe as future research | Accuracy-gated text2img `auto` mode for >=2,000-character sources |
+
 ## Track 1 constraints
 
 The Participant Guide requires a public `linux/amd64` Docker image that reads `/input/tasks.json`, writes valid `/output/results.json`, exits with code 0 on success, and completes inside 10 minutes. Track 1 is judged across factual knowledge, maths, sentiment, summarisation, named entity recognition, code debugging, logic, and code generation. All inference must use `FIREWORKS_BASE_URL`, `FIREWORKS_API_KEY`, and only models listed in `ALLOWED_MODELS`. Submissions first pass an accuracy gate, then rank by total recorded tokens.
@@ -72,14 +83,13 @@ The agent intentionally does not include hard-coded local solvers for benchmark 
 5. Only then start Phase 2 data generation and Grug-style fine-tuning.
 
 
-## Memory and context (implemented)
+## Memory and context (retained, off the submission hot path)
 
 See [`memory-and-context.md`](memory-and-context.md) for the current design. In
 brief:
 
-- File-backed `MEMORY.md` index plus selective `memories/*.md` loading, but the
-  memory block is injected **only when non-empty** - by default it costs no tokens.
-- 200k-token context budget with reserved output space.
-- Category-specific help is the compiled-in `categoryHints` (system prompt,
-  per-batch), not file-loaded skills; no skills are bundled in the container.
-- The run-once agent does **not** maintain memory during a run.
+- File-backed memory and skill-loading modules remain available for experiments,
+  but `solveBatch` does not inject either into production requests.
+- Category-specific help is the compiled-in `categoryRecipe` map and is emitted
+  only for categories present in the current batch.
+- The run-once agent does not maintain memory during a run.

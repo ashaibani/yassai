@@ -1,22 +1,14 @@
 package textimg
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestOCRAccuracy(t *testing.T) {
-	apiKey := os.Getenv("FIREWORKS_API_KEY")
-	if apiKey == "" {
-		t.Skip("FIREWORKS_API_KEY not set")
-	}
+	apiKey := requireLiveAPI(t)
 
 	tests := []struct {
 		name string
@@ -60,37 +52,13 @@ func TestOCRAccuracy(t *testing.T) {
 			{"type": "image_url", "image_url": map[string]string{"url": images[0].ToBase64DataURI()}},
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
 		body := map[string]any{
 			"model":      "accounts/fireworks/models/minimax-m3",
 			"messages":   []map[string]any{{"role": "user", "content": content}},
 			"max_tokens": 500,
 		}
-		jsonBody, _ := json.Marshal(body)
-		req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.fireworks.ai/inference/v1/chat/completions", strings.NewReader(string(jsonBody)))
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Errorf("API call for %s: %v", tt.name, err)
-			continue
-		}
-		raw, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		var result map[string]any
-		json.Unmarshal(raw, &result)
-		choices, ok := result["choices"].([]any)
-		if !ok || len(choices) == 0 {
-			t.Errorf("No choices for %s: %s", tt.name, string(raw))
-			continue
-		}
-		choice := choices[0].(map[string]any)
-		msg := choice["message"].(map[string]any)
-		readback := msg["content"].(string)
-		readback = strings.TrimSpace(readback)
+		result := callLiveAPI(t, apiKey, body, 30*time.Second)
+		readback := strings.TrimSpace(result.Content)
 
 		keyFacts := extractKeyFacts(tt.text)
 		correctFacts := 0
@@ -107,12 +75,9 @@ func TestOCRAccuracy(t *testing.T) {
 			pct = float64(correctFacts) / float64(len(keyFacts)) * 100
 		}
 
-		usage := result["usage"].(map[string]any)
-		pt := int(usage["prompt_tokens"].(float64))
-
 		t.Logf("OCR %s: %d/%d facts (%.0f%%) | img=%dx%d prompt_tokens=%d",
 			tt.name, correctFacts, len(keyFacts), pct,
-			images[0].W, images[0].H, pt)
+			images[0].W, images[0].H, result.PromptTokens)
 
 		if pct < 80 {
 			t.Logf("  Original: %s", tt.text)

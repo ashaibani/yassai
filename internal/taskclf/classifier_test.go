@@ -18,10 +18,10 @@ func TestClassifyIntegration(t *testing.T) {
 		t.Skipf("ONNXRUNTIME_LIB points at %q which does not exist: %v", lib, err)
 	}
 	dir := filepath.Join("..", "..", "assets", "taskclf")
-	// Prefer the FP32 model (model.onnx); fall back to int8.
-	modelPath := filepath.Join(dir, "model.onnx")
+	// Exercise the same int8 artefact shipped in the runtime image.
+	modelPath := filepath.Join(dir, "model.int8.onnx")
 	if _, err := os.Stat(modelPath); err != nil {
-		modelPath = filepath.Join(dir, "model.int8.onnx")
+		modelPath = filepath.Join(dir, "model.onnx")
 		if _, err := os.Stat(modelPath); err != nil {
 			t.Skipf("model not present: %v", err)
 		}

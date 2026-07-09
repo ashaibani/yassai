@@ -318,12 +318,8 @@ func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []T
 	exec.SetExpectedTasks(taskIDs(batch))
 	sessionID := "b-" + strings.Join(taskIDs(batch), "-")
 
-	sys := systemPrompt(batch, a.categories)
-	user := buildLeanUserPrompt(batch, a.categories)
-	messages := []llm.Message{
-		{Role: "system", Content: sys},
-		{Role: "user", Content: user},
-	}
+	allowCode := a.batchAllowsCode(batch)
+	messages := a.buildBatchMessages(batch, allowCode)
 
 	var calls, tools int
 	var lastText string
@@ -333,7 +329,6 @@ func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []T
 	wiredEffort := wireEffort(effort)
 	batchModel := a.model
 	llmClient := a.llm
-	allowCode := a.batchAllowsCode(batch)
 
 	maxTurns := a.cfg.MaxTurns
 	if maxTurns <= 0 {
@@ -620,11 +615,23 @@ var categoryRecipe = map[string]string{
 }
 
 func systemPrompt(batch []Task, categories map[string][]string) string {
+	header, recipes := systemPromptParts(batch, categories)
+	if recipes == "" {
+		return header
+	}
+	return header + "\n" + recipes
+}
+
+// systemPromptParts splits the system prompt into the JSON output contract
+// (header - always sent as text so parseAnswers never depends on OCR) and the
+// per-category recipes (movable into a textimg render in TextImg "full" mode).
+func systemPromptParts(batch []Task, categories map[string][]string) (string, string) {
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
 	b.WriteString("\nAll ids; each answer a plain text string, English, no preamble. Be concise (correct+complete beats long) but omit no requested part: comparisons, reasons, labels, units, docstrings, edge cases.\n")
 	b.WriteString("fact: answer every part asked in <=2 sentences / ~40 words, no extra background; sent: Positive|Negative|Neutral + 1 short reason; sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - within any word cap.\n")
+	var r strings.Builder
 	needCode := false
 	present := map[string]bool{}
 	for _, t := range batch {
@@ -643,17 +650,17 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 	}
 	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging", "code_generation", "logical_deductive_reasoning", "text_summarisation"} {
 		if present[c] {
-			b.WriteString(categoryRecipe[c])
-			b.WriteByte('\n')
+			r.WriteString(categoryRecipe[c])
+			r.WriteByte('\n')
 		}
 	}
 	if needCode {
 		// Native tool surface: call run_python instead of fencing markdown. Maths
 		// and logic both run here; the executed code (not the model) is authoritative,
 		// and calling submit() ends the task with no extra formatting call.
-		b.WriteString("tool run_python(code): Python 3 with the FULL stdlib (import freely - itertools, math, etc.). submit(answers=[{\"task_id\":..,\"answer\":..}, ...]) is ALREADY PRE-DEFINED by the runtime: call it once with ALL ids; NEVER write 'def submit'. CRITICAL: every number and name inside a submit answer MUST be interpolated from a computed VARIABLE (e.g. \"Alice drinks \"+A, or str(round(after_q3))+\" units\") - NEVER hand-type a value your code computed, because hand-typed values are usually wrong even when the code is right. maths: keep raw floats, round() only for display. logic: itertools.permutations over the candidates, keep the assignment satisfying EVERY clue, build the answer from the winning variables. Write terse code, NO comments, and do NOT print() anything - only call submit() (you get one run and never see stdout, so prints are wasted tokens). Trivia may skip the tool.\n")
+		r.WriteString("tool run_python(code): Python 3 with the FULL stdlib (import freely - itertools, math, etc.). submit(answers=[{\"task_id\":..,\"answer\":..}, ...]) is ALREADY PRE-DEFINED by the runtime: call it once with ALL ids; NEVER write 'def submit'. CRITICAL: every number and name inside a submit answer MUST be interpolated from a computed VARIABLE (e.g. \"Alice drinks \"+A, or str(round(after_q3))+\" units\") - NEVER hand-type a value your code computed, because hand-typed values are usually wrong even when the code is right. maths: keep raw floats, round() only for display. logic: itertools.permutations over the candidates, keep the assignment satisfying EVERY clue, build the answer from the winning variables. Write terse code, NO comments, and do NOT print() anything - only call submit() (you get one run and never see stdout, so prints are wasted tokens). Trivia may skip the tool.\n")
 	}
-	return strings.TrimSpace(b.String())
+	return strings.TrimSpace(b.String()), strings.TrimSpace(r.String())
 }
 func retryPrompt(missing []Task) string {
 	return "Missing: " + strings.Join(taskIDs(missing), ",") + `. JSON only {"answers":[...]} for those ids.`
@@ -700,6 +707,18 @@ func (a *Agent) recordCall(batch []Task, turn int, start time.Time, dur time.Dur
 func cloneMessages(messages []llm.Message) []llm.Message {
 	out := make([]llm.Message, len(messages))
 	copy(out, messages)
+	// Telemetry payloads must stay KV-sized: swap base64 PNG data URIs for a
+	// size note.
+	for i := range out {
+		if len(out[i].ImageURLs) == 0 {
+			continue
+		}
+		ph := make([]string, len(out[i].ImageURLs))
+		for j, u := range out[i].ImageURLs {
+			ph[j] = fmt.Sprintf("png data URI omitted (%d bytes)", len(u))
+		}
+		out[i].ImageURLs = ph
+	}
 	return out
 }
 
