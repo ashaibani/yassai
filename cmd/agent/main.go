@@ -52,18 +52,19 @@ func run() error {
 		BaseURL:          normaliseBaseURL(getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")),
 		AllowedModels:    splitCSV(os.Getenv("ALLOWED_MODELS")),
 		PreferredModel:   os.Getenv("AGENT_MODEL"),
-		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 20),
-		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 4),
-		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 8000),
-		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 3),
-		ReasoningEffort:  os.Getenv("AGENT_REASONING_EFFORT"), // "" = adaptive by category
+		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 40),
+		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 1),
+		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 50000),
+		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 1),
+		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "low"),
 		MaxContextTokens: getenvInt("AGENT_CONTEXT_TOKENS", 200000),
 		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),
 		SkillRoots:       splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),
-		Timeout:          time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 90)) * time.Second,
-		ClassifierDir:    getenv("TASKCLF_DIR", "assets/taskclf"),
+		Timeout:          time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 120)) * time.Second,
+		ClassifierDir:    getenv("TASKCLF_DIR", ""), // off by default - not needed for lean path
 		ClassifierLib:    os.Getenv("ONNXRUNTIME_LIB"),
-		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", true),
+		DisableHints:     true,
+		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", false),
 	}
 
 	ag, err := agent.New(cfg)
