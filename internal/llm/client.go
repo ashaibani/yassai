@@ -33,8 +33,8 @@ type Message struct {
 
 // ToolDef is an OpenAI-compatible function tool definition.
 type ToolDef struct {
-	Type     string         `json:"type"` // always "function"
-	Function ToolFunction   `json:"function"`
+	Type     string       `json:"type"` // always "function"
+	Function ToolFunction `json:"function"`
 }
 
 type ToolFunction struct {
