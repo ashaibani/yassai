@@ -1,33 +1,37 @@
 # yassai
 
-Yet Another Super Simple AI agent for the AMD Developer Hackathon Act 2, Track 1. It
+Yet Another Stupid Simple AI agent for the AMD Developer Hackathon Act 2, Track 1. It
 reads a batch of tasks, answers them through Fireworks-hosted models, and writes
 the results. Submissions are ranked by **fewest Fireworks tokens, subject to an
 accuracy gate**, so the design goal is: be correct first, then spend as few
 tokens as possible getting there.
+
+**Current result:** 19/19 on the real Track-1 eval set at **~4,960 Fireworks
+tokens** (2 model calls, 0 fallbacks, ~10s), graded by a local judge matched to
+the organisers' reference judge (`internal/judge`, default model `glm-5p2`).
 
 ## How it works
 
 The whole run is one pass (`internal/agent`):
 
 1. **Read** `/input/tasks.json`.
-2. **Classify** each prompt into one or more of the 8 capability categories with
-   a bundled in-process ONNX model (best-effort - see below).
-3. **Plan batches**: group tasks by reasoning-effort tier so each batch is
-   tier-homogeneous, then token-pack within each tier up to a budget. Fewer,
-   fuller batches amortise the fixed per-call prompt overhead over more tasks.
-4. **Solve** batches concurrently (up to `AGENT_MAX_CONCURRENCY` in parallel).
-   Each batch is an **unbounded agent loop** with no turn limit:
-   - The system prompt describes the action space and rules concisely.
-   - The model emits fenced `micropy` (or `python`) code blocks to compute
-     answers, store intermediate results in `vars`, and finally calls
-     `submit(answers=[...])` to return results.
-   - The host extracts code blocks, runs them in the MicroPython WASM sandbox,
-     and feeds observations back as a user message.
-   - The loop continues until `submit()` is called, a JSON fallback is parsed,
-     or the overall 9m30s deadline is reached.
-   - **No turn limit**: the agent loops freely, building up state in `vars`
-     across code blocks until it is confident enough to submit.
+2. **Classify** each prompt into one of the 8 capability categories with a
+   bundled in-process ONNX classifier (`assets/taskclf`; best-effort - falls back
+   to a keyword heuristic if the ONNX runtime can't load). Local inference is
+   zero Fireworks tokens.
+3. **Plan two batches** by execution mode: a **direct** batch (factual, sentiment,
+   summarisation, NER, code debugging, code generation - answered straight to
+   JSON) and a **code** batch (maths + logic). Two batches means the fewest
+   system-prompt copies, which dominates token cost at this scale.
+4. **Solve** each batch in a single call at `reasoning_effort=none` - thinking
+   tokens are the biggest cost lever, so code execution replaces reasoning where
+   correctness needs it:
+   - Direct batch: the model returns terse JSON answers for all its ids.
+   - Code batch: the model writes **python3** (full stdlib), executed in a real
+     subprocess (`internal/pyexec`), which calls a pre-defined `submit(answers=[...])`.
+     Answer strings are **interpolated from the computed variables** (never
+     hand-typed), so the executed result is authoritative - this is what makes
+     maths/logic reliable at zero reasoning tokens, in one call.
 5. **Write** `/output/results.json` and exit 0.
 
 Resilience (a crash or malformed output means the submission does not qualify, so

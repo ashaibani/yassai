@@ -14,7 +14,7 @@ import (
 	"github.com/ashaibani/yassai/internal/llm"
 	"github.com/ashaibani/yassai/internal/markdown"
 	"github.com/ashaibani/yassai/internal/memory"
-	"github.com/ashaibani/yassai/internal/micropy"
+	"github.com/ashaibani/yassai/internal/pyexec"
 	"github.com/ashaibani/yassai/internal/skills"
 	"github.com/ashaibani/yassai/internal/taskclf"
 )
@@ -229,7 +229,7 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 			batchCtx, cancel := context.WithTimeout(ctx, budget)
 			defer cancel()
 
-			exec, err := micropy.New(micropy.Config{Timeout: 12 * time.Second, MemoryBytes: 8 * 1024 * 1024})
+			exec, err := pyexec.New(pyexec.Config{Timeout: 20 * time.Second})
 			if err != nil {
 				results[idx] = batchResult{index: idx, answers: map[string]string{}, run: BatchRun{TaskIDs: taskIDs(b), Error: err.Error()}}
 				return
@@ -264,7 +264,7 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	return out, a.metrics, nil
 }
 
-func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, BatchRun) {
+func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executor, batch []Task) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
 	if ctx.Err() != nil {
 		run.Error = ctx.Err().Error()
@@ -307,7 +307,7 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *micropy.Execut
 	return merged, run
 }
 
-func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []Task) (map[string]string, int, int, error) {
+func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []Task) (map[string]string, int, int, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, 0, err
 	}
@@ -333,7 +333,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 	wiredEffort := wireEffort(effort)
 	batchModel := a.model
 	llmClient := a.llm
-	allowCode := a.batchIsMath(batch)
+	allowCode := a.batchAllowsCode(batch)
 
 	maxTurns := a.cfg.MaxTurns
 	if maxTurns <= 0 {
@@ -611,35 +611,34 @@ func shortKindHighError(cat string) string {
 // Generic format recipes only - no task-specific content.
 // Tuned for harsh LLM-judge survival + native run_python tool on math batches.
 var categoryRecipe = map[string]string{
-	"mathematical_reasoning":      "math: MUST call run_python once; answer as text string; multi-part label 1) 2) 3); requested units/currency; ASCII signs; preserve exact times incl seconds; NEVER store rounded rates for later math; projections use raw unrounded rates only and include raw average used; for 'last K' use final K entries (growth[-K:]) and assert len(subset)==K before averaging",
-	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exact full source spans incl every word; list valid entities with allowed labels, then state separately when a named programme/mission is a named reference with no permitted label; never invent a fifth label or skip the reference",
-	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; plain code no fences; preserve input/list/string semantics; for second-largest/rank fixes, if duplicate/distinct semantics are ambiguous mention both nums[-2] positional and sorted(set(nums))[-2] distinct variants; for str.reverse(), say strings have no reverse method and raise AttributeError; do not normalise strings unless asked",
-	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; stated edges only; no bonus features",
-	"logical_deductive_reasoning": "logic: Person: value for EVERY person; check each clue; all values distinct; final assignments only unless asked",
-	"text_summarisation":          "sum: exact N sentences or N bullets; each bullet <= word cap if given; cover every major theme",
+	"mathematical_reasoning":      "math: call run_python once; build the submit answer by INTERPOLATING the computed variables (str(round(after_q3))+' units'), NEVER hand-type a computed number; multi-part label 1) 2) 3); requested units/currency; ASCII signs; preserve exact times incl seconds; NEVER store rounded rates for later math; projections use raw unrounded rates only and include the raw average used; for 'last K' use final K entries (growth[-K:]) and assert len(subset)==K; a month 'declines' iff its value < the previous month's (the first month has no predecessor, so it cannot decline)",
+	"named_entity_recognition":    "ner: read the label inventory from the prompt and use its exact names/abbreviations (for example PERSON/ORGANIZATION/LOCATION/DATE or PER/ORG/LOC/MISC); preserve exact source spans and order; do not invent labels or entities; when a named programme/mission has no permitted type, mention it separately as an out-of-taxonomy reference",
+	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; plain code no fences; preserve input/list/string semantics; for second-largest/rank fixes, if duplicate/distinct semantics are ambiguous mention both nums[-2] positional and sorted(set(nums))[-2] distinct variants; for the string call str.reverse(), say only that strings have no reverse method and raise AttributeError, then use s[::-1]; do not discuss list.reverse() or normalise strings unless asked",
+	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; stated edges only; implement EXACTLY the spec - add no operation it does not require (no stray reverse/sort/dedup); mentally trace one example to verify output order",
+	"logical_deductive_reasoning": "logic: solve via run_python - itertools.permutations over the candidates; encode EACH clue as an explicit boolean condition and keep only assignments satisfying ALL of them; assert exactly ONE assignment survives (if 0 or >1, a clue is mis-encoded - re-read it); then build the answer by INTERPOLATING the winning variables (\"Alice drinks \"+A+...), NEVER hand-type the names; multiple-choice: submit the exact option text; state every person:value; never refuse",
+	"text_summarisation":          "sum: output EXACTLY the N sentences or N bullets the task states (count them - never more, never fewer); each bullet <= word cap if given; map each to a DISTINCT major theme of the source and cover ALL of them (benefits, challenges, and any response/outlook) - never merge two themes or omit one",
 }
 
 func systemPrompt(batch []Task, categories map[string][]string) string {
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
-	b.WriteString("\nAll ids. Each answer value MUST be a plain text string, never an object/array. Ultra-short but complete. Answer every requested part in English. No preamble.\n")
-	b.WriteString("Do not omit requested comparisons, reasons, labels, units, docstrings, or edge cases; avoid unsupported superlatives.\n")
-	b.WriteString("fact:<=2 sent and answer all comparisons/uses asked; sent:Positive|Negative|Neutral+1 reason; sum:exact N sents/bullets + word caps.\n")
-	needMath := false
+	b.WriteString("\nAll ids; each answer a plain text string, English, no preamble. Be concise (correct+complete beats long) but omit no requested part: comparisons, reasons, labels, units, docstrings, edge cases.\n")
+	b.WriteString("fact: answer every part asked in <=2 sentences / ~40 words, no extra background; sent: Positive|Negative|Neutral + 1 short reason; sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - within any word cap.\n")
+	needCode := false
 	present := map[string]bool{}
 	for _, t := range batch {
 		for _, c := range categories[t.TaskID] {
 			if highErrorCategories[c] {
 				present[c] = true
 			}
-			if c == "mathematical_reasoning" {
-				needMath = true
+			if usesCodeExec(c) {
+				needCode = true
 			}
 		}
-		if !needMath && heuristicCategory(t.Prompt) == "mathematical_reasoning" {
-			needMath = true
-			present["mathematical_reasoning"] = true
+		if hc := heuristicCategory(t.Prompt); usesCodeExec(hc) {
+			needCode = true
+			present[hc] = true
 		}
 	}
 	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging", "code_generation", "logical_deductive_reasoning", "text_summarisation"} {
@@ -648,9 +647,11 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 			b.WriteByte('\n')
 		}
 	}
-	if needMath {
-		// Native tool surface: model should call run_python instead of fencing markdown.
-		b.WriteString("tool run_python(code) for multi-step math; compact MicroPython stdlib, no Fraction/imports, no json.dumps(indent=...); store raw floats for calculations and call round() only for display; print final numbers plus compact checks: subset lengths, raw rates, denominators, and HH:MM:SS when time has fractional minutes. After one successful run, return JSON answers for all ids as strings. Trivia may skip tool.\n")
+	if needCode {
+		// Native tool surface: call run_python instead of fencing markdown. Maths
+		// and logic both run here; the executed code (not the model) is authoritative,
+		// and calling submit() ends the task with no extra formatting call.
+		b.WriteString("tool run_python(code): Python 3 with the FULL stdlib (import freely - itertools, math, etc.). submit(answers=[{\"task_id\":..,\"answer\":..}, ...]) is ALREADY PRE-DEFINED by the runtime: call it once with ALL ids; NEVER write 'def submit'. CRITICAL: every number and name inside a submit answer MUST be interpolated from a computed VARIABLE (e.g. \"Alice drinks \"+A, or str(round(after_q3))+\" units\") - NEVER hand-type a value your code computed, because hand-typed values are usually wrong even when the code is right. maths: keep raw floats, round() only for display. logic: itertools.permutations over the candidates, keep the assignment satisfying EVERY clue, build the answer from the winning variables. Write terse code, NO comments, and do NOT print() anything - only call submit() (you get one run and never see stdout, so prints are wasted tokens). Trivia may skip the tool.\n")
 	}
 	return strings.TrimSpace(b.String())
 }
@@ -773,7 +774,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	}
 	type key struct {
 		effort string
-		math   bool
+		code   bool
 		focus  string
 	}
 	order := make([]key, 0)
@@ -781,7 +782,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	for _, t := range tasks {
 		cat := a.primaryCat(t)
 		focus := batchIsolationFocus(a.cfg.BatchIsolation, cat)
-		k := key{effort: a.effortForTask(t), math: cat == "mathematical_reasoning", focus: focus}
+		k := key{effort: a.effortForTask(t), code: usesCodeExec(cat), focus: focus}
 		if _, ok := groups[k]; !ok {
 			order = append(order, k)
 		}
@@ -791,7 +792,7 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	for _, k := range order {
 		g := groups[k]
 		chunk := maxN
-		if k.math {
+		if k.code {
 			chunk = mathN
 		}
 		for i := 0; i < len(g); i += chunk {
@@ -814,9 +815,12 @@ func batchIsolationFocus(mode, cat string) string {
 			return cat
 		}
 		return ""
-	default: // focus, empty, and unknown values preserve the accuracy-first default.
+	default: // focus (default): isolate only logic, so it forms its own code-exec
+		// batch separate from maths. NER/debugging now run reliably at effort
+		// "none" via python3, so they merge into the main direct batch to save the
+		// per-batch system-prompt overhead.
 		switch cat {
-		case "code_debugging", "named_entity_recognition", "logical_deductive_reasoning":
+		case "logical_deductive_reasoning":
 			return cat
 		default:
 			return ""
@@ -831,13 +835,25 @@ func (a *Agent) primaryCat(t Task) string {
 	return heuristicCategory(t.Prompt)
 }
 
-func (a *Agent) taskIsMath(t Task) bool {
-	return a.primaryCat(t) == "mathematical_reasoning"
+// usesCodeExec marks the categories solved via a run_python tool call: maths
+// (arithmetic/projection) and logic (itertools constraint enumeration). For
+// these the executed code does the reasoning, so the model runs at effort
+// "none" and the tool output is authoritative - this removes the logic
+// reasoning-token hog and is the main token saving.
+func usesCodeExec(cat string) bool {
+	if os.Getenv("AGENT_NO_CODE") != "" {
+		return false // eval knob: answer everything directly (no run_python)
+	}
+	return cat == "mathematical_reasoning" || cat == "logical_deductive_reasoning"
 }
 
-func (a *Agent) batchIsMath(batch []Task) bool {
+func (a *Agent) taskUsesCode(t Task) bool {
+	return usesCodeExec(a.primaryCat(t))
+}
+
+func (a *Agent) batchAllowsCode(batch []Task) bool {
 	for _, t := range batch {
-		if a.taskIsMath(t) {
+		if a.taskUsesCode(t) {
 			return true
 		}
 	}
@@ -891,6 +907,23 @@ func wireEffort(effort string) string {
 func maxTokensForBatch(batch []Task, turn int, effort string, allowCode bool) int {
 	// Enough room for all short answers in one JSON object.
 	base := 600 + len(batch)*220
+	switch normaliseEffort(effort) {
+	case "medium":
+		if base < 3200 {
+			base = 3200
+		}
+	case "high":
+		if base < 4500 {
+			base = 4500
+		}
+	case "xhigh":
+		// Reasoning tokens consume the completion budget before the final JSON.
+		// A multi-question deduction batch otherwise truncates into the generic
+		// fallback even when the model has solved the questions internally.
+		if base < 6000 {
+			base = 6000
+		}
+	}
 	if turn > 0 {
 		base = base * 5 / 4
 	}

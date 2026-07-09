@@ -7,5 +7,21 @@ lib/
 # (see internal/memory/store.go DefaultIndex); never seed or commit it.
 MEMORY.md
 memories/
-demo
+/demo
 __pycache__
+
+# Compiled cmd binaries accidentally built to the repo root (build to bin/).
+/scorefile
+/realeval
+/routeprobe
+/eval
+/localmodeleval
+/yassai
+/agent
+
+# Local-model (MiniCPM) experiment weights - huge and not part of the shipped
+# submission. If ever tracked, do it via git-lfs (*.gguf), not raw blobs.
+models/
+
+# Timestamped classifier backups created during deploys.
+assets/taskclf_backup_*/

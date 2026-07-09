@@ -140,6 +140,16 @@ func TestMathRecipeRequiresSubsetAndTimeChecks(t *testing.T) {
 	}
 }
 
+func TestReasoningEffortGetsCompletionRoom(t *testing.T) {
+	batch := []Task{{TaskID: "l1"}, {TaskID: "l2"}, {TaskID: "l3"}}
+	if got := maxTokensForBatch(batch, 0, "xhigh", false); got != 6000 {
+		t.Fatalf("xhigh batch budget: got %d want 6000", got)
+	}
+	if got := maxTokensForBatch(batch, 0, "none", false); got != 2048 {
+		t.Fatalf("none batch budget: got %d want 2048", got)
+	}
+}
+
 func TestNormaliseToolCallsWrapsMalformedArguments(t *testing.T) {
 	calls := []llm.ToolCall{{
 		ID:   "call_1",

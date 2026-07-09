@@ -16,9 +16,9 @@ import (
 func main() {
 	golden := getenv("GOLDEN_PATH", "testdata/downloads_tasks_golden.json")
 	resultsPath := getenv("RESULTS_PATH", "/tmp/yassai_results.json")
-	umansKey := os.Getenv("UMANS_API_KEY")
-	if umansKey == "" {
-		umansKey = os.Getenv("FIREWORKS_API_KEY")
+	apiKey := os.Getenv("FIREWORKS_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("UMANS_API_KEY")
 	}
 	cases, err := validate.LoadCases(golden)
 	if err != nil {
@@ -42,12 +42,11 @@ func main() {
 	for _, r := range results {
 		ans[r.TaskID] = r.Answer
 	}
-	mode := getenv("JUDGE_MODE", "lenient") // lenient | strict | noref
-	jd := judge.NewWithMode(umansKey, getenv("UMANS_BASE_URL", ""), getenv("UMANS_JUDGE_MODEL", "accounts/fireworks/models/minimax-m3"), getenv("UMANS_JUDGE_EFFORT", "xhigh"), mode)
-	// Official leaderboard grades every task with an LLM judge. When JUDGE_ALL=1
-	// (or mode is strict/noref), skip deterministic validators and route every
-	// case through the judge so local scores match the gate shape.
-	judgeAll := envTruthy("JUDGE_ALL") || mode == "strict" || mode == "noref" || mode == "harsh" || mode == "leaderboard"
+	jd := judge.New(apiKey, getenv("FIREWORKS_BASE_URL", ""), getenv("MODEL_JUDGE", ""))
+	// The reference judge LLM-grades every non-code task. JUDGE_ALL=1 routes every
+	// case (including the deterministic ones) through the judge, to match the
+	// leaderboard gate shape.
+	judgeAll := envTruthy("JUDGE_ALL")
 	type row struct {
 		id, via string
 		pass    bool
@@ -61,7 +60,7 @@ func main() {
 		answer := ans[c.TaskID]
 		useJudge := judgeAll || c.Validate == "llm"
 		if useJudge {
-			if umansKey == "" {
+			if apiKey == "" {
 				out[i] = row{c.TaskID, "judge", false, "SKIP (no API key)"}
 				continue
 			}
@@ -71,7 +70,7 @@ func main() {
 				sem <- struct{}{}
 				defer func() { <-sem }()
 				pass, verdict, jerr := jd.Grade(context.Background(), c.Prompt, c.Expected, answer)
-				r := row{id: c.TaskID, via: "judge/" + mode}
+				r := row{id: c.TaskID, via: "judge"}
 				if jerr != nil {
 					r.reason = "ERR: " + jerr.Error()
 				} else {
@@ -86,7 +85,7 @@ func main() {
 	}
 	wg.Wait()
 	pass, total := 0, len(out)
-	fmt.Printf("=== SCORE mode=%s judge_all=%v (%s) ===\n", mode, judgeAll, golden)
+	fmt.Printf("=== SCORE judge_all=%v (%s) ===\n", judgeAll, golden)
 	for _, r := range out {
 		mark := "FAIL"
 		if r.pass {
@@ -97,7 +96,7 @@ func main() {
 	}
 	fmt.Printf("\nOVERALL: %d/%d (%.1f%%)\n", pass, total, 100*float64(pass)/float64(total))
 	_ = os.MkdirAll("eval-results", 0o755)
-	rep, _ := json.MarshalIndent(map[string]any{"pass": pass, "total": total, "mode": mode, "judge_all": judgeAll, "rows": out}, "", "  ")
+	rep, _ := json.MarshalIndent(map[string]any{"pass": pass, "total": total, "judge_all": judgeAll, "rows": out}, "", "  ")
 	_ = os.WriteFile("eval-results/downloads_tasks_scored.json", append(rep, '\n'), 0o644)
 }
 

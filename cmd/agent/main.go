@@ -53,8 +53,8 @@ func run() error {
 		AllowedModels:    splitCSV(os.Getenv("ALLOWED_MODELS")),
 		PreferredModel:   os.Getenv("AGENT_MODEL"),
 		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 40),
-		MathBatchSize:    getenvInt("AGENT_MATH_BATCH_SIZE", 0), // 0 = inherit MaxBatchSize
-		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "focus"),
+		MathBatchSize:    getenvInt("AGENT_MATH_BATCH_SIZE", 0),   // 0 = inherit MaxBatchSize
+		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "none"), // 2 batches (direct + code) = fewest system-prompt copies
 		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 1),
 		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 50000),
 		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 1),

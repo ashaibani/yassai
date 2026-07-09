@@ -130,20 +130,23 @@ func DefaultEffortTier() map[string]string {
 	}
 }
 
-// LeanEffortTiers is the token-efficient leaderboard map. Most categories use
-// reasoning_effort "none" (Fireworks needs the literal value to disable
-// thinking). Math, code debugging, and logic get "low" because MiniMax otherwise
-// tends to generate subtly wrong computation code, over-generalize fixes, or
-// miss a constraint.
+// LeanEffortTiers is the token-efficient leaderboard map. Reasoning_effort is
+// "none" almost everywhere (Fireworks needs the literal value to disable
+// thinking, which is the dominant token cost). Maths AND logic are "none"
+// because they are solved with a run_python tool call - the executed code does
+// the reasoning deterministically, so the model only has to translate the
+// problem, not think through it (this kills the logic reasoning-token hog).
+// code_debugging keeps a small "low" budget because the minimal-fix is easy to
+// get subtly wrong; bump others only if live grading regresses.
 func LeanEffortTiers() map[string]string {
 	return map[string]string{
 		"factual_knowledge":           "none",
 		"sentiment_classification":    "none",
 		"text_summarisation":          "none",
 		"named_entity_recognition":    "none",
-		"mathematical_reasoning":      "low",
-		"logical_deductive_reasoning": "low",
-		"code_debugging":              "low",
+		"mathematical_reasoning":      "none",
+		"logical_deductive_reasoning": "none",
+		"code_debugging":              "none",
 		"code_generation":             "none",
 	}
 }

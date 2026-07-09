@@ -1,12 +1,13 @@
 // Command realeval runs the agent on a REAL benchmark task set (testdata/
 // real_tasks.json) with the deployed config, and scores each answer: heuristic
-// validators for numeric/ner/contains, and the umans-flash LLM judge for the
-// open-ended "llm" tasks (summarisation, code). Reports per-category accuracy +
-// tokens — the honest "does the agent actually work on real tasks" number.
+// validators for numeric/ner/contains, and the reference-repo LLM judge
+// (internal/judge, default model glm-5p2 over Fireworks) for the open-ended
+// "llm" tasks. Reports per-category accuracy + tokens — the honest "does the
+// agent actually work on real tasks" number.
 //
 // Usage:
 //
-//	FIREWORKS_API_KEY=... UMANS_API_KEY=... go run ./cmd/realeval
+//	FIREWORKS_API_KEY=... go run ./cmd/realeval
 package main
 
 import (
@@ -96,7 +97,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "FIREWORKS_API_KEY is required")
 		os.Exit(1)
 	}
-	umansKey := os.Getenv("UMANS_API_KEY")
 	model := getenv("ALLOWED_MODELS", "accounts/fireworks/models/minimax-m3")
 	model = strings.Split(model, ",")[0]
 
@@ -187,7 +187,7 @@ func main() {
 	}
 	dur := time.Since(start).Seconds()
 
-	jd := judge.New(umansKey, getenv("UMANS_BASE_URL", ""), getenv("UMANS_JUDGE_MODEL", "umans-flash"), getenv("UMANS_JUDGE_EFFORT", "xhigh"))
+	jd := judge.New(apiKey, baseCfg.BaseURL, getenv("MODEL_JUDGE", ""))
 	out := make([]scored, len(cases))
 	sem := make(chan struct{}, 3) // umans concurrency cap
 	var wg sync.WaitGroup
@@ -196,11 +196,6 @@ func main() {
 		ans := ansByID[c.TaskID]
 		s := scored{id: c.TaskID, cat: categoryOf(c.TaskID)}
 		if c.Validate == "llm" {
-			if umansKey == "" {
-				s.via, s.reason = "judge", "SKIP (no UMANS_API_KEY)"
-				out[i] = s
-				continue
-			}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()

@@ -33,5 +33,6 @@
     "logical_deductive_reasoning": 0.5,
     "code_generation": 0.5
   },
-  "activation": "sigmoid"
+  "activation": "sigmoid",
+  "note": "multi-label sigmoid; deploy decode = argmax / uniform-0.5; head+tail truncation to max_len"
 }

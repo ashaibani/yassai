@@ -185,13 +185,13 @@ func PythonExecTool() ToolDef {
 		Type: "function",
 		Function: ToolFunction{
 			Name:        "run_python",
-			Description: "Execute compact MicroPython (stdlib only) and return stdout/json. Use for multi-step maths. Print final answers and compact checks; assert exact subset sizes and keep seconds in time calculations.",
+			Description: "Execute Python 3 (full stdlib) for maths and logic. submit(answers=[{task_id, answer}, ...]) is PRE-DEFINED by the runtime - call it with every id and build each answer string from the computed variables (never hand-type). NEVER define submit yourself.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"code": map[string]any{
 						"type":        "string",
-						"description": "Compact MicroPython source. Prefer print() of final numbers or a JSON object with answers. Include checks for denominators, subset lengths, raw rates, and HH:MM:SS time values.",
+						"description": "Python 3, full stdlib (imports OK). Compute every id, then call the PRE-DEFINED submit(answers=[{task_id, answer}, ...]) once with all ids; do NOT define submit yourself. Build answers from computed variables. For logic use itertools.permutations. Keep raw floats; round only for display.",
 					},
 				},
 				"required": []string{"code"},

@@ -304,15 +304,8 @@ func (s *Server) autoValidate(runID string, results []agent.Result, cases []vali
 	// The judge model defaults to the agent model if not specified.
 	judgeKey := s.apiKey
 	judgeBase := s.baseURL
-	judgeModel := rs.Config.JudgeModel
-	if judgeModel == "" {
-		judgeModel = rs.Config.Model
-	}
-	judgeEffort := rs.Config.JudgeEffort
-	if judgeEffort == "" {
-		judgeEffort = "xhigh"
-	}
-	jd := judge.New(judgeKey, judgeBase, judgeModel, judgeEffort)
+	judgeModel := rs.Config.JudgeModel // empty -> judge default (glm-5p2)
+	jd := judge.New(judgeKey, judgeBase, judgeModel)
 	sem := make(chan struct{}, 3)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
