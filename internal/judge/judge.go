@@ -18,11 +18,19 @@ import (
 )
 
 type Judge struct {
-	key, base, model, effort string
-	hc                       *http.Client
+	key, base, model, effort, mode string
+	hc                             *http.Client
 }
 
 func New(key, base, model, effort string) *Judge {
+	return NewWithMode(key, base, model, effort, "lenient")
+}
+
+// NewWithMode builds a judge. mode is one of:
+//   - "lenient" (default): original proxy rubric with REFERENCE
+//   - "strict": harsh leaderboard-style rubric with REFERENCE as guidance only
+//   - "noref": strict rubric without REFERENCE (task + candidate only)
+func NewWithMode(key, base, model, effort, mode string) *Judge {
 	if base == "" {
 		base = "https://api.fireworks.ai/inference/v1"
 	}
@@ -32,11 +40,20 @@ func New(key, base, model, effort string) *Judge {
 	if effort == "" {
 		effort = "xhigh" // grade carefully; the judge is eval-only, so accuracy > speed
 	}
-	return &Judge{key: key, base: strings.TrimRight(base, "/"), model: model, effort: effort,
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	switch mode {
+	case "strict", "harsh", "leaderboard":
+		mode = "strict"
+	case "noref", "no_ref", "no-ref", "task_only":
+		mode = "noref"
+	default:
+		mode = "lenient"
+	}
+	return &Judge{key: key, base: strings.TrimRight(base, "/"), model: model, effort: effort, mode: mode,
 		hc: &http.Client{Timeout: 180 * time.Second}}
 }
 
-const sysPrompt = `You grade an AI agent's answer for a capability benchmark. Given a TASK, a REFERENCE (ground-truth answer or solution), and a CANDIDATE answer, decide whether the candidate correctly satisfies the task.
+const sysPromptLenient = `You grade an AI agent's answer for a capability benchmark. Given a TASK, a REFERENCE (ground-truth answer or solution), and a CANDIDATE answer, decide whether the candidate correctly satisfies the task.
 Rules:
 - Accept different wording, order, or formatting, and a brief added explanation, as long as the substance is correct.
 - Summaries: require faithfulness to the source and respect of any stated length/format constraint.
@@ -44,13 +61,48 @@ Rules:
 - Be strict about factual/logical correctness.
 Return ONLY a JSON object of the form {"verdict":"PASS","reason":"<short>"} where verdict is exactly "PASS" or "FAIL". Output nothing outside the JSON.`
 
+const sysPromptStrict = `You are the official accuracy-gate LLM judge for a competitive AI agent leaderboard.
+Grade whether CANDIDATE fully satisfies TASK. REFERENCE is guidance only, not the sole acceptable form.
+FAIL if ANY apply:
+1) Missing any required part of a multi-part question.
+2) Wrong numeric result (unless the task says "about"/"approximately").
+3) Violated format constraints (exact N sentences/bullets, word caps, required label set).
+4) Code incomplete, non-runnable, or changing behaviour beyond the stated fix in a way that breaks stated/implied cases.
+5) NER missing an entity that is clearly PERSON/ORGANIZATION/LOCATION/DATE in the text.
+6) Summary omitting a major required theme or breaking length/format rules.
+7) Logic assignment that violates any clue.
+8) Answer that a careful human grader would mark incomplete or incorrect.
+PASS only if complete and correct. Do not reward confident waffle.
+Return ONLY JSON {"verdict":"PASS"|"FAIL","reason":"<short>"}.`
+
+const sysPromptNoRef = `You are a strict accuracy-gate LLM judge. You receive TASK and CANDIDATE only (no reference).
+Decide if the candidate correctly and completely solves the task as written.
+Be strict on multi-part completeness, numeric correctness, format constraints, and code functional correctness.
+Return ONLY JSON {"verdict":"PASS"|"FAIL","reason":"<short>"}.`
+
+func (j *Judge) systemPrompt() string {
+	switch j.mode {
+	case "strict":
+		return sysPromptStrict
+	case "noref":
+		return sysPromptNoRef
+	default:
+		return sysPromptLenient
+	}
+}
+
 // Grade returns (pass, verdictText, err). Callers should bound concurrency.
 func (j *Judge) Grade(ctx context.Context, task, reference, candidate string) (bool, string, error) {
-	user := fmt.Sprintf("TASK:\n%s\n\nREFERENCE:\n%s\n\nCANDIDATE:\n%s\n\nVerdict:", task, reference, candidate)
+	var user string
+	if j.mode == "noref" {
+		user = fmt.Sprintf("TASK:\n%s\n\nCANDIDATE:\n%s\n\nVerdict:", task, candidate)
+	} else {
+		user = fmt.Sprintf("TASK:\n%s\n\nREFERENCE:\n%s\n\nCANDIDATE:\n%s\n\nVerdict:", task, reference, candidate)
+	}
 	payload, _ := json.Marshal(map[string]any{
 		"model": j.model,
 		"messages": []map[string]string{
-			{"role": "system", "content": sysPrompt},
+			{"role": "system", "content": j.systemPrompt()},
 			{"role": "user", "content": user},
 		},
 		"max_tokens":       8192, // room for xhigh reasoning to finish AND emit the verdict

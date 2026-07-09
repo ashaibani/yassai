@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
 )
 
@@ -14,29 +13,65 @@ func TestParseAnswersWrapped(t *testing.T) {
 	}
 }
 
-func TestTrySolveLocalWarehouse(t *testing.T) {
-	t0 := Task{TaskID: "T02", Prompt: "A warehouse starts with 2,400 units. In Q1 it sells 37% of stock. In Q2 it restocks 800 units. In Q3 it sells 640 units. How many units remain at the end of Q3?"}
-	ans, ok := trySolveLocal(context.Background(), t0, "mathematical_reasoning")
-	if !ok || ans != "1672" {
-		t.Fatalf("warehouse: ok=%v ans=%q", ok, ans)
-	}
-}
-
-func TestTrySolveLocalCode(t *testing.T) {
-	t0 := Task{TaskID: "T09", Prompt: "Write a Python function called merge_intervals that takes a list of intervals and returns merged overlapping intervals."}
-	ans, ok := trySolveLocal(context.Background(), t0, "code_generation")
-	if !ok || !strings.Contains(ans, "def merge_intervals") {
-		t.Fatalf("merge: ok=%v ans=%q", ok, ans)
-	}
-	t1 := Task{TaskID: "T06b", Prompt: "The following Python function is supposed to check whether a string is a palindrome but contains a bug.\n\ndef is_palindrome(s):\n    return s == s.reverse()\n"}
-	ans, ok = trySolveLocal(context.Background(), t1, "code_debugging")
-	if !ok || !strings.Contains(ans, "s[::-1]") {
-		t.Fatalf("palindrome: ok=%v ans=%q", ok, ans)
+func TestTrySolveLocalIsNoop(t *testing.T) {
+	t0 := Task{TaskID: "T02", Prompt: "A warehouse starts with 2,400 units."}
+	if ans, ok := trySolveLocal(context.Background(), t0, "mathematical_reasoning"); ok || ans != "" {
+		t.Fatalf("expected no-op local solver, got ok=%v ans=%q", ok, ans)
 	}
 }
 
 func TestSolveWithEventsAPI(t *testing.T) {
-	// Ensure Event type and SolveWithEvents exist for demo CI.
 	var _ Event
 	var _ EventCallback
+}
+
+func TestPlanBatchesMathBatchSize(t *testing.T) {
+	// Two non-math + four math-like prompts; force categories to avoid heuristic drift.
+	tasks := []Task{
+		{TaskID: "A", Prompt: "Name three primary colors."},
+		{TaskID: "B", Prompt: "What is RAM vs ROM?"},
+		{TaskID: "M1", Prompt: "Calculate remaining units after 37% sell."},
+		{TaskID: "M2", Prompt: "How much sugar is needed for 30 cookies?"},
+		{TaskID: "M3", Prompt: "Two trains at 90 km/h meet when?"},
+		{TaskID: "M4", Prompt: "Project July revenue with growth rates."},
+	}
+	ag, err := New(Config{
+		MaxBatchSize:    40,
+		MathBatchSize:   1,
+		ReasoningEffort: "none",
+		Categories: map[string][]string{
+			"A":  {"factual_knowledge"},
+			"B":  {"factual_knowledge"},
+			"M1": {"mathematical_reasoning"},
+			"M2": {"mathematical_reasoning"},
+			"M3": {"mathematical_reasoning"},
+			"M4": {"mathematical_reasoning"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag.categories = ag.cfg.Categories
+	batches := ag.planBatches(tasks)
+	if len(batches) != 5 { // 1 non-math group + 4 singleton math
+		t.Fatalf("want 5 batches, got %d %#v", len(batches), batches)
+	}
+	if len(batches[0]) != 2 {
+		t.Fatalf("non-math batch size: got %d", len(batches[0]))
+	}
+	for i := 1; i < len(batches); i++ {
+		if len(batches[i]) != 1 {
+			t.Fatalf("math batch %d size want 1 got %d", i, len(batches[i]))
+		}
+	}
+
+	ag2, err := New(Config{MaxBatchSize: 40, MathBatchSize: 0, ReasoningEffort: "none", Categories: ag.cfg.Categories})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag2.categories = ag2.cfg.Categories
+	batches2 := ag2.planBatches(tasks)
+	if len(batches2) != 2 {
+		t.Fatalf("inherit MaxBatchSize: want 2 batches, got %d %#v", len(batches2), batches2)
+	}
 }

@@ -1,5 +1,7 @@
 {
-  "pass": 19,
+  "judge_all": true,
+  "mode": "noref",
+  "pass": 16,
   "rows": [
     {},
     {},

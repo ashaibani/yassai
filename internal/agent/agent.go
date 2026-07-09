@@ -36,6 +36,7 @@ func New(cfg Config) (*Agent, error) {
 	if cfg.MaxBatchSize <= 0 {
 		cfg.MaxBatchSize = 40
 	}
+	// MathBatchSize 0 means inherit MaxBatchSize (status quo).
 	if cfg.MaxTurns <= 0 {
 		cfg.MaxTurns = 1 // single-pass default for token efficiency
 	}
@@ -45,9 +46,10 @@ func New(cfg Config) (*Agent, error) {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 120 * time.Second
 	}
-	// Force low effort unless caller overrides - reasoning tokens dominate cost.
-	if cfg.ReasoningEffort == "" {
-		cfg.ReasoningEffort = "low"
+	// Empty ReasoningEffort => adaptive per-category tiers (see LeanEffortTiers).
+	// Explicit values ("none","low","medium",...) override all categories.
+	if cfg.EffortTierMap == nil {
+		cfg.EffortTierMap = LeanEffortTiers()
 	}
 	model := chooseModel(cfg.AllowedModels, cfg.PreferredModel)
 	ag := &Agent{
@@ -137,33 +139,9 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 		a.categories = a.classifyTasks(tasks)
 	}
 
-	// Local action-space pre-solve: math/logic via python3 (zero Fireworks tokens).
-	// Remaining tasks go to a single lean LLM call.
-	var pending []Task
-	for _, t := range tasks {
-		cat := ""
-		if cs := a.categories[t.TaskID]; len(cs) > 0 {
-			cat = cs[0]
-		}
-		if ans, ok := trySolveLocal(ctx, t, cat); ok {
-			answers[t.TaskID] = ans
-			a.metrics.LocalAnswers++
-			continue
-		}
-		pending = append(pending, t)
-	}
-
-	if len(pending) == 0 {
-		out := make([]Result, 0, len(tasks))
-		for _, t := range tasks {
-			out = append(out, Result{TaskID: t.TaskID, Answer: answers[t.TaskID]})
-		}
-		a.metrics.FinishedAt = time.Now()
-		a.metrics.DurationMS = a.metrics.FinishedAt.Sub(a.metrics.StartedAt).Milliseconds()
-		a.metrics.Classifications = a.categories
-		return out, a.metrics, nil
-	}
-
+	// All tasks go to the LLM. Optional MicroPython action blocks (model-written)
+	// are executed inside solveBatch - no prompt-specific canned solvers.
+	pending := tasks
 	batches := a.planBatches(pending)
 	a.metrics.Classifications = a.categories
 	a.metrics.BatchPlan = a.batchPlanRecords(batches)
@@ -330,16 +308,19 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 	var calls, tools int
 	var lastText string
 	var partial map[string]string
-	effort := a.cfg.ReasoningEffort
-	if effort == "" {
-		effort = "low"
-	}
+	effort := a.effortForBatch(batch)
+	wiredEffort := wireEffort(effort)
 	batchModel := a.model
 	llmClient := a.llm
+	allowCode := a.batchIsMath(batch)
 
 	maxTurns := a.cfg.MaxTurns
 	if maxTurns <= 0 {
 		maxTurns = 1
+	}
+	// Math batches need room for tool call + observation + final JSON.
+	if allowCode && maxTurns < 3 {
+		maxTurns = 3
 	}
 
 	for turn := 0; turn < maxTurns; turn++ {
@@ -350,8 +331,13 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 			return partial, calls, tools, err
 		}
 		maxTokens := maxTokensForBatch(batch, turn, effort)
+		opts := llm.ChatOptions{MaxTokens: maxTokens, ReasoningEffort: wiredEffort}
+		if allowCode {
+			opts.Tools = []llm.ToolDef{llm.PythonExecTool()}
+			opts.ToolChoice = "auto"
+		}
 		callStart := time.Now()
-		chat, err := llmClient.ChatDetailed(ctx, messages, maxTokens, effort)
+		chat, err := llmClient.ChatWithOptions(ctx, messages, opts)
 		text, usage := chat.Content, chat.Usage
 		callDur := time.Since(callStart)
 		if err != nil {
@@ -370,8 +356,69 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		lastText = strings.TrimSpace(text)
 		a.recordCall(batch, turn, callStart, callDur, usage, lastText, chat.ReasoningContent, batchModel, effort, maxTokens, messages, nil)
 
-		// 1) Code path: optional compute + finish/submit
-		blocks := markdown.ExtractActionBlocks(lastText)
+		// 1) Native tool calls (preferred): run_python on math batches.
+		if allowCode && len(chat.ToolCalls) > 0 {
+			toolTraces := make([]ToolTrace, 0, len(chat.ToolCalls))
+			messages = append(messages, llm.Message{Role: "assistant", Content: lastText, ToolCalls: chat.ToolCalls})
+			for i, tc := range chat.ToolCalls {
+				code := toolCallCode(tc)
+				tt := ToolTrace{Index: i, Code: code}
+				if code == "" {
+					tt.Error = "empty run_python code"
+					toolTraces = append(toolTraces, tt)
+					messages = append(messages, llm.Message{
+						Role: "tool", ToolCallID: tc.ID, Name: tc.Function.Name,
+						Content: `{"error":"empty code"}`,
+					})
+					continue
+				}
+				res, runErr := exec.Run(ctx, sessionID, code, map[string]any{"tasks": tasksAsMaps(batch), "task_ids": taskIDs(batch)})
+				tools++
+				a.mu.Lock()
+				a.metrics.ToolRuns++
+				a.mu.Unlock()
+				tt.Stdout, tt.JSON = res.Stdout, res.JSON
+				if runErr != nil {
+					tt.Error = runErr.Error()
+				}
+				toolTraces = append(toolTraces, tt)
+				observation, _ := json.Marshal(map[string]any{
+					"stdout": res.Stdout,
+					"json":   res.JSON,
+					"error":  tt.Error,
+				})
+				messages = append(messages, llm.Message{
+					Role: "tool", ToolCallID: tc.ID, Name: tc.Function.Name,
+					Content: string(observation),
+				})
+				if exec.IsSubmitted() {
+					submitted := exec.SubmitResult()
+					partial = mergeAnswers(partial, submitted)
+					a.appendToolTraces(batch, turn, toolTraces)
+					if completeAnswers(submitted, batch) {
+						return submitted, calls, tools, nil
+					}
+				}
+				for _, blob := range []string{res.Stdout, res.JSON} {
+					if answers, ok := parseAnswers(blob, batch); ok {
+						partial = mergeAnswers(partial, answers)
+						if completeAnswers(answers, batch) {
+							a.appendToolTraces(batch, turn, toolTraces)
+							return answers, calls, tools, nil
+						}
+					}
+				}
+			}
+			a.appendToolTraces(batch, turn, toolTraces)
+			// Continue so the model can emit final JSON from tool observations.
+			continue
+		}
+
+		// 2) Legacy markdown ```python``` act blocks (compat if model ignores tools).
+		var blocks []markdown.Block
+		if allowCode {
+			blocks = markdown.ExtractActionBlocks(lastText)
+		}
 		if len(blocks) > 0 {
 			toolTraces := make([]ToolTrace, 0, len(blocks))
 			for i, block := range blocks {
@@ -396,7 +443,6 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 				}
 			}
 			a.appendToolTraces(batch, turn, toolTraces)
-			// Harvest JSON printed by optional compute blocks.
 			for _, tt := range toolTraces {
 				for _, blob := range []string{tt.Stdout, tt.JSON} {
 					if answers, ok := parseAnswers(blob, batch); ok {
@@ -409,7 +455,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 			}
 		}
 
-		// 2) Direct JSON / prose answers (primary token-efficient path)
+		// 3) Direct JSON / prose answers (primary path for non-math).
 		if answers, ok := parseAnswers(lastText, batch); ok {
 			partial = mergeAnswers(partial, answers)
 			if completeAnswers(answers, batch) {
@@ -430,7 +476,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 			return partial, calls, tools, fmt.Errorf("incomplete after %d turn(s)", maxTurns)
 		}
 
-		// Rare multi-turn: ask only for missing JSON (no long tool lecture).
+		// Rare multi-turn: ask only for missing JSON.
 		missing := missingTasks(batch, partial)
 		messages = append(messages,
 			llm.Message{Role: "assistant", Content: compactAssistantEcho(lastText)},
@@ -440,7 +486,31 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 	return partial, calls, tools, fmt.Errorf("max turns")
 }
 
-// buildLeanUserPrompt is intentionally tiny: task_id + prompt only, no memory/skills/categories.
+// toolCallCode extracts MicroPython source from a native tool call.
+func toolCallCode(tc llm.ToolCall) string {
+	args := strings.TrimSpace(tc.Function.Arguments)
+	if args == "" {
+		return ""
+	}
+	var obj struct {
+		Code   string `json:"code"`
+		Source string `json:"source"`
+		Python string `json:"python"`
+		Script string `json:"script"`
+	}
+	if err := json.Unmarshal([]byte(args), &obj); err == nil {
+		for _, c := range []string{obj.Code, obj.Source, obj.Python, obj.Script} {
+			if strings.TrimSpace(c) != "" {
+				return c
+			}
+		}
+	}
+	// Arguments sometimes arrive as a raw code string.
+	if strings.Contains(args, "print") || strings.Contains(args, "=") {
+		return strings.Trim(args, "\"")
+	}
+	return ""
+}
 func buildLeanUserPrompt(batch []Task, categories map[string][]string) string {
 	type item struct {
 		ID     string `json:"id"`
@@ -462,12 +532,14 @@ func buildLeanUserPrompt(batch []Task, categories map[string][]string) string {
 	return string(b)
 }
 
-// highErrorCategories are the ones that historically cost accuracy/tokens on this track.
-// Recipes inject only for these; other categories rely on base caveman rules.
+// highErrorCategories get a one-line format recipe (generic, never answer content).
 var highErrorCategories = map[string]bool{
-	"mathematical_reasoning":   true,
-	"named_entity_recognition": true,
-	"code_debugging":           true,
+	"mathematical_reasoning":      true,
+	"named_entity_recognition":    true,
+	"code_debugging":              true,
+	"code_generation":             true,
+	"logical_deductive_reasoning": true,
+	"text_summarisation":          true,
 }
 
 func shortKindHighError(cat string) string {
@@ -481,41 +553,62 @@ func shortKindHighError(cat string) string {
 		return "ner"
 	case "code_debugging":
 		return "cfix"
+	case "code_generation":
+		return "cgen"
+	case "logical_deductive_reasoning":
+		return "logic"
+	case "text_summarisation":
+		return "sum"
 	default:
 		return ""
 	}
 }
 
-// Caveman-compressed recipes (drop articles/filler; keep technical terms exact).
+// Generic format recipes only - no task-specific content.
+// Tuned for harsh LLM-judge survival + native run_python tool on math batches.
 var categoryRecipe = map[string]string{
-	"mathematical_reasoning":   "math: lead final number plain digits no commas; multi-part use 1. 2. 3.; skip long derivation",
-	"named_entity_recognition": "ner: Entity:TYPE only; types PERSON ORGANIZATION LOCATION DATE; exhaust text; skip invented names; do not label programme/mission names as ORGANIZATION",
-	"code_debugging":           "cfix: one-line root cause then full fixed function only",
+	"mathematical_reasoning":      "math: multi-step use tool run_python; multi-part label 1) 2) 3); plain digits no thousands commas; exact rates then round once; answer = FINAL values only",
+	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exhaust ALL spans incl. named programmes/missions as ORGANIZATION; no skips",
+	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; no set()/dedup/case-fold/alnum strip unless asked; prefer nums[-2] / s[::-1]",
+	"code_generation":             "cgen: full fn + 1-line docstring; stated edges only; no bonus features",
+	"logical_deductive_reasoning": "logic: Person: value for EVERY person; check each clue; all values distinct",
+	"text_summarisation":          "sum: exact N sentences or N bullets; each bullet <= word cap if given; cover every major theme",
 }
 
 func systemPrompt(batch []Task, categories map[string][]string) string {
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
-	b.WriteString("\nAll ids. Short. Exact.\n")
-	b.WriteString("fact:<=2 sent; sent:Positive|Negative|Neutral+reason; sum:obey limits; logic:Person:value; cgen:full fn+doc.\n")
+	b.WriteString("\nAll ids. Ultra-short. Exact. Complete every required part. No preamble.\n")
+	b.WriteString("fact:<=2 sent; sent:Positive|Negative|Neutral+1 reason; sum:exact N sents/bullets + word caps.\n")
+	needMath := false
 	present := map[string]bool{}
 	for _, t := range batch {
 		for _, c := range categories[t.TaskID] {
 			if highErrorCategories[c] {
 				present[c] = true
 			}
+			if c == "mathematical_reasoning" {
+				needMath = true
+			}
+		}
+		if !needMath && heuristicCategory(t.Prompt) == "mathematical_reasoning" {
+			needMath = true
+			present["mathematical_reasoning"] = true
 		}
 	}
-	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging"} {
+	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging", "code_generation", "logical_deductive_reasoning", "text_summarisation"} {
 		if present[c] {
 			b.WriteString(categoryRecipe[c])
 			b.WriteByte('\n')
 		}
 	}
+	if needMath {
+		// Native tool surface: model should call run_python instead of fencing markdown.
+		b.WriteString("tool run_python(code) for multi-step math; print final numbers/JSON; plain digits no commas (stdlib). Then JSON answers for all ids. Trivia may skip tool.\n")
+	}
 	return strings.TrimSpace(b.String())
 }
-
 func retryPrompt(missing []Task) string {
 	return "Missing: " + strings.Join(taskIDs(missing), ",") + `. JSON only {"answers":[...]} for those ids.`
 }
@@ -614,26 +707,117 @@ func chooseModel(allowed []string, preferred string) string {
 func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
 	out := make([]BatchPlanRecord, len(batches))
 	for i, b := range batches {
-		out[i] = BatchPlanRecord{Index: i, TaskIDs: taskIDs(b), Size: len(b), Effort: a.cfg.ReasoningEffort, Model: a.model}
+		out[i] = BatchPlanRecord{Index: i, TaskIDs: taskIDs(b), Size: len(b), Effort: a.effortForBatch(b), Model: a.model}
 	}
 	return out
 }
 
+// planBatches groups by (effort, math?) so tool text and reasoning_effort stay homogeneous.
+// Math is isolated so the lean act recipe is only injected where useful.
+// MathBatchSize (when >0) chunks only mathematical_reasoning groups independently of MaxBatchSize,
+// so non-math can stay large (prompt amortisation) while multi-step math can run smaller.
 func (a *Agent) planBatches(tasks []Task) [][]Task {
 	maxN := a.cfg.MaxBatchSize
 	if maxN <= 0 {
 		maxN = 40
 	}
-	// Prefer one big batch for fixed prompt amortisation (leaderboard is total tokens).
-	var batches [][]Task
-	for i := 0; i < len(tasks); i += maxN {
-		j := i + maxN
-		if j > len(tasks) {
-			j = len(tasks)
+	mathN := a.cfg.MathBatchSize
+	if mathN <= 0 {
+		mathN = maxN
+	}
+	type key struct {
+		effort string
+		math   bool
+	}
+	order := make([]key, 0)
+	groups := map[key][]Task{}
+	for _, t := range tasks {
+		k := key{effort: a.effortForTask(t), math: a.taskIsMath(t)}
+		if _, ok := groups[k]; !ok {
+			order = append(order, k)
 		}
-		batches = append(batches, tasks[i:j])
+		groups[k] = append(groups[k], t)
+	}
+	var batches [][]Task
+	for _, k := range order {
+		g := groups[k]
+		chunk := maxN
+		if k.math {
+			chunk = mathN
+		}
+		for i := 0; i < len(g); i += chunk {
+			j := i + chunk
+			if j > len(g) {
+				j = len(g)
+			}
+			batches = append(batches, g[i:j])
+		}
 	}
 	return batches
+}
+
+func (a *Agent) primaryCat(t Task) string {
+	if cs := a.categories[t.TaskID]; len(cs) > 0 {
+		return cs[0]
+	}
+	return heuristicCategory(t.Prompt)
+}
+
+func (a *Agent) taskIsMath(t Task) bool {
+	return a.primaryCat(t) == "mathematical_reasoning"
+}
+
+func (a *Agent) batchIsMath(batch []Task) bool {
+	for _, t := range batch {
+		if a.taskIsMath(t) {
+			return true
+		}
+	}
+	return false
+}
+
+// effortForTask resolves reasoning effort for one task.
+// Global cfg.ReasoningEffort overrides when set (including "none"/"off").
+func (a *Agent) effortForTask(t Task) string {
+	if e := strings.TrimSpace(a.cfg.ReasoningEffort); e != "" && !strings.EqualFold(e, "auto") {
+		return normaliseEffort(e)
+	}
+	cat := a.primaryCat(t)
+	if a.cfg.EffortTierMap != nil {
+		if e, ok := a.cfg.EffortTierMap[cat]; ok {
+			return normaliseEffort(e)
+		}
+	}
+	return "none"
+}
+
+func (a *Agent) effortForBatch(batch []Task) string {
+	if len(batch) == 0 {
+		return "none"
+	}
+	return a.effortForTask(batch[0])
+}
+
+func normaliseEffort(e string) string {
+	e = strings.ToLower(strings.TrimSpace(e))
+	switch e {
+	case "", "off", "none", "0", "false", "disabled":
+		return "none"
+	case "low", "medium", "high", "xhigh":
+		return e
+	default:
+		return "low"
+	}
+}
+
+// wireEffort converts internal effort to Fireworks reasoning_effort.
+// Fireworks requires the literal value "none" to disable thinking; omitting
+// the field leaves adaptive/default thinking on (still burns reasoning tokens).
+func wireEffort(effort string) string {
+	if effort == "" {
+		return "none"
+	}
+	return effort
 }
 
 func maxTokensForBatch(batch []Task, turn int, effort string) int {

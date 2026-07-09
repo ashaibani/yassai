@@ -24,8 +24,35 @@ type Client struct {
 }
 
 type Message struct {
-	Role    string
-	Content string
+	Role       string     `json:"role"`
+	Content    string     `json:"content,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Name       string     `json:"name,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+}
+
+// ToolDef is an OpenAI-compatible function tool definition.
+type ToolDef struct {
+	Type     string         `json:"type"` // always "function"
+	Function ToolFunction   `json:"function"`
+}
+
+type ToolFunction struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
+// ToolCall is a model-requested function invocation.
+type ToolCall struct {
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function FunctionCall `json:"function"`
+}
+
+type FunctionCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 type Usage struct {
@@ -52,7 +79,17 @@ func New(cfg Config) *Client {
 type ChatResult struct {
 	Content          string
 	ReasoningContent string
+	ToolCalls        []ToolCall
+	FinishReason     string
 	Usage            Usage
+}
+
+type ChatOptions struct {
+	MaxTokens       int
+	ReasoningEffort string
+	Tools           []ToolDef
+	// ToolChoice: "", "auto", "none", or "required". Empty omits the field.
+	ToolChoice string
 }
 
 func (c *Client) Chat(ctx context.Context, messages []Message, maxTokens int, reasoningEffort string) (string, Usage, error) {
@@ -61,21 +98,50 @@ func (c *Client) Chat(ctx context.Context, messages []Message, maxTokens int, re
 }
 
 func (c *Client) ChatDetailed(ctx context.Context, messages []Message, maxTokens int, reasoningEffort string) (ChatResult, error) {
-	wireMessages := make([]map[string]string, len(messages))
+	return c.ChatWithOptions(ctx, messages, ChatOptions{MaxTokens: maxTokens, ReasoningEffort: reasoningEffort})
+}
+
+func (c *Client) ChatWithOptions(ctx context.Context, messages []Message, opts ChatOptions) (ChatResult, error) {
+	wireMessages := make([]map[string]any, len(messages))
 	for i, m := range messages {
-		wireMessages[i] = map[string]string{"role": m.Role, "content": m.Content}
+		msg := map[string]any{"role": m.Role}
+		switch m.Role {
+		case "tool":
+			msg["content"] = m.Content
+			if m.ToolCallID != "" {
+				msg["tool_call_id"] = m.ToolCallID
+			}
+			if m.Name != "" {
+				msg["name"] = m.Name
+			}
+		default:
+			// Assistant messages that only carry tool_calls may have empty content.
+			if m.Content != "" || len(m.ToolCalls) == 0 {
+				msg["content"] = m.Content
+			}
+			if len(m.ToolCalls) > 0 {
+				msg["tool_calls"] = m.ToolCalls
+			}
+		}
+		wireMessages[i] = msg
 	}
 	body := map[string]any{
 		"model":             c.model,
 		"messages":          wireMessages,
-		"max_tokens":        maxTokens,
+		"max_tokens":        opts.MaxTokens,
 		"temperature":       0,
 		"top_k":             40,
 		"presence_penalty":  0,
 		"frequency_penalty": 0,
 	}
-	if reasoningEffort != "" {
-		body["reasoning_effort"] = reasoningEffort
+	if opts.ReasoningEffort != "" {
+		body["reasoning_effort"] = opts.ReasoningEffort
+	}
+	if len(opts.Tools) > 0 {
+		body["tools"] = opts.Tools
+		if opts.ToolChoice != "" {
+			body["tool_choice"] = opts.ToolChoice
+		}
 	}
 	var raw json.RawMessage
 	if err := c.client.Post(ctx, "chat/completions", body, &raw); err != nil {
@@ -88,22 +154,50 @@ func (c *Client) ChatDetailed(ctx context.Context, messages []Message, maxTokens
 	if len(parsed.Choices) == 0 {
 		return ChatResult{Usage: parsed.Usage.toUsage()}, fmt.Errorf("chat response had no choices: %s", string(raw))
 	}
-	content := parsed.Choices[0].Message.Content.String()
-	if strings.TrimSpace(content) == "" && parsed.Choices[0].Text != "" {
-		content = parsed.Choices[0].Text
+	choice := parsed.Choices[0]
+	content := choice.Message.Content.String()
+	if strings.TrimSpace(content) == "" && choice.Text != "" {
+		content = choice.Text
 	}
-	reasoning := parsed.Choices[0].Message.ReasoningContent
+	reasoning := choice.Message.ReasoningContent
 	// Some Fireworks reasoning models return useful text only in
 	// reasoning_content. Treat it as content so the agent can parse or follow up
 	// instead of falling into empty-output retries and generic fallbacks.
-	if strings.TrimSpace(content) == "" && strings.TrimSpace(reasoning) != "" {
+	if strings.TrimSpace(content) == "" && strings.TrimSpace(reasoning) != "" && len(choice.Message.ToolCalls) == 0 {
 		content = reasoning
 	}
 	usage := parsed.Usage.toUsage()
 	if usage.ReasoningTokens == 0 && reasoning != "" {
 		usage.ReasoningTokens = len(reasoning)
 	}
-	return ChatResult{Content: content, ReasoningContent: reasoning, Usage: usage}, nil
+	return ChatResult{
+		Content:          content,
+		ReasoningContent: reasoning,
+		ToolCalls:        choice.Message.ToolCalls,
+		FinishReason:     choice.FinishReason,
+		Usage:            usage,
+	}, nil
+}
+
+// PythonExecTool is the native function-tool schema for MicroPython execution.
+func PythonExecTool() ToolDef {
+	return ToolDef{
+		Type: "function",
+		Function: ToolFunction{
+			Name:        "run_python",
+			Description: "Execute MicroPython (stdlib only) and return stdout/json. Use for multi-step maths. Print the final answer(s) or a JSON answers object.",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"code": map[string]any{
+						"type":        "string",
+						"description": "MicroPython source to run. Prefer print() of final numbers or a JSON object with answers.",
+					},
+				},
+				"required": []string{"code"},
+			},
+		},
+	}
 }
 
 type apiUsage struct {
@@ -132,10 +226,12 @@ func (a apiUsage) toUsage() Usage {
 
 type chatResponse struct {
 	Choices []struct {
-		Text    string `json:"text,omitempty"`
-		Message struct {
+		Text         string `json:"text,omitempty"`
+		FinishReason string `json:"finish_reason,omitempty"`
+		Message      struct {
 			Content          flexibleContent `json:"content"`
 			ReasoningContent string          `json:"reasoning_content,omitempty"`
+			ToolCalls        []ToolCall      `json:"tool_calls,omitempty"`
 		} `json:"message"`
 	} `json:"choices"`
 	Usage apiUsage `json:"usage"`

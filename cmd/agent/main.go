@@ -53,10 +53,11 @@ func run() error {
 		AllowedModels:    splitCSV(os.Getenv("ALLOWED_MODELS")),
 		PreferredModel:   os.Getenv("AGENT_MODEL"),
 		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 40),
+		MathBatchSize:    getenvInt("AGENT_MATH_BATCH_SIZE", 0), // 0 = inherit MaxBatchSize
 		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 1),
 		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 50000),
 		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 1),
-		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "low"),
+		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "none"), // all-none + math act (override with low/medium if needed)
 		MaxContextTokens: getenvInt("AGENT_CONTEXT_TOKENS", 200000),
 		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),
 		SkillRoots:       splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),

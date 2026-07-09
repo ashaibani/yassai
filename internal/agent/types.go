@@ -17,6 +17,7 @@ type Config struct {
 	AllowedModels    []string
 	PreferredModel   string
 	MaxBatchSize     int
+	MathBatchSize    int                 // chunk size for mathematical_reasoning groups (0 = use MaxBatchSize)
 	MaxTurns         int                 // per-batch LLM turn limit (0 = default 4)
 	MaxBatchTokens   int                 // per-batch task-content token budget (0 = default 8000)
 	MaxConcurrency   int                 // max parallel batch workers (0 = default 3)
@@ -119,12 +120,28 @@ type RoutingConfig struct {
 	DefaultModel  string            `json:"default_model"`
 }
 
-// DefaultEffortTier returns the built-in default effort tier map.
+// DefaultEffortTier is the demo-oriented high-accuracy map.
 func DefaultEffortTier() map[string]string {
 	return map[string]string{
 		"logical_deductive_reasoning": "xhigh",
 		"code_debugging":              "xhigh",
 		"code_generation":             "xhigh",
+	}
+}
+
+// LeanEffortTiers is the token-efficient leaderboard map: all categories on
+// reasoning_effort "none" (Fireworks needs the literal value to disable thinking).
+// Math batches still get the lean model-written MicroPython act surface.
+func LeanEffortTiers() map[string]string {
+	return map[string]string{
+		"factual_knowledge":           "none",
+		"sentiment_classification":    "none",
+		"text_summarisation":          "none",
+		"named_entity_recognition":    "none",
+		"mathematical_reasoning":      "none",
+		"logical_deductive_reasoning": "none",
+		"code_debugging":              "none",
+		"code_generation":             "none",
 	}
 }
 
