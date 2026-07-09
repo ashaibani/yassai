@@ -8,3 +8,4 @@ lib/
 MEMORY.md
 memories/
 demo
+__pycache__

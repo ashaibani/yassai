@@ -129,18 +129,20 @@ func DefaultEffortTier() map[string]string {
 	}
 }
 
-// LeanEffortTiers is the token-efficient leaderboard map: all categories on
-// reasoning_effort "none" (Fireworks needs the literal value to disable thinking).
-// Math batches still get the lean model-written MicroPython act surface.
+// LeanEffortTiers is the token-efficient leaderboard map. Most categories use
+// reasoning_effort "none" (Fireworks needs the literal value to disable
+// thinking). Math, code debugging, and logic get "low" because MiniMax otherwise
+// tends to generate subtly wrong computation code, over-generalize fixes, or
+// miss a constraint.
 func LeanEffortTiers() map[string]string {
 	return map[string]string{
 		"factual_knowledge":           "none",
 		"sentiment_classification":    "none",
 		"text_summarisation":          "none",
 		"named_entity_recognition":    "none",
-		"mathematical_reasoning":      "none",
-		"logical_deductive_reasoning": "none",
-		"code_debugging":              "none",
+		"mathematical_reasoning":      "low",
+		"logical_deductive_reasoning": "low",
+		"code_debugging":              "low",
 		"code_generation":             "none",
 	}
 }

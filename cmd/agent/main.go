@@ -57,7 +57,7 @@ func run() error {
 		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 1),
 		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 50000),
 		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 1),
-		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "none"), // all-none + math act (override with low/medium if needed)
+		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "auto"), // adaptive lean tiers; override with none/low/etc if needed
 		MaxContextTokens: getenvInt("AGENT_CONTEXT_TOKENS", 200000),
 		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),
 		SkillRoots:       splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),

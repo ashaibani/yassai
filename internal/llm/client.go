@@ -185,13 +185,13 @@ func PythonExecTool() ToolDef {
 		Type: "function",
 		Function: ToolFunction{
 			Name:        "run_python",
-			Description: "Execute MicroPython (stdlib only) and return stdout/json. Use for multi-step maths. Print the final answer(s) or a JSON answers object.",
+			Description: "Execute compact MicroPython (stdlib only) and return stdout/json. Use for multi-step maths. Print final answers and compact checks; assert exact subset sizes and keep seconds in time calculations.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"code": map[string]any{
 						"type":        "string",
-						"description": "MicroPython source to run. Prefer print() of final numbers or a JSON object with answers.",
+						"description": "Compact MicroPython source. Prefer print() of final numbers or a JSON object with answers. Include checks for denominators, subset lengths, raw rates, and HH:MM:SS time values.",
 					},
 				},
 				"required": []string{"code"},

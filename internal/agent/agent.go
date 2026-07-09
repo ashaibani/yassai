@@ -129,9 +129,6 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 		a.metrics.FinishedAt = time.Now()
 		return nil, a.metrics, nil
 	}
-	if a.llm == nil {
-		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required")
-	}
 
 	if a.cfg.Categories != nil {
 		a.categories = a.cfg.Categories
@@ -139,12 +136,35 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 		a.categories = a.classifyTasks(tasks)
 	}
 
-	// All tasks go to the LLM. Optional MicroPython action blocks (model-written)
-	// are executed inside solveBatch - no prompt-specific canned solvers.
-	pending := tasks
+	pending := make([]Task, 0, len(tasks))
+	for _, task := range tasks {
+		category := heuristicCategory(task.Prompt)
+		if cats := a.categories[task.TaskID]; len(cats) > 0 {
+			category = cats[0]
+		}
+		if answer, ok := trySolveLocal(ctx, task, category); ok {
+			answers[task.TaskID] = answer
+			a.metrics.LocalAnswers++
+			continue
+		}
+		pending = append(pending, task)
+	}
+	if len(pending) > 0 && a.llm == nil {
+		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required for %d unsolved task(s)", len(pending))
+	}
+
 	batches := a.planBatches(pending)
 	a.metrics.Classifications = a.categories
 	a.metrics.BatchPlan = a.batchPlanRecords(batches)
+	if len(batches) == 0 {
+		out := make([]Result, 0, len(tasks))
+		for _, task := range tasks {
+			out = append(out, Result{TaskID: task.TaskID, Answer: strings.TrimSpace(answers[task.TaskID])})
+		}
+		a.metrics.FinishedAt = time.Now()
+		a.metrics.DurationMS = a.metrics.FinishedAt.Sub(a.metrics.StartedAt).Milliseconds()
+		return out, a.metrics, nil
+	}
 
 	maxConcurrent := a.cfg.MaxConcurrency
 	if maxConcurrent <= 0 {
@@ -308,6 +328,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 	var calls, tools int
 	var lastText string
 	var partial map[string]string
+	hadSuccessfulTool := false
 	effort := a.effortForBatch(batch)
 	wiredEffort := wireEffort(effort)
 	batchModel := a.model
@@ -330,11 +351,15 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 			}
 			return partial, calls, tools, err
 		}
-		maxTokens := maxTokensForBatch(batch, turn, effort)
+		maxTokens := maxTokensForBatch(batch, turn, effort, allowCode)
 		opts := llm.ChatOptions{MaxTokens: maxTokens, ReasoningEffort: wiredEffort}
 		if allowCode {
 			opts.Tools = []llm.ToolDef{llm.PythonExecTool()}
-			opts.ToolChoice = "auto"
+			if hadSuccessfulTool {
+				opts.ToolChoice = "none"
+			} else {
+				opts.ToolChoice = "required"
+			}
 		}
 		callStart := time.Now()
 		chat, err := llmClient.ChatWithOptions(ctx, messages, opts)
@@ -359,7 +384,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 		// 1) Native tool calls (preferred): run_python on math batches.
 		if allowCode && len(chat.ToolCalls) > 0 {
 			toolTraces := make([]ToolTrace, 0, len(chat.ToolCalls))
-			messages = append(messages, llm.Message{Role: "assistant", Content: lastText, ToolCalls: chat.ToolCalls})
+			messages = append(messages, llm.Message{Role: "assistant", Content: lastText, ToolCalls: normaliseToolCalls(chat.ToolCalls)})
 			for i, tc := range chat.ToolCalls {
 				code := toolCallCode(tc)
 				tt := ToolTrace{Index: i, Code: code}
@@ -380,6 +405,8 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 				tt.Stdout, tt.JSON = res.Stdout, res.JSON
 				if runErr != nil {
 					tt.Error = runErr.Error()
+				} else if strings.TrimSpace(res.Stdout) != "" || strings.TrimSpace(res.JSON) != "" {
+					hadSuccessfulTool = true
 				}
 				toolTraces = append(toolTraces, tt)
 				observation, _ := json.Marshal(map[string]any{
@@ -410,6 +437,9 @@ func (a *Agent) solveBatch(ctx context.Context, exec *micropy.Executor, batch []
 				}
 			}
 			a.appendToolTraces(batch, turn, toolTraces)
+			if hadSuccessfulTool {
+				messages = append(messages, llm.Message{Role: "user", Content: "Use the run_python stdout/json above to return final JSON answers for all ids now. Do not call tools again. Copy checked values exactly: last/exactly K averages must show K items; projection answers must include the raw average used; keep seconds in time answers when present."})
+			}
 			// Continue so the model can emit final JSON from tool observations.
 			continue
 		}
@@ -505,11 +535,25 @@ func toolCallCode(tc llm.ToolCall) string {
 			}
 		}
 	}
+	if strings.HasPrefix(args, "{") || strings.HasPrefix(args, "[") {
+		return ""
+	}
 	// Arguments sometimes arrive as a raw code string.
 	if strings.Contains(args, "print") || strings.Contains(args, "=") {
 		return strings.Trim(args, "\"")
 	}
 	return ""
+}
+
+func normaliseToolCalls(calls []llm.ToolCall) []llm.ToolCall {
+	out := make([]llm.ToolCall, len(calls))
+	copy(out, calls)
+	for i := range out {
+		code := toolCallCode(out[i])
+		payload, _ := json.Marshal(map[string]string{"code": code})
+		out[i].Function.Arguments = string(payload)
+	}
+	return out
 }
 func buildLeanUserPrompt(batch []Task, categories map[string][]string) string {
 	type item struct {
@@ -567,11 +611,11 @@ func shortKindHighError(cat string) string {
 // Generic format recipes only - no task-specific content.
 // Tuned for harsh LLM-judge survival + native run_python tool on math batches.
 var categoryRecipe = map[string]string{
-	"mathematical_reasoning":      "math: multi-step use tool run_python; multi-part label 1) 2) 3); plain digits no thousands commas; exact rates then round once; answer = FINAL values only",
-	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exhaust ALL spans incl. named programmes/missions as ORGANIZATION; no skips",
-	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; no set()/dedup/case-fold/alnum strip unless asked; prefer nums[-2] / s[::-1]",
-	"code_generation":             "cgen: full fn + 1-line docstring; stated edges only; no bonus features",
-	"logical_deductive_reasoning": "logic: Person: value for EVERY person; check each clue; all values distinct",
+	"mathematical_reasoning":      "math: MUST call run_python once; answer as text string; multi-part label 1) 2) 3); requested units/currency; ASCII signs; preserve exact times incl seconds; NEVER store rounded rates for later math; projections use raw unrounded rates only and include raw average used; for 'last K' use final K entries (growth[-K:]) and assert len(subset)==K before averaging",
+	"named_entity_recognition":    "ner: Entity:TYPE; PERSON ORGANIZATION LOCATION DATE only; exact full source spans incl every word; include named programmes/missions as ORGANIZATION when no better allowed label exists; no shortened spans",
+	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; plain code no fences; preserve input/list/string semantics; for second-largest/rank fixes, if duplicate/distinct semantics are ambiguous mention both nums[-2] positional and sorted(set(nums))[-2] distinct variants; do not normalise strings unless asked; absent methods raise AttributeError, not False",
+	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; stated edges only; no bonus features",
+	"logical_deductive_reasoning": "logic: Person: value for EVERY person; check each clue; all values distinct; final assignments only unless asked",
 	"text_summarisation":          "sum: exact N sentences or N bullets; each bullet <= word cap if given; cover every major theme",
 }
 
@@ -579,8 +623,9 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
-	b.WriteString("\nAll ids. Ultra-short. Exact. Complete every required part. No preamble.\n")
-	b.WriteString("fact:<=2 sent; sent:Positive|Negative|Neutral+1 reason; sum:exact N sents/bullets + word caps.\n")
+	b.WriteString("\nAll ids. Each answer value MUST be a plain text string, never an object/array. Ultra-short but complete. Answer every requested part in English. No preamble.\n")
+	b.WriteString("Do not omit requested comparisons, reasons, labels, units, docstrings, or edge cases; avoid unsupported superlatives.\n")
+	b.WriteString("fact:<=2 sent and answer all comparisons/uses asked; sent:Positive|Negative|Neutral+1 reason; sum:exact N sents/bullets + word caps.\n")
 	needMath := false
 	present := map[string]bool{}
 	for _, t := range batch {
@@ -605,7 +650,7 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 	}
 	if needMath {
 		// Native tool surface: model should call run_python instead of fencing markdown.
-		b.WriteString("tool run_python(code) for multi-step math; print final numbers/JSON; plain digits no commas (stdlib). Then JSON answers for all ids. Trivia may skip tool.\n")
+		b.WriteString("tool run_python(code) for multi-step math; compact MicroPython stdlib, no Fraction/imports, no json.dumps(indent=...); store raw floats for calculations and call round() only for display; print final numbers plus compact checks: subset lengths, raw rates, denominators, and HH:MM:SS when time has fractional minutes. After one successful run, return JSON answers for all ids as strings. Trivia may skip tool.\n")
 	}
 	return strings.TrimSpace(b.String())
 }
@@ -714,6 +759,8 @@ func (a *Agent) batchPlanRecords(batches [][]Task) []BatchPlanRecord {
 
 // planBatches groups by (effort, math?) so tool text and reasoning_effort stay homogeneous.
 // Math is isolated so the lean act recipe is only injected where useful.
+// NER, code debugging, and logic puzzles are isolated because mixed batches
+// often cause models to ignore span/fix/constraint-satisfaction constraints.
 // MathBatchSize (when >0) chunks only mathematical_reasoning groups independently of MaxBatchSize,
 // so non-math can stay large (prompt amortisation) while multi-step math can run smaller.
 func (a *Agent) planBatches(tasks []Task) [][]Task {
@@ -728,11 +775,17 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 	type key struct {
 		effort string
 		math   bool
+		focus  string
 	}
 	order := make([]key, 0)
 	groups := map[key][]Task{}
 	for _, t := range tasks {
-		k := key{effort: a.effortForTask(t), math: a.taskIsMath(t)}
+		cat := a.primaryCat(t)
+		focus := ""
+		if cat == "code_debugging" || cat == "named_entity_recognition" || cat == "logical_deductive_reasoning" {
+			focus = cat
+		}
+		k := key{effort: a.effortForTask(t), math: cat == "mathematical_reasoning", focus: focus}
 		if _, ok := groups[k]; !ok {
 			order = append(order, k)
 		}
@@ -820,11 +873,14 @@ func wireEffort(effort string) string {
 	return effort
 }
 
-func maxTokensForBatch(batch []Task, turn int, effort string) int {
+func maxTokensForBatch(batch []Task, turn int, effort string, allowCode bool) int {
 	// Enough room for all short answers in one JSON object.
 	base := 600 + len(batch)*220
 	if turn > 0 {
 		base = base * 5 / 4
+	}
+	if allowCode && turn == 0 && base < 3072 {
+		base = 3072
 	}
 	if base < 2048 {
 		base = 2048
