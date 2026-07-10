@@ -1,0 +1,66 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 1239,
+    "output_tokens": 385,
+    "total_tokens": 1624,
+    "cached_tokens": 1238,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 11,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05",
+          "T05b",
+          "T06",
+          "T06b",
+          "T07b"
+        ],
+        "size": 8,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T14:42:03.879316+01:00",
+        "latency_ms": 2573,
+        "prompt_tokens": 1239,
+        "completion_tokens": 385,
+        "total_tokens": 1624,
+        "cached_tokens": 1238,
+        "reasoning_tokens": 0,
+        "batch_size": 8,
+        "output_chars": 1597,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05",
+          "T05b",
+          "T06",
+          "T06b",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2360,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T03\",\"answer\":\"Positive. Despite the late arrival and damaged packaging, the writer's overall verdict is favorable because the product worked perfectly and support resolved the issue quickly.\"},{\"task_id\":\"T03b\",\"answer\":\"Positive. The surface complaints about the box and manual are outweighed by the writer's enthusiastic verdict that the device is flawless and easy to set up.\"},{\"task_id\":\"T04b\",\"answer\":\"• Remote work gives employees flexibility, cutting commute times and improving work-life balance.\\n• Collaboration, culture, and blurred personal-professional boundaries remain key challenges.\\n• Firms are investing in digital tools and redesigning offices for social and creative use.\"},{\"task_id\":\"T05\",\"answer\":\"DATE: March 15 2023. PERSON: Sundar Pichai. ORGANIZATION: Google. LOCATION: Zurich. ORGANIZATION: ETH Zurich.\"},{\"task_id\":\"T05b\",\"answer\":\"DATE: September 2021. PERSON: Elon Musk. ORGANIZATION: SpaceX. ORGANIZATION: NASA. DATE: 2025. Note: 'Artemis programme' is a prominent named entity that fits no permitted label (outside the inventory).\"},{\"task_id\":\"T06\",\"answer\":\"Cause: returns the largest element (nums[-1]) instead of the second largest. Corrected function:\\ndef second_largest(nums):\\n    nums = list(set(nums))\\n    nums.sort()\\n    return nums[-2]\"},{\"task_id\":\"T06b\",\"answer\":\"Cause: s.reverse() returns None (in-place reverse) and lists have no .reverse() method. Corrected function:\\ndef is_palindrome(s):\\n    return s == s[::-1]\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 18,
+  "overall_total": 19
+}

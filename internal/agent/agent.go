@@ -736,11 +736,11 @@ var categoryRecipe = map[string]string{
 var categoryRecipeNoTools = map[string]string{
 	"mathematical_reasoning":      "math: compute carefully step by step, double-check each arithmetic step, and answer in the exact shape asked (requested units/currency, numbered parts if the task numbers them).",
 	"logical_deductive_reasoning": "logic: deduce systematically - test each candidate against EVERY clue (including world-knowledge clues like allergies) and give only the final assignment in the exact shape asked; multiple-choice: the exact option text; never refuse.",
-	"code_debugging":              "cbug: if asked to FIX: one-line cause, then the minimal corrected fn - change only the bug, plain code no fences, preserve the stated semantics. If asked what code EVALUATES to: trace it carefully step by step; state the exact output/behaviour first, then the one-line mechanism (late binding, shared mutable default, exhausted iterator, aliasing).",
+	"code_debugging":              "cbug: if asked to FIX: one-line cause, then the minimal corrected fn - change only the bug, plain code no fences, preserve the stated semantics. State the cause ONLY in terms of what the buggy line actually does (wrong operator, wrong index, wrong method for that TYPE - check the type first); never assert a mechanism you are not certain applies. If asked what code EVALUATES to: trace it carefully step by step; state the exact output/behaviour first, then the one-line mechanism.",
 }
 
-func systemPrompt(batch []Task, categories map[string][]string) string {
-	header, recipes := systemPromptParts(batch, categories)
+func systemPrompt(batch []Task, categories map[string][]string, allowCode bool) string {
+	header, recipes := systemPromptParts(batch, categories, allowCode)
 	if recipes == "" {
 		return header
 	}
@@ -750,26 +750,21 @@ func systemPrompt(batch []Task, categories map[string][]string) string {
 // systemPromptParts splits the system prompt into the JSON output contract
 // (header - always sent as text so parseAnswers never depends on OCR) and the
 // per-category recipes (movable into a textimg render in TextImg "full" mode).
-func systemPromptParts(batch []Task, categories map[string][]string) (string, string) {
+func systemPromptParts(batch []Task, categories map[string][]string, allowCode bool) (string, string) {
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
 	b.WriteString("\nAll ids; each answer a plain text string, English, no preamble. Be concise (correct+complete beats long) but omit no requested part: comparisons, reasons, labels, units, docstrings, edge cases.\n")
 	b.WriteString("fact: COUNT the parts the question asks - including sub-elements it mentions in passing or in brackets (e.g. 'plus X') - and answer EVERY one, 1-2 short sentences per part, no extra background; sent: Positive|Negative|Neutral + 1 short reason (judge the writer's overall verdict - sarcasm means the opposite of the surface words); sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - and RECOUNT each bullet against any word cap before answering.\n")
 	var r strings.Builder
-	needCode := false
 	present := map[string]bool{}
 	for _, t := range batch {
 		for _, c := range categories[t.TaskID] {
 			if highErrorCategories[c] {
 				present[c] = true
 			}
-			if usesCodeExec(c) {
-				needCode = true
-			}
 		}
 		if hc := heuristicCategory(t.Prompt); usesCodeExec(hc) {
-			needCode = true
 			present[hc] = true
 		}
 	}
@@ -780,7 +775,7 @@ func systemPromptParts(batch []Task, categories map[string][]string) (string, st
 			// misleading there (and ~350 tokens of dead weight). Local lanes
 			// answer most of these families anyway; the folded remnants are
 			// gate rejects that need the short no-tools guidance instead.
-			if !needCode {
+			if !allowCode {
 				if alt, ok := categoryRecipeNoTools[c]; ok {
 					recipe = alt
 				}
@@ -789,7 +784,7 @@ func systemPromptParts(batch []Task, categories map[string][]string) (string, st
 			r.WriteByte('\n')
 		}
 	}
-	if needCode {
+	if allowCode {
 		// Native tool surface: call run_python instead of fencing markdown. Maths
 		// and logic both run here; the executed code (not the model) is authoritative,
 		// and calling submit() ends the task with no extra formatting call.
@@ -1073,13 +1068,22 @@ func localTrainedFamily(prompt string) bool {
 	return false
 }
 
+// batchAllowsCode attaches the run_python surface only to DEDICATED code
+// batches (every task code-eligible). A folded batch - direct tasks plus 1-2
+// gate rejects - must stay text-only: offered the tool, the model reaches for
+// it on a coin flip, and the second turn re-pays the whole grown context
+// (observed twice: +~2,600 tokens for one logic straggler). The no-tools
+// recipes carry those remnants instead.
 func (a *Agent) batchAllowsCode(batch []Task) bool {
+	if len(batch) == 0 {
+		return false
+	}
 	for _, t := range batch {
-		if a.taskUsesCode(t) {
-			return true
+		if !a.taskUsesCode(t) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // effortForTask resolves reasoning effort for one task.

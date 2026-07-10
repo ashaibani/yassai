@@ -49,9 +49,9 @@ const textImgSourceMinChars = 2000
 // 1,998 prompt tokens, nearly doubling the run).
 func (a *Agent) buildBatchMessages(batch []Task, allowCode, lean bool) []llm.Message {
 	plain := func() []llm.Message {
-		sys := systemPrompt(batch, a.categories)
+		sys := systemPrompt(batch, a.categories, allowCode)
 		if lean {
-			header, _ := systemPromptParts(batch, a.categories)
+			header, _ := systemPromptParts(batch, a.categories, allowCode)
 			sys = header + "\nAnswer ONLY the tasks listed. Every task_id must appear in the JSON."
 		}
 		return []llm.Message{
@@ -70,7 +70,7 @@ func (a *Agent) buildBatchMessages(batch []Task, allowCode, lean bool) []llm.Mes
 		return plain()
 	}
 	sheets := buildTaskSheets(batch, a.categories)
-	sys := systemPrompt(batch, a.categories)
+	sys := systemPrompt(batch, a.categories, false)
 	manifest := textImgManifest(batch, a.categories)
 	userText := "Each image is one task-type sheet. SOLVE the exact question under each task header; do not review, describe, or sentiment-classify a task unless its type below is SENTIMENT. " + manifest
 	if mode == "dense" {
@@ -78,7 +78,7 @@ func (a *Agent) buildBatchMessages(batch []Task, allowCode, lean bool) []llm.Mes
 		userText = "The image is a dense task sheet. SOLVE the exact question under each task header; do not review, describe, or sentiment-classify a task unless its type below is SENTIMENT. " + manifest
 	}
 	if mode == "full" {
-		header, recipes := systemPromptParts(batch, a.categories)
+		header, recipes := systemPromptParts(batch, a.categories, false)
 		if recipes != "" {
 			sys = header
 			sheets = append([]string{"== ANSWER RECIPES ==\n" + recipes}, sheets...)
@@ -162,7 +162,7 @@ func (a *Agent) buildHybridMessages(batch []Task) ([]llm.Message, bool) {
 		}
 	}
 	return []llm.Message{
-		{Role: "system", Content: systemPrompt(batch, a.categories)},
+		{Role: "system", Content: systemPrompt(batch, a.categories, false)},
 		{Role: "user", Content: string(payload), ImageURLs: urls, ImageLabels: labels},
 	}, true
 }

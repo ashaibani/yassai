@@ -196,7 +196,12 @@ func (s *DirectSolver) Close() {
 	}
 }
 
-// SolveTask answers one prompt for a supported family and gates the result.
+// SolveTask answers one prompt for a supported family and gates the result,
+// with one gate-guided retry: greedy decoding is deterministic, so appending
+// the rejection reason is the cheapest way to get a different - and usually
+// corrected - attempt for zero Fireworks tokens (same pattern as the tool
+// lane). Observed recoverable rejects: sentence counts, per-bullet word caps,
+// label rules, entity omissions, code that fails to parse.
 // OK=false means the caller must leave the task in the remote batch.
 func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Result {
 	if _, ok := directInstructions[family]; !ok {
@@ -205,6 +210,20 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	if extendedFamilies[family] && !s.extended[family] {
 		return Result{Reason: "family " + family + " not unlocked (LOCAL_BASE_EXTENDED)"}
 	}
+	res := s.solveGated(ctx, prompt, family)
+	if res.OK || res.Reason == "" || ctx.Err() != nil {
+		return res
+	}
+	retry := s.solveGated(ctx, prompt+"\n\nYour previous answer was rejected because: "+res.Reason+". Fix exactly that and answer again in full.", family)
+	if retry.OK {
+		return retry
+	}
+	// Keep the first attempt as the fallback candidate: it failed one check,
+	// the retry failed too, and the first is the less-prompted of the two.
+	return res
+}
+
+func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Result {
 	tctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	answer, err := s.chat(tctx, prompt, family)
