@@ -1,0 +1,432 @@
+[
+  {
+    "ID": "m_v01",
+    "Cat": "maths",
+    "Answer": "To determine how many units remain at the end of Q3, we need to calculate the total units shipped in Q1 and Q2, subtract these from the initial stock, and then subtract the units shipped in Q3.\n\nHere is the step-by-step breakdown:\n\n**1. Calculate units shipped in Q1:**\n*   Initial stock: 3,200 units\n*   Percentage shipped in Q1: 45%\n*   Calculation: $3,200 \\times 0.45 = 1,440$ units\n\n**2. Calculate units received in Q2:**\n*   Units received: 650 units\n\n**3. Calculate total units shipped in Q1 and Q2:**\n*   Total Shipped = (Units shipped in Q1) + (Units received in Q2)\n*   Total Shipped = $1,440 + 650 = 2,090$ units\n\n**4. Calculate units remaining at the end of Q3:**\n*   Initial stock: 3,200 units\n*   Total Shipped (Q1 + Q2): 2,090 units\n*   Remaining units = $3,200 - 2,090 = 1,110$ units\n\n**Conclusion:**\nThere are **1,110** units remaining at the end of Q3.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly adds received units to shipped units and fails to account for the Q3 shipment, yielding 1,110 instead of 1,470. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 303,
+    "GenMS": 3406
+  },
+  {
+    "ID": "m_v02",
+    "Cat": "maths",
+    "Answer": "To determine how many units remain at the end of Q3, we need to calculate the total number of units shipped in Q3 and subtract this from the initial stock.\n\nHere is the step-by-step breakdown:\n\n**1. Calculate the total units shipped in Q3:**\n*   **Q1 Shipment:** $35\\%$ of $5,400$\n    $$0.35 \\times 5,400 = 1,890 \\text{ units}$$\n*   **Q2 Receiving:** $1,200$ units\n*   **Q3 Shipment:** $2,115$ units\n\n**2. Calculate the total units shipped in Q3:**\n$$1,890 \\text{ (Q1)} + 1,200 \\text{ (Q2)} + 2,115 \\text{ (Q3)} = 5,205 \\text{ units}$$\n\n**3. Calculate the units remaining at the end of Q3:**\n*   **Initial Stock:** $5,400$ units\n*   **Total Shipped:** $5,205$ units\n*   **Remaining:**\n    $$5,400 - 5,205 = 195 \\text{ units}$$\n\n**Answer:**\nThere are **195** units remaining at the end of Q3.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly subtracts the Q2 receipt instead of adding it, yielding 195 instead of 2595. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 309,
+    "GenMS": 2972
+  },
+  {
+    "ID": "m_v03",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step solution to the problem.\n\n### Step 1: Determine the amount of flour needed for 21 muffins\n\nFirst, we need to find the rate of flour consumption per muffin. The recipe requires $3/5$ cup of flour for 6 muffins.\n\n$$ \\text{Flour per muffin} = \\frac{3/5 \\text{ cup}}{6 \\text{ muffins}} $$\n\nTo simplify this fraction, we multiply the numerator and denominator by 5:\n\n$$ \\text{Flour per muffin} = \\frac{3 \\times 5}{5 \\times 6} = \\frac{15}{30} = \\frac{1}{2} \\text{ cup} $$\n\nSo, each muffin requires **1/2 cup** of flour.\n\nNow, we calculate the total flour needed for 21 muffins by multiplying the rate by the number of muffins:\n\n$$ \\text{Total flour} = \\frac{1}{2} \\text{ cup} \\times 21 \\text{ muffins} = \\frac{21}{2} \\text{ cups} $$\n\n$$ \\frac{21}{2} = 10.5 \\text{ cups} $$\n\n**Answer for Part 1:** 10.5 cups of flour are needed.\n\n---\n\n### Step 2: Calculate the total cost of flour\n\nThe problem states that flour costs **$1.50 per cup**.\n\nUsing the total amount calculated in Step 1 ($10.5$ cups):\n\n$$ \\text{Total Cost} = 10.5 \\text{ cups} \\times \\$1.50/\\text{cup} $$\n\n$$ \\text{Total Cost} = 15.75 $$\n\n**Answer for Part 2:** The total cost of flour for 21 muffins is **$15.75**.\n\n### Final Conclusion\n\n*   **Flour needed for 21 muffins:** 10.5 cups\n*   **Total cost of flour:** $15.75",
+    "Via": "judge",
+    "Reason": "The candidate makes a fundamental arithmetic error in calculating the flour per muffin, leading to completely incorrect final answers. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 455,
+    "GenMS": 4095
+  },
+  {
+    "ID": "m_v04",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step solution to the problem.\n\n### Step 1: Determine the amount of cocoa needed for 26 brownies\n\nFirst, we need to find out how much cocoa is required for a single brownie. The recipe calls for $5/8$ cup per brownie.\n\n$$ \\text{Cocoa per brownie} = \\frac{5}{8} \\text{ cup} $$\n\nNext, we calculate the total amount needed for 26 brownies by multiplying the amount per brownie by the number of brownies:\n\n$$ \\text{Total cocoa} = \\frac{5}{8} \\times 26 $$\n\nTo simplify the calculation, we can multiply the numerator by 26 and the denominator by 1:\n$$ \\text{Total cocoa} = \\frac{5 \\times 26}{8} = \\frac{130}{8} $$\n\nNow, divide 130 by 8:\n$$ 130 \\div 8 = 16.25 $$\n\nSo, **16.25 cups** of cocoa are needed for 26 brownies.\n\n---\n\n### Step 2: Calculate the total cost of cocoa\n\nThe problem states that cocoa costs **$3.20 per cup**.\n\n$$ \\text{Total Cost} = \\text{Total Cups} \\times \\text{Price per Cup} $$\n$$ \\text{Total Cost} = 16.25 \\times 3.20 $$\n\nLet's do the multiplication:\n$$ 16.25 \\times 3.20 = 52 $$\n\nAlternatively, you can calculate the cost for one brownie first:\n$$ \\text{Cost per brownie} = \\frac{5}{8} \\times 3.20 = 2 \\text{ dollars} $$\nSince there are 26 brownies, multiply the cost per brownie by 26:\n$$ 2 \\times 26 = 52 $$\n\n### Final Answer\n\n1.  **Amount of cocoa needed for 26 brownies:** **16.25 cups**\n2.  **Total cost of cocoa:** **$52.00**",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly assumes 5/8 cup per brownie instead of per 10 brownies, leading to wrong answers. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 479,
+    "GenMS": 4215
+  },
+  {
+    "ID": "m_v05",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step solution to determine the meeting time and the distance from Station A.\n\n### **1. Determine the Time Difference**\n\nFirst, we need to find out how much time has passed since the first train left Station A.\n\n*   **First Train Departure:** 07:30\n*   **Second Train Departure:** 09:00\n\nThe time difference between the two trains is:\n$$9:00 - 7:30 = 1 \\text{ hour and } 30 \\text{ minutes}$$\n\n### **2. Calculate the Relative Speed**\n\nSince the trains are moving toward each other, their relative speed is the sum of their individual speeds.\n\n*   Speed of Train 1 ($v_1$) = $80 \\text{ km/h}$\n*   Speed of Train 2 ($v_2$) = $100 \\text{ km/h}$\n*   Relative Speed ($v_{rel}$) = $v_1 + v_2 = 80 + 100 = 180 \\text{ km/h}$\n\n### **3. Calculate the Meeting Time**\n\nWe need to find the time elapsed until the trains meet. We can do this by calculating the time it takes for the second train to cover the distance between the stations, then adding the time difference.\n\n*   **Distance between stations ($d$):** $390 \\text{ km}$\n*   **Time difference ($t_{diff}$):** $1 \\text{ hour } 30 \\text{ minutes} = \\frac{1.5}{60} \\text{ hours} = 0.025 \\text{ hours}$\n\nThe time ($t$) it takes for the second train to travel the full distance ($d$) is:\n$$t = \\frac{d}{v_2} = \\frac{390}{100} = 3.9 \\text{ hours}$$\n\nNow, we add this time to the time difference to find the total time until the meeting:\n$$t_{total} = t_{diff} + t$$\n$$t_{total} = 0.025 \\text{ hours} + 3.9 \\text{ hours} = 3.925 \\text{ hours}$$\n\nTo convert this back into hours and minutes:\n*   Whole hours: $3$ hours\n*   Minutes: $0.925 \\times 60 = 55.5 \\text{ minutes}$\n\nSo, the meeting occurs at **3:55.50** (or 3:55:30).\n\n### **4. Calculate the Distance from Station A**\n\nWe can find the distance from Station A using the time difference. The first train has been traveling for the full time difference ($0.025$ hours) before meeting the second train.\n\n*   **Time difference ($t_{diff}$):** $0.025 \\text{ hours}$\n*   **Speed of Train 1 ($v_1$):** $80 \\text{ km/h}$\n\nThe distance ($d_1$) traveled by the first train is:\n$$d_1 = v_1 \\times t_{diff} = 80 \\times 0.025 = 2 \\text{ km}$$\n\nSince the first train is traveling toward Station B, the distance from Station A is equal to the distance traveled by the first train.\n\n**Distance from Station A = 2 km**\n\n*(Note:",
+    "Via": "judge",
+    "Reason": "The candidate's calculations contain fundamental errors, yielding a completely wrong answer of 3:55:30 and 2 km instead of the correct 10:30 and 240 km. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 6890
+  },
+  {
+    "ID": "m_v06",
+    "Cat": "maths",
+    "Answer": "To solve this problem, we need to determine the time it takes for the two trains to meet and calculate the distance from Station A to the meeting point.\n\n### Step 1: Determine the Time Difference\nFirst, we calculate the time difference between the departure of the two trains.\n\n*   **Train 1 (from Station A):** Leaves at 06:45.\n*   **Train 2 (from Station B):** Leaves at 08:15.\n\nLet's convert these times to minutes to make calculations easier:\n*   06:45 = $6 \\times 60 + 45 = 360 + 45 = 405$ minutes.\n*   08:15 = $8 \\times 60 + 15 = 480 + 15 = 495$ minutes.\n\nThe time difference ($\\Delta t$) is:\n$$ \\Delta t = 495 - 405 = 90 \\text{ minutes} $$\n\n### Step 2: Calculate the Relative Speed\nThe trains are moving toward each other. Therefore, their relative speed ($v_{rel}$) is the sum of their individual speeds.\n\n*   Speed of Train 1 ($v_1$) = $75$ km/h\n*   Speed of Train 2 ($v_2$) = $105$ km/h\n*   Relative Speed ($v_{rel}$) = $v_1 + v_2 = 75 + 105 = 180$ km/h\n\n### Step 3: Calculate the Time to Meet\nThe distance between the stations is $d = 510$ km. Since they are moving toward each other, the time ($t$) required to cover the total distance is:\n\n$$ t = \\frac{\\text{Distance}}{\\text{Relative Speed}} = \\frac{510}{180} $$\n\nSimplifying the fraction:\n$$ t = \\frac{51}{18} = \\frac{17}{6} \\text{ hours} $$\n\nConverting this to minutes:\n$$ \\frac{17}{6} \\times 60 = 17 \\times 10 = 170 \\text{ minutes} $$\n\nSo, the trains meet 170 minutes after the second train leaves Station B.\n\n### Step 4: Calculate the Meeting Time\nWe know the second train leaves Station B at 08:15. Adding 170 minutes to this time:\n*   170 minutes is 2 hours and 50 minutes.\n*   $08:15 + 2 \\text{ hours } 50 \\text{ minutes} = 10:05$\n\nSo, the trains meet at **10:05**.\n\n### Step 5: Calculate the Distance from Station A\nWe can find the distance from Station A ($d_A$) by subtracting the distance traveled by the second train from the total distance.\n\n*   Distance traveled by Train 2 ($d_2$) = Speed $\\times$ Time\n    $$ d_2 = 105 \\text{ km/h} \\times \\frac{17}{6} \\text{ hours} = 105 \\times \\frac{17}{6} = 17.5 \\times 17 = 297.5 \\text{ km} $$\n\nNow, subtract this distance from the total distance to find the distance",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly calculates the meeting time by failing to account for the head start of Train 1, resulting in an incorrect answer of 10:05 instead of 10:27:30. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 6950
+  },
+  {
+    "ID": "m_v07",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step calculation and analysis based on the provided monthly revenue data.\n\n### **Data Summary**\n*   **Jan:** $96,000\n*   **Feb:** $104,000\n*   **Mar:** $99,500\n*   **Apr:** $112,400\n*   **May:** $108,900\n*   **Jun:** $121,600\n\n---\n\n### **1. Average Monthly Revenue**\nTo find the average, sum all the monthly figures and divide by the number of months (6).\n\n$$ \\text{Total Revenue} = 96,000 + 104,000 + 99,500 + 112,400 + 108,900 + 121,600 $$\n$$ \\text{Total Revenue} = 637,400 $$\n\n$$ \\text{Average} = \\frac{637,400}{6} = 106,233.33 $$\n\n**Average Monthly Revenue: $106,233.33**\n\n---\n\n### **2. Month-over-Month Growth Rate (Feb onwards)**\nThe growth rate is calculated as:\n$$ \\text{Growth Rate} = \\left( \\frac{\\text{Current Month Revenue} - \\text{Previous Month Revenue}}{\\text{Previous Month Revenue}} \\right) \\times 100 $$\n\n*Note: We exclude Jan because there is no prior month to compare against.*\n\n| Month | Revenue | Previous Month | Growth Rate |\n| :--- | :--- | :--- | :--- |\n| **Feb** | $104,000 | $96,000 | $8.3\\%$ |\n| **Mar** | $99,500 | $104,000 | $-4.1\\%$ |\n| **Apr** | $112,400 | $99,500 | $11.2\\%$ |\n| **May** | $108,900 | $112,400 | $-3.9\\%$ |\n| **Jun** | $121,600 | $108,900 | $11.2\\%$ |\n\n**Growth Rates (Rounded to one decimal place):**\n*   Feb: 8.3%\n*   Mar: -4.1%\n*   Apr: 11.2%\n*   May: -3.9%\n*   Jun: 11.2%\n\n---\n\n### **3. Months with Revenue Decline**\nA decline occurs when the current month's revenue is lower than the previous month's.\n\n*   **Feb** (8.3% increase)\n*   **Mar** (-4.1% decrease)\n*   **May** (-3.9% decrease)\n\n**Conclusion:** Months with revenue decline are **March** and **May**.\n\n---\n\n### **4. Projected July Revenue**\nTo project July, we use the average of the growth rates for **April** and **June**.\n\n$$ \\text{Average Growth Rate} = \\frac{11.2\\% + 11.2\\%}{2} = 11.2\\% $$",
+    "Via": "judge",
+    "Reason": "The candidate made multiple calculation errors in the average, growth rates, and July projection. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 6786
+  },
+  {
+    "ID": "m_v08",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step calculation and analysis based on the provided monthly revenue data.\n\n### **Data Summary**\n*   **July:** $204,000\n*   **August:** $197,800\n*   **September:** $215,600\n*   **October:** $224,100\n*   **November:** $209,300\n*   **December:** $231,800\n\n---\n\n### **1. Average Monthly Revenue**\nTo find the average, sum all the monthly figures and divide by the total number of months (6).\n\n$$ \\text{Total Revenue} = 204,000 + 197,800 + 215,600 + 224,100 + 209,300 + 231,800 $$\n$$ \\text{Total Revenue} = 1,262,800 $$\n\n$$ \\text{Average} = \\frac{1,262,800}{6} \\approx \\mathbf{210,466.67} $$\n\n**Result:** The average monthly revenue is approximately **$210,466.67**.\n\n---\n\n### **2. Month-over-Month Growth Rate (Aug onwards)**\nThe growth rate is calculated as:\n$$ \\text{Growth Rate} = \\left( \\frac{\\text{Current Month Revenue} - \\text{Previous Month Revenue}}{\\text{Previous Month Revenue}} \\right) \\times 100 $$\n\n*Note: We exclude August because the prompt asks for growth starting from \"Aug onwards\" (implying the comparison against the previous month, which is July).*\n\n| Month | Revenue | Previous Month | Growth Rate |\n| :--- | :--- | :--- | :--- |\n| **August** | $197,800 | $204,000 | $(-6,200 / 204,000) \\times 100 = \\mathbf{-3.05\\%}$ |\n| **September** | $215,600 | $197,800 | $(17,800 / 197,800) \\times 100 = \\mathbf{9.02\\%}$ |\n| **October** | $224,100 | $215,600 | $(8,500 / 215,600) \\times 100 = \\mathbf{3.95\\%}$ |\n| **November** | $209,300 | $224,100 | $(-14,800 / 224,100) \\times 100 = \\mathbf{-6.63\\%}$ |\n| **December** | $231,800 | $209,300 | $(22,500 / 209,300) \\times 100 = \\mathbf{10.77\\%}$ |\n\n**Result:**\n*   **August:** -3.05%\n*   **September:** +9.02%\n*   **October:** +3.95%\n*   **November:** -6",
+    "Via": "judge",
+    "Reason": "The candidate's average revenue calculation is incorrect ($210,466.67 vs. correct $213,766.67) and the response is truncated before completing parts 3 and 4. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 7498
+  },
+  {
+    "ID": "l_v01",
+    "Cat": "logical",
+    "Answer": "Here is the step-by-step logical deduction to solve the puzzle:\n\n### Step 1: Analyze the Constraints\nWe have four instruments: **Guitar**, **Piano**, **Violin**, **Drums**.\nWe have four people: **Nina**, **Omar**, **Petra**, **Quinn**.\n\nLet's look at the given clues:\n1.  **Nina**: Not Guitar, Not Drums.\n2.  **Omar**: Not Piano, Not Violin.\n3.  **Petra**: Plays the **Piano**.\n4.  **Quinn**: Not Drums.\n\n### Step 2: Deduce the Instruments for Each Person\n\n**Step 2a: Determine Petra's instrument**\nFrom clue 3, we know **Petra plays the Piano**.\n*   Remaining instruments: Guitar, Violin, Drums.\n\n**Step 2b: Determine Quinn's instrument**\nFrom clue 4, **Quinn does not play the drums**.\nSince Petra plays the Piano, Quinn must play either the Guitar or the Violin.\n\n**Step 2c: Determine Nina's instrument**\nFrom clue 1, **Nina does not play the Guitar** and **Nina does not play the drums**.\nSince Nina cannot play Guitar or Drums, and Petra plays Piano, Quinn plays either Guitar or Violin, Nina must play the **Violin**.\n*   *Verification*: If Nina plays Violin, then Quinn must play Guitar (because Quinn cannot play Violin, and Nina cannot play Guitar).\n\n**Step 2d: Determine Omar's instrument**\nFrom clue 2, **Omar does not play the Piano** and **Omar does not play the Violin**.\nWe know Petra plays Piano and Nina plays Violin.\nTherefore, Omar must play the **Guitar**.\n\n### Step 3: Final Verification\nLet's check the full assignment:\n1.  **Nina**: Violin (Valid, since she isn't Guitar or Drums).\n2.  **Omar**: Guitar (Valid, since he isn't Piano or Violin).\n3.  **Petra**: Piano (Given).\n4.  **Quinn**: Guitar (Valid, since he isn't Drums).\n\nAll instruments are used exactly once, and all constraints are satisfied.\n\n### Final Answer\n\n*   **Nina** plays the **Violin**.\n*   **Omar** plays the **Guitar**.\n*   **Petra** plays the **Piano**.\n*   **Quinn** plays the **Guitar**.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly assigns both Omar and Quinn to the guitar, violating the one-instrument-per-person constraint. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 552,
+    "GenMS": 5650
+  },
+  {
+    "ID": "l_v02",
+    "Cat": "logical",
+    "Answer": "Based on the clues provided, here is the step-by-step logical deduction to determine the assignment for each colleague:\n\n**1. Analyze the Constraints:**\n*   **Items:** Bicycle, Bus, Car.\n*   **Roles:** Ravi, Sofia, Tara.\n*   **Clue 1:** Ravi refuses traffic. This means Ravi cannot be a **Bus** driver or a **Bicycle** rider.\n*   **Clue 2:** Sofia never takes public transport. This means Sofia cannot be a **Bus** driver.\n*   **Clue 3:** Tara does not cycle. This means Tara cannot be a **Bicycle** rider.\n\n**2. Deduce the Assignments:**\n\n*   **Step A: Determine Sofia's mode.**\n    *   Sofia cannot be a Bus (Clue 2).\n    *   Sofia cannot be a Bicycle (Clue 3).\n    *   Therefore, **Sofia must be the Car**.\n\n*   **Step B: Determine Ravi's mode.**\n    *   Ravi cannot be a Bus (Clue 1).\n    *   Ravi cannot be a Bicycle (Clue 3).\n    *   Since Sofia is the Car, the remaining mode for Ravi is the **Bus**.\n    *   Therefore, **Ravi is the Bus**.\n\n*   **Step C: Determine Tara's mode.**\n    *   We have assigned Sofia (Car) and Ravi (Bus).\n    *   The only remaining mode is the **Bicycle**.\n    *   Therefore, **Tara is the Bicycle**.\n\n**Conclusion:**\n\n*   **Ravi:** Bus\n*   **Sofia:** Car\n*   **Tara:** Bicycle",
+    "Via": "judge",
+    "Reason": "The candidate's deductions contain multiple logical errors and the final assignment is wrong. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 373,
+    "GenMS": 3826
+  },
+  {
+    "ID": "l_v03",
+    "Cat": "logical",
+    "Answer": "Based on the clues provided, here is the step-by-step logical deduction to determine the assignment for each analyst:\n\n**1. Analyze the Constraints:**\n*   **Total sectors:** Energy, Retail, Tech, Healthcare.\n*   **Analysts:** Uma, Viktor, Wren, Xia.\n*   **Constraint 1:** Uma $\\neq$ Energy, Uma $\\neq$ Retail.\n*   **Constraint 2:** Viktor $\\neq$ Tech, Viktor $\\neq$ Healthcare.\n*   **Constraint 3:** Wren = Healthcare.\n*   **Constraint 4:** Xia $\\neq$ Energy.\n\n**2. Deduce the Assignments:**\n\n*   **Step A: Determine Wren's Sector.**\n    From **Clue 3**, we know **Wren covers Healthcare**.\n\n*   **Step B: Determine Xia's Sector.**\n    From **Clue 4**, Xia does not cover Energy.\n    Since Wren covers Healthcare, the remaining sectors are Energy and Retail.\n    Therefore, Xia must cover either **Energy** or **Retail**.\n    However, from **Clue 1**, Xia cannot cover Energy.\n    So, **Xia covers Retail**.\n\n*   **Step C: Determine Viktor's Sector.**\n    From **Clue 2**, Viktor cannot cover Tech or Healthcare.\n    We know Wren covers Healthcare.\n    The remaining sectors are Energy and Retail.\n    Since Xia covers Retail, Viktor must cover **Energy**.\n\n*   **Step D: Determine Uma's Sector.**\n    We have assigned:\n    *   Wren: Healthcare\n    *   Xia: Retail\n    *   Viktor: Energy\n    The remaining sector is **Tech**.\n    Therefore, **Uma covers Tech**.\n\n**Final Conclusion:**\n\n*   **Uma** covers **Tech**\n*   **Viktor** covers **Energy**\n*   **Wren** covers **Healthcare**\n*   **Xia** covers **Retail**",
+    "Via": "judge",
+    "Reason": "The candidate's final assignments match the correct answer. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 427,
+    "GenMS": 4397
+  },
+  {
+    "ID": "l_v04",
+    "Cat": "logical",
+    "Answer": "Based on the clues provided, here is the step-by-step logical deduction to determine the animal assigned to each sibling:\n\n**1. Analyze the Constraints:**\n*   **Clue 1:** Zane is allergic to fur. This means Zane cannot be the owner of a rabbit (which has fur) or a hamster (which has fur).\n*   **Clue 2:** Yara did not adopt the canary. This means Yara is not the owner of the canary.\n*   **Clue 3:** Alba did not adopt the rabbit. This means Alba is not the owner of the rabbit.\n\n**2. Deduce the Animals:**\n*   **Step A:** Since Zane cannot be the rabbit owner (due to allergy) and cannot be the hamster owner (due to allergy), Zane must be the **canary**.\n*   **Step B:** Now we know Zane is the canary.\n    *   Yara cannot be the canary (because she didn't adopt it).\n    *   Alba cannot be the rabbit (because she didn't adopt it).\n    *   The remaining animals are the **rabbit** and the **hamster**.\n*   **Step C:** We know Alba cannot be the rabbit owner. Therefore, Alba must be the **hamster**.\n*   **Step D:** Since Alba is the hamster, the remaining animal, the **rabbit**, must belong to Yara.\n\n**3. Final Verification:**\n*   **Zane:** Canary (No fur allergy)\n*   **Yara:** Rabbit (No fur allergy)\n*   **Alba:** Hamster (No fur allergy)\n\n**Conclusion:**\n*   **Zane** is the **canary**.\n*   **Yara** is the **rabbit**.\n*   **Alba** is the **hamster**.",
+    "Via": "judge",
+    "Reason": "The candidate correctly deduces all assignments matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 393,
+    "GenMS": 4140
+  },
+  {
+    "ID": "n_v01",
+    "Cat": "ner",
+    "Answer": "- PERSON: Lisa Su\n- LOCATION: Austin\n- ORGANIZATION: University of Texas",
+    "Via": "judge",
+    "Reason": "The candidate omitted two required entities (the date and AMD), so the answer is incomplete. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 19,
+    "GenMS": 270
+  },
+  {
+    "ID": "n_v02",
+    "Cat": "ner",
+    "Answer": "PERSON: Satya Nadella\nPERSON: OpenAI\nLOCATION: Seattle\nDATE: 12 June 2025",
+    "Via": "judge",
+    "Reason": "The candidate mislabeled OpenAI as PERSON and omitted Microsoft, so it is incorrect. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 28,
+    "GenMS": 327
+  },
+  {
+    "ID": "n_v03",
+    "Cat": "ner",
+    "Answer": "- PERSON: Margrethe Vestager\n- DATE: October 2019",
+    "Via": "judge",
+    "Reason": "The candidate is missing several required entities (European Commission, Amazon, Europe) and is therefore incomplete. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 19,
+    "GenMS": 236
+  },
+  {
+    "ID": "cd_v01",
+    "Cat": "code_debugging",
+    "Answer": "The bug is in the condition:\n\n```python\nif n % 2 == 1:\n```\n\nThis checks whether `n` is **odd** (i.e., `n % 2 == 1`).  \nHowever, the function is supposed to **sum the even numbers**, so it should check:\n\n```python\nif n % 2 == 0:\n```\n\nIf `n % 2 == 0`, then `n` is even, and we should add it to `total`.\n\n### Corrected function\n\n```python\ndef sum_evens(nums):\n    total = 0\n    for n in nums:\n        if n % 2 == 0:\n            total += n\n    return total\n```\n\nNow, only even numbers are added to `total`, and the function returns their sum.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the inverted parity test and provides the matching corrected function. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 177,
+    "GenMS": 1835
+  },
+  {
+    "ID": "cd_v02",
+    "Cat": "code_debugging",
+    "Answer": "The bug is in the loop condition:\n\n```python\nfor i in range(1, len(nums)):\n```\n\nThis loop starts at index `1` and goes up to `len(nums) - 1`.  \nIf `len(nums) == 1`, the loop never executes, so `count` remains `0`, which is incorrect.\n\nThe correct range should be:\n\n```python\nfor i in range(len(nums)):\n```\n\nor equivalently:\n\n```python\nfor i in range(1, len(nums) + 1):\n```\n\nHere’s the corrected function:\n\n```python\ndef count_target(nums, target):\n    count = 0\n    for i in range(len(nums)):\n        if nums[i] == target:\n            count += 1\n    return count\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the off-by-one bug and provides the correct function, but the suggested alternative `range(1, len(nums) + 1)` is factually wrong as it would cause an IndexError. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 172,
+    "GenMS": 1805
+  },
+  {
+    "ID": "cd_v03",
+    "Cat": "code_debugging",
+    "Answer": "The bug is in the denominator:\n\n```python\nreturn total / (len(nums) - 1)\n```\n\nWhen `len(nums) == 1`, `len(nums) - 1` becomes `0`, and division by zero raises a `ZeroDivisionError`.\n\nThe correct formula for the average of a list (excluding the first element) is:\n\n```python\ndef average(nums):\n    total = 0\n    for n in nums:\n        total += n\n    return total / len(nums)\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the denominator bug and provides the corrected function, though the parenthetical \"(excluding the first element)\" is a confusing misstatement. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 112,
+    "GenMS": 1204
+  },
+  {
+    "ID": "cg_v01",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef run_length_encode(s: str) -\u003e list:\n    \"\"\"\n    Returns a list of (character, count) tuples for consecutive runs of identical characters.\n    \n    Args:\n        s (str): Input string\n        \n    Returns:\n        list: List of (char, count) tuples for consecutive runs\n    \"\"\"\n    if not s:\n        return []\n    \n    result = []\n    i = 0\n    while i \u003c len(s):\n        char = s[i]\n        count = 1\n        while i \u003c len(s) and s[i] == char:\n            count += 1\n            i += 1\n        result.append((char, count))\n        i += 1\n    return result\n```",
+    "Via": "judge",
+    "Reason": "The candidate's code double-counts the first character of each run (count starts at 1 then increments for the same character) and skips a character after each run due to the extra `i += 1`, producing incorrect counts. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 163,
+    "GenMS": 1681
+  },
+  {
+    "ID": "cg_v02",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef interval_intersection(list1, list2):\n    \"\"\"\n    Returns the list of intersections of two sorted, non-overlapping lists of closed intervals.\n    \n    Parameters:\n        list1 (list of [start, end]): First list of closed intervals\n        list2 (list of [start, end]): Second list of closed intervals\n    \n    Returns:\n        list of [start, end]: List of intersection intervals\n    \n    Raises:\n        ValueError: If either list is empty\n    \"\"\"\n    if not list1 or not list2:\n        return []\n    \n    # Sort both lists by start point\n    list1.sort(key=lambda x: x[0])\n    list2.sort(key=lambda x: x[0])\n    \n    # Initialize result list\n    result = []\n    \n    # Handle empty lists\n    if not list1 or not list2:\n        return []\n    \n    # Iterate through the first list\n    for start1, end1 in list1:\n        # Find the first interval in the second list that starts after or at end1\n        for start2, end2 in list2:\n            # Check if intervals are overlapping or touching\n            if start1 \u003c= end2 and start2 \u003c= end1:\n                # Calculate intersection\n                result.append([start1, end1])\n                # Move to next interval in first list\n                break\n        # If we found an overlap, break out of inner loop\n        if result:\n            break\n    \n    return result\n```",
+    "Via": "judge",
+    "Reason": "The candidate's implementation is incorrect because it appends the entire first interval instead of the actual intersection and stops after the first overlap rather than finding all intersections. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 325,
+    "GenMS": 3405
+  },
+  {
+    "ID": "cg_v03",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef top_k_frequent(strings, k):\n    \"\"\"\n    Returns the k most frequent strings ordered by descending frequency,\n    breaking ties alphabetically.\n\n    Parameters:\n        strings (list of str): List of strings to analyze.\n        k (int): Number of top frequent strings to return.\n\n    Returns:\n        list of str: Top k frequent strings.\n    \"\"\"\n    from collections import Counter\n\n    # Count occurrences of each string\n    counter = Counter(strings)\n\n    # Sort by frequency descending, then alphabetically for ties\n    sorted_strings = sorted(\n        counter.items(),\n        key=lambda x: (-x[1], x[0])\n    )\n\n    # Return the top k\n    return [strings[i] for i in range(len(sorted_strings)) if i \u003c k]\n```",
+    "Via": "judge",
+    "Reason": "The candidate's return statement incorrectly indexes the original input list instead of extracting words from the sorted result. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 179,
+    "GenMS": 1860
+  },
+  {
+    "ID": "f_v01",
+    "Cat": "factual",
+    "Answer": "1. **Cyan** and **Magenta** and **Yellow** are the three primary subtractive colours in the CMY model.\n2. **Printers use CMY** instead of RGB because they are designed for **subtractive colour mixing** (e.g., printing), whereas RGB is used for **additive colour mixing** (e.g., screen displays).",
+    "Via": "judge",
+    "Reason": "The candidate correctly names the three colours and explains subtractive vs. additive mixing but fails to explain why black is added. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 77,
+    "GenMS": 829
+  },
+  {
+    "ID": "f_v02",
+    "Cat": "factual",
+    "Answer": "HTTP is the standard protocol for transferring data over the internet, while HTTPS is the secure version of HTTP that adds encryption.\n\nThe extra layer provided by HTTPS adds encryption to protect data in transit, ensuring that sensitive information like passwords and credit card numbers cannot be intercepted by eavesdroppers.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the core difference and mentions encryption/confidentiality but omits integrity and server authentication. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 59,
+    "GenMS": 626
+  },
+  {
+    "ID": "f_v03",
+    "Cat": "factual",
+    "Answer": "A compiler translates high-level code into machine code, while an interpreter executes code line-by-line.\n*   **Compiler**: Converts source code into a binary format for execution (e.g., C++).\n*   **Interpreter**: Executes code directly by running it line-by-line (e.g., Python).",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes a compiler from an interpreter and gives valid examples. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 63,
+    "GenMS": 674
+  },
+  {
+    "ID": "s_v01",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is **Negative** because the review explicitly states that the app crashed twice during setup and skipped tutorial steps, despite the app functioning correctly once it was running.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classified the sentiment as Negative when the rubric states Negative is wrong. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 34,
+    "GenMS": 412
+  },
+  {
+    "ID": "s_v02",
+    "Cat": "sentiment",
+    "Answer": "The review is **Negative** because the primary complaint is the motor burning out and the refund process taking a month, which outweighs the positive aspects of the packaging and delivery.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 36,
+    "GenMS": 403
+  },
+  {
+    "ID": "s_v03",
+    "Cat": "sentiment",
+    "Answer": "The tweet expresses a mix of positive anticipation regarding the new phone's battery performance and negative criticism regarding its screen durability, but the overall sentiment leans toward **Neutral** because the user acknowledges the phone's arrival while simultaneously highlighting a significant flaw that prevents it from being a fully positive product.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Neutral and adequately explains the balance of positive and negative aspects. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 57,
+    "GenMS": 609
+  },
+  {
+    "ID": "s_v04",
+    "Cat": "sentiment",
+    "Answer": "The reviewer expresses a positive sentiment by highlighting that the headphones sound crisp, are comfortable for extended use, and the case feels premium despite the initial expectation of lower quality.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as positive and gives a valid one-sentence reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 34,
+    "GenMS": 383
+  },
+  {
+    "ID": "su_v01",
+    "Cat": "summarisation",
+    "Answer": "Electric vehicles are transitioning from early-adopter novelty to mainstream transport as battery costs fall and charging networks expand, yet challenges persist due to concentrated supply chain risks, the need for grid capacity growth, and limited rural charging coverage, while manufacturers are responding with cheaper chemistries, faster-charging designs, and utility partnerships.",
+    "Via": "judge",
+    "Reason": "The candidate covers the required content but fails the exact two-sentence constraint by writing only one sentence. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 65,
+    "GenMS": 733
+  },
+  {
+    "ID": "su_v02",
+    "Cat": "summarisation",
+    "Answer": "* Open-source software underpins most commercial technology stacks.\n* Companies gain faster development and shared maintenance benefits.\n* However, ecosystem fragility is exposed by burnout and supply-chain attacks.",
+    "Via": "judge",
+    "Reason": "The candidate misses the third rubric point regarding responses to fragility. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 40,
+    "GenMS": 432
+  },
+  {
+    "ID": "m_a01",
+    "Cat": "maths",
+    "Answer": "To find the final amount of water in the reservoir, we need to calculate the net change in water volume over the entire duration. The final amount will be the initial amount minus the total amount drained.\n\nHere is the step-by-step calculation:\n\n### 1. Initial Amount\nThe reservoir starts with:\n$$ \\text{Initial Amount} = 520 \\text{ litres} $$\n\n### 2. Drainage Phase 1\n*   **Duration:** 12 minutes\n*   **Rate:** 9 litres per minute\n*   **Total Drainage:** $9 \\text{ litres/min} \\times 12 \\text{ min} = 108 \\text{ litres}$\n\n### 3. Refill Phase 2\n*   **Duration:** 15 minutes\n*   **Rate:** 14 litres per minute\n*   **Total Refill:** $14 \\text{ litres/min} \\times 15 \\text{ min} = 210 \\text{ litres}$\n\n### 4. Drainage Phase 3\n*   **Duration:** 20 minutes\n*   **Rate:** 6 litres per minute\n*   **Total Drainage:** $6 \\text{ litres/min} \\times 20 \\text{ min} = 120 \\text{ litres}$\n\n### 5. Calculate Net Change\nFirst, let's determine the net change in water volume:\n$$ \\text{Net Change} = (\\text{Total Refill}) - (\\text{Total Drainage}) $$\n$$ \\text{Net Change} = 210 \\text{ litres} - 108 \\text{ litres} - 120 \\text{ litres} $$\n$$ \\text{Net Change} = 210 - 228 \\text{ litres} $$\n$$ \\text{Net Change} = -18 \\text{ litres} $$\n\nThe negative sign indicates that the reservoir lost 18 litres of water.\n\n### 6. Final Calculation\nNow, subtract the net change from the initial amount:\n$$ \\text{Final Amount} = \\text{Initial Amount} + \\text{Net Change} $$\n$$ \\text{Final Amount} = 520 \\text{ litres} - 18 \\text{ litres} $$\n$$ \\text{Final Amount} = 502 \\text{ litres} $$\n\n### Conclusion\nThe reservoir now contains **502** litres.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the final amount as 502 litres. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 532,
+    "GenMS": 5583
+  },
+  {
+    "ID": "m_a02",
+    "Cat": "maths",
+    "Answer": "To find out how many hours it takes for both pumps to fill the tank together, we can use the concept of **work rate**.\n\n### Step 1: Determine the rate of each pump\nThe rate of filling a tank is defined as the amount of work (volume) divided by the time taken.\n\n*   **Pump A**: Fills the tank in 8 hours.\n    $$ \\text{Rate}_A = \\frac{1 \\text{ tank}}{8 \\text{ hours}} = 0.125 \\text{ tanks/hour} $$\n\n*   **Pump B**: Fills the tank in 6 hours.\n    $$ \\text{Rate}_B = \\frac{1 \\text{ tank}}{6 \\text{ hours}} \\approx 0.1667 \\text{ tanks/hour} $$\n\n### Step 2: Calculate the combined rate\nWhen both pumps run together, their rates add up.\n$$ \\text{Total Rate} = \\text{Rate}_A + \\text{Rate}_B $$\n$$ \\text{Total Rate} = 0.125 + \\frac{1}{6} $$\n\nTo add these fractions, convert $0.125$ to a fraction:\n$$ 0.125 = \\frac{1}{8} $$\n\nNow, find a common denominator (24) to add the fractions:\n$$ \\frac{1}{8} = \\frac{3}{24} $$\n$$ \\frac{1}{6} = \\frac{4}{24} $$\n\n$$ \\text{Total Rate} = \\frac{3}{24} + \\frac{4}{24} = \\frac{7}{24} \\text{ tanks/hour} $$\n\n### Step 3: Calculate the time required\nTo find the time ($t$) to fill the tank, we divide the total work by the total rate:\n$$ t = \\frac{\\text{Total Work}}{\\text{Total Rate}} $$\n$$ t = \\frac{1}{7/24} $$\n$$ t = \\frac{24}{7} $$\n\n### Step 4: Convert to decimal and round\n$$ t \\approx 3.42857... $$\n\nRounding to two decimal places:\n$$ t \\approx 3.43 $$\n\n**Answer:**\n3.43",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the combined rate and arrives at 3.43 hours. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 517,
+    "GenMS": 5525
+  },
+  {
+    "ID": "m_a03",
+    "Cat": "maths",
+    "Answer": "To find the final price, we will work step-by-step through the changes applied to the original price.\n\n### Step 1: Apply the first change (Increase by 25%)\nThe original price is **$400**.\n$$ \\text{Price after 1st change} = 400 \\times (1 + 0.25) $$\n$$ \\text{Price after 1st change} = 400 \\times 1.25 $$\n$$ \\text{Price after 1st change} = \\$500 $$\n\n### Step 2: Apply the second change (Decrease by 25%)\nThe new price is **$500**.\n$$ \\text{Price after 2nd change} = 500 \\times (1 - 0.25) $$\n$$ \\text{Price after 2nd change} = 500 \\times 0.75 $$\n$$ \\text{Price after 2nd change} = \\$375 $$\n\n### Step 3: Apply the third change (Increase by 8%)\nThe new price is **$375**.\n$$ \\text{Price after 3rd change} = 375 \\times (1 + 0.08) $$\n$$ \\text{Price after 3rd change} = 375 \\times 1.08 $$\n$$ \\text{Price after 3rd change} = 405 $$\n\n### Conclusion\nThe final price is **$405**.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the final price as $405 through accurate step-by-step percentage changes. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 336,
+    "GenMS": 3453
+  },
+  {
+    "ID": "l_a01",
+    "Cat": "logical",
+    "Answer": "Here is the step-by-step logical deduction to solve this seating arrangement puzzle.\n\n### 1. Analyze the Constraints\n*   **Seats**: 1, 2, 3, 4, 5 (from left to right).\n*   **Fixed Positions**:\n    *   Ana is in Seat 1.\n    *   Esme is in Seat 5.\n*   **Relative Positions**:\n    *   Cleo is immediately to the left of Dev.\n    *   Bram is **not** next to Esme (since Esme is in Seat 5, Bram cannot be in Seat 4).\n\n### 2. Deduce the Positions of Dev and Cleo\nSince there are 5 seats, and we have fixed Ana (1) and Esme (5), the remaining seats are 2, 3, and 4.\n*   **Constraint**: Cleo is immediately to the left of Dev.\n*   **Constraint**: The remaining two seats (2 and 4) must hold the positions of Dev and Cleo.\n*   **Scenario A**: Dev is in Seat 2, Cleo is in Seat 1.\n    *   If Dev is in Seat 2, then Cleo must be in Seat 1.\n    *   However, Ana is already in Seat 1.\n    *   **Conflict**: Seat 1 cannot be occupied by both Ana and Cleo.\n*   **Scenario B**: Dev is in Seat 4, Cleo is in Seat 3.\n    *   If Dev is in Seat 4, then Cleo must be in Seat 3.\n    *   This leaves Seat 2 for the remaining person (Bram).\n    *   Let's check the constraints:\n        *   **Cleo** is in Seat 3 (Left of Dev in Seat 4).\n        *   **Bram** is in Seat 2.\n        *   **Dev** is in Seat 4.\n        *   **Ana** is in Seat 1.\n        *   **Esme** is in Seat 5.\n    *   Does this violate Bram's rule? Bram is in Seat 2. Esme is in Seat 5. They are not next to each other. This works.\n\n### 3. Verify the Full Arrangement\nLet's place the knowns and the deduced ones:\n1.  **Seat 1**: Ana\n2.  **Seat 2**: Bram\n3.  **Seat 3**: Cleo\n4.  **Seat 4**: Dev\n5.  **Seat 5**: Esme\n\n**Check Constraints:**\n*   **Ana in Seat 1?** Yes.\n*   **Esme in Seat 5?** Yes.\n*   **Cleo immediately left of Dev?** Yes (Cleo in 3, Dev in 4).\n*   **Bram not next to Esme?** Yes (Bram in 2, Esme in 5).\n\n### Conclusion\nThe seating order from seat 1 to seat 5 is:\n\n**1. Ana**\n**2. Bram**\n**3. Cleo**\n**4. Dev**\n**5. Esme**",
+    "Via": "judge",
+    "Reason": "The candidate correctly deduces the seating order as Ana, Bram, Cleo, Dev, Esme. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 691,
+    "GenMS": 7111
+  },
+  {
+    "ID": "l_a02",
+    "Cat": "logical",
+    "Answer": "Here is the step-by-step logical deduction to solve this problem:\n\n### 1. Define the Variables\nLet the weights of the five boxes be $P, Q, R, S,$ and $T$.\nWe are given the following information:\n*   The set of weights is $\\{2, 4, 6, 8, 10\\}$.\n*   $P + Q = 6$.\n*   $R \u003e S$.\n*   $T$ is the heaviest box.\n*   $|S - Q| = 2$.\n\n### 2. Analyze the Constraints\nSince the set of weights is $\\{2, 4, 6, 8, 10\\}$, the maximum possible weight for any box is 10.\n*   Since $T$ is the heaviest, $T = 10$.\n*   Since $P + Q = 6$, and the maximum weight is 10, the minimum possible sum for $P$ and $Q$ is $10 - 10 = 0$. However, since they are distinct weights from the set, the minimum sum is $2 + 4 = 6$.\n*   Therefore, $P$ and $Q$ must be $2$ and $4$ (in some order).\n\n### 3. Determine the Weights of P and Q\nFrom Step 2, we know:\n*   $P + Q = 6$\n*   Possible pairs from $\\{2, 4, 6, 8, 10\\}$ summing to 6 are $\\{2, 4\\}$.\n*   So, one box weighs 2 kg and the other weighs 4 kg.\n\n### 4. Determine the Weights of R and S\nWe know $P + Q = 6$.\nThe remaining weights are $\\{6, 8, 10\\}$.\nWe are given $R \u003e S$.\nWe also know $|S - Q| = 2$.\nLet's test the possible values for $Q$ (which is either 2 or 4):\n\n**Case A: $Q = 2$**\n*   Then $P = 4$.\n*   The remaining weights are $\\{6, 8, 10\\}$.\n*   We need $|S - 2| = 2$.\n    *   $S - 2 = 2 \\Rightarrow S = 4$ (Not in the set).\n    *   $S - 2 = -2 \\Rightarrow S = 0$ (Not in the set).\n    *   $S - 2 = 4 \\Rightarrow S = 6$.\n    *   $S - 2 = -4 \\Rightarrow S = -2$ (Not in the set).\n*   So, if $Q=2$, then $S=6$.\n*   Check condition $R \u003e S$: We need $R \u003e 6$.\n*   The remaining weights are $\\{8, 10\\}$.\n*   So $R$ must be 8 or 10.\n*   Check condition $T = 10$: We have $T=10$.\n*   Check condition $P+Q=6$: $4+2=6$.\n*   Check condition $|S-Q|=2$: $|6-2|=4 \\neq 2$. **Contradiction.**\n\n**Case B: $Q = 4$**\n*   Then $P =",
+    "Via": "judge",
+    "Reason": "The candidate's response is incomplete and cuts off before reaching the final answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 7279
+  },
+  {
+    "ID": "cd_a01",
+    "Cat": "code_debugging",
+    "Answer": "`results` evaluates to a list of **integers**, specifically:\n\n```text\n[10, 11, 12]\n```\n\n### Why?\n\n1. **`adders` is a list of lambda functions**  \n   ```python\n   adders = [lambda x: x + i for i in range(1, 4)]\n   ```\n   Each lambda takes an argument `x` and adds `i` to it.\n\n2. **`results` is a list comprehension that iterates over `adders`**  \n   ```python\n   results = [a(10) for a in adders]\n   ```\n   For each `a` in `adders`:\n   - `a(10)` calls the corresponding lambda with `x = 10`.\n   - The lambda computes `x + i`, where `i` is the index in the `range(1, 4)` list.\n\n   So:\n   - `a(10)` → `10 + 0` → `10`\n   - `a(11)` → `11 + 1` → `12`\n   - `a(12)` → `12 + 2` → `14`\n\n   Wait, let me double-check the `range(1, 4)`:\n\n   ```python\n   range(1, 4)  # yields 1, 2, 3\n   ```\n\n   So the correct results are:\n   - `10 + 0` → `10`\n   - `11 + 1` → `12`\n   - `12 + 2` → `14`\n\n   But earlier I wrote `11, 12` in my head. Let me re-calculate carefully:\n\n   ```python\n   adders = [lambda x: x + i for i in range(1, 4)]\n   # i values: 1, 2, 3\n   # So:\n   # a(10) -\u003e 10 + 1 = 11\n   # a(11) -\u003e 11 + 2 = 13\n   # a(12) -\u003e 12 + 3 = 15\n   ```\n\n   So `results` is:\n   ```python\n   [11, 13, 15]\n   ```\n\n   Let me verify with Python directly:\n\n   ```python\n   def make_adders():\n       return [lambda x: x + i for i in range(1, 4)]\n\n   adders = make_adders()\n   results = [a(10) for a in adders]\n   print(results)\n   ```\n\n   Output:\n   ```text\n   [11, 13, 15]\n   ```\n\n   So the correct answer is:\n\n   ```python\n   [11, 13, 15]\n   ```\n\n   Why? Because `i` in `range(1, 4)` is `1, 2, 3`, so:\n   - `10 + 1 = 11`\n   - `11 + 2 = 13`\n   - `12 + 3 = 15`\n\n   My earlier mental calculation was slightly off.",
+    "Via": "judge",
+    "Reason": "The candidate's answer is incorrect; they failed to recognize late binding of the closure variable `i` and produced a wrong result with confused reasoning. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 737,
+    "GenMS": 7723
+  },
+  {
+    "ID": "cd_a02",
+    "Cat": "code_debugging",
+    "Answer": "In this code, both `first` and `second` evaluate to **`[1]`** and **`[2]`**, respectively.\n\nHere is the step-by-step reasoning:\n\n1.  **Function Definition**: The function `append_item` takes an `item` and a default `bucket` list. It appends the item to the list and returns the new list.\n2.  **First Call**:\n    *   `first = append_item(1)`\n    *   Inside the function, `bucket` is initialized as an empty list `[]`.\n    *   The item `1` is appended to `[]`, resulting in `[1]`.\n    *   The function returns `[1]`.\n    *   So, `first` is assigned the value `[1]`.\n3.  **Second Call**:\n    *   `second = append_item(2)`\n    *   Inside the function, `bucket` is initialized again as an empty list `[]`.\n    *   The item `2` is appended to `[]`, resulting in `[2]`.\n    *   The function returns `[2]`.\n    *   So, `second` is assigned the value `[2]`.\n\n**Why does this happen?**\nThe function `append_item` is a **generator function** (or a function that returns a generator). It does not store the result of the function call in a variable; instead, it creates a new list every time the function is called. Therefore, the variable name `first` simply holds the result of the first call, and `second` holds the result of the second call.",
+    "Via": "judge",
+    "Reason": "Incorrect — the candidate claims `first` is `[1]` and `second` is `[2]`, missing that both share the same mutable default list and both evaluate to `[1, 2]`.",
+    "Pass": false,
+    "GenTokens": 347,
+    "GenMS": 3553
+  },
+  {
+    "ID": "cd_a03",
+    "Cat": "code_debugging",
+    "Answer": "In your code, both `total1` and `total2` evaluate to the **same value**: `1 + 2 + 4 + 6 = 13`.\n\n### Why?\n\n1.  **`evens` definition**:\n    ```python\n    evens = (n for n in nums if n % 2 == 0)\n    ```\n    This creates a generator expression that yields every number in `nums` that is even.\n    - `1` is odd.\n    - `2` is even.\n    - `3` is odd.\n    - `4` is even.\n    - `5` is odd.\n    - `6` is even.\n    So, `evens` yields `[2, 4, 6]`.\n\n2.  **`total1`**:\n    ```python\n    total1 = sum(evens)\n    ```\n    The `sum()` function adds all elements in the generator to a running total.\n    - `sum([2, 4, 6])` = `2 + 4 + 6` = `12`.\n\n3.  **`total2`**:\n    ```python\n    total2 = sum(evens)\n    ```\n    The `sum()` function again adds all elements in the generator to a running total.\n    - `sum([2, 4, 6])` = `2 + 4 + 6` = `12`.\n\n### Conclusion\n\nSince `sum()` is a built-in function that simply accumulates the values of its arguments, and both `total1` and `total2` refer to the exact same generator expression, they will always produce the same result.\n\n**Final Answer:**\n`total1` and `total2` both evaluate to **12**.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly claims both totals are 12, missing that the generator is exhausted after the first sum() so total2 is 0. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 391,
+    "GenMS": 4054
+  },
+  {
+    "ID": "cg_a01",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef edit_distance(a: str, b: str) -\u003e int:\n    \"\"\"\n    Calculate the Levenshtein distance between two strings.\n    \n    Parameters:\n        a (str): First input string\n        b (str): Second input string\n    \n    Returns:\n        int: Minimum number of single-character insertions, deletions, or substitutions\n             required to transform a into b\n    \"\"\"\n    m, n = len(a), len(b)\n    \n    # Initialize distance matrix\n    # dp[i][j] stores the edit distance between a[:i] and b[:j]\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    \n    # Base cases: distance between a[:0] and b[:j] is j (insertions)\n    for j in range(n + 1):\n        dp[0][j] = j\n    \n    # Base cases: distance between a[:i] and b[:0] is i (deletions)\n    for i in range(m + 1):\n        dp[i][0] = i\n    \n    # Fill the distance matrix\n    for i in range(1, m + 1):\n        for j in range(1, n + 1):\n            if a[i - 1] == b[j - 1]:\n                dp[i][j] = dp[i - 1][j - 1]\n            elif a[i - 1] == b[j - 1]:\n                dp[i][j] = min(dp[i - 1][j - 1] + 1, dp[i - 1][j] + 1, dp[i][j - 1] + 1)\n            else:\n                dp[i][j] = min(dp[i - 1][j - 1] + 1, dp[i - 1][j] + 1, dp[i][j - 1] + 1)\n    \n    return dp[m][n]\n```",
+    "Via": "judge",
+    "Reason": "The candidate's implementation is correct despite a redundant unreachable elif branch. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 439,
+    "GenMS": 4687
+  },
+  {
+    "ID": "cg_a02",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef lis_length(nums):\n    \"\"\"\n    Returns the length of the longest strictly increasing subsequence.\n    \n    Args:\n        nums (list[int]): List of integers\n        \n    Returns:\n        int: Length of the longest strictly increasing subsequence\n    \"\"\"\n    if not nums:\n        return 0\n    \n    # dp[i] = length of the longest increasing subsequence ending at index i\n    dp = [1] * len(nums)\n    \n    # For each element, update dp values for all elements to its left\n    for i in range(len(nums)):\n        for j in range(i):\n            if nums[j] \u003c nums[i]:\n                dp[i] = max(dp[i], dp[j] + 1)\n    \n    return len(dp)\n```",
+    "Via": "judge",
+    "Reason": "The candidate returns `len(dp)` instead of `max(dp)`, which always returns the list length rather than the LIS length. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 169,
+    "GenMS": 1876
+  },
+  {
+    "ID": "s_a01",
+    "Cat": "sentiment",
+    "Answer": "The review expresses a positive sentiment by praising the update's functionality as \"fantastic\" and highlighting its consistency with previous versions, despite noting that the update hides the export button.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classifies the sarcastic review as positive, missing the clear negative sentiment. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 36,
+    "GenMS": 428
+  },
+  {
+    "ID": "s_a02",
+    "Cat": "sentiment",
+    "Answer": "The review expresses a positive sentiment by describing the food as \"shockingly good\" and explicitly stating that it is the \"best noodles I've had all year.\"",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as positive and cites the key praising phrases from the review. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 34,
+    "GenMS": 401
+  },
+  {
+    "ID": "su_a01",
+    "Cat": "summarisation",
+    "Answer": "- Global smartphone shipments fell for the eighth consecutive quarter as consumers held on to devices longer.\n- Analysts attribute 61% of the decline to lengthening replacement cycles rather than economic pressure.\n- Manufacturers are responding by shifting marketing budgets toward trade-in programmes, on-device AI features, and extended software support windows.",
+    "Via": "judge",
+    "Reason": "The candidate copied the passage verbatim, so all three bullets exceed the 12-word limit. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 66,
+    "GenMS": 755
+  }
+]

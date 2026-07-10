@@ -1,7 +1,8 @@
-"""Convert the trained MiniCPM5 merged HF checkpoint in Modal to GGUF.
+"""Convert a trained merged HF checkpoint in Modal to GGUF.
 
 Usage:
-  uvx modal run finetune/minicpm5/modal_export_gguf.py
+  uvx modal run finetune/minicpm5/modal_export_gguf.py --run-name assist-e3-r32-v6
+  uvx modal run finetune/minicpm5/modal_export_gguf.py --run-name assist-e3-r32-q35-2b --quant Q4_K_M
 """
 
 from __future__ import annotations
@@ -66,11 +67,13 @@ def export(run_name: str = "exact-e14-r32", quant: str = "Q4_K_M", hf_repo: str 
     out_dir = CKPT_ROOT / run_name / "gguf"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if not (merged / "model.safetensors").exists():
+    if not (merged / "model.safetensors").exists() and not list(merged.glob("*.safetensors")):
         raise FileNotFoundError(f"missing merged model: {merged}")
 
-    f16 = out_dir / "MiniCPM5-yassai-F16.gguf"
-    qout = out_dir / f"MiniCPM5-yassai-{quant}.gguf"
+    # Stem keeps the run name so bake-off exports do not clobber each other.
+    stem = f"yassai-{run_name}"
+    f16 = out_dir / f"{stem}-F16.gguf"
+    qout = out_dir / f"{stem}-{quant}.gguf"
 
     env = {**os.environ, "LD_LIBRARY_PATH": "/opt/llama-bin:" + os.environ.get("LD_LIBRARY_PATH", "")}
     subprocess.run(
@@ -107,7 +110,7 @@ def export(run_name: str = "exact-e14-r32", quant: str = "Q4_K_M", hf_repo: str 
         api = HfApi()
         api.create_repo(hf_repo, repo_type="model", private=True, exist_ok=True)
         for path, suffix in ((qout, quant), (f16, "F16")):
-            dest = f"MiniCPM5-yassai-{run_name}-{suffix}.gguf"
+            dest = f"yassai-{run_name}-{suffix}.gguf"
             api.upload_file(path_or_fileobj=str(path), path_in_repo=dest, repo_id=hf_repo)
             print(f"pushed to https://huggingface.co/{hf_repo}/resolve/main/{dest}")
 

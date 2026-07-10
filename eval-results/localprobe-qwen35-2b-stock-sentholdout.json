@@ -1,0 +1,82 @@
+[
+  {
+    "ID": "sh_01",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is Negative because the reviewer expresses strong dissatisfaction with the product's failure and criticizes the advertising industry.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives an adequate reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 23,
+    "GenMS": 534
+  },
+  {
+    "ID": "sh_02",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is Positive because the reviewer explicitly states that despite initial skepticism about the vacuum's value, they were genuinely impressed by its superior pet hair pickup performance compared to a more expensive alternative.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 38,
+    "GenMS": 736
+  },
+  {
+    "ID": "sh_03",
+    "Cat": "sentiment",
+    "Answer": "The review is mixed because it praises the cleanliness and comfort of the room while criticizing the broken lift and late breakfast.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the review as mixed and notes both the praise and complaints. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 479
+  },
+  {
+    "ID": "sh_04",
+    "Cat": "sentiment",
+    "Answer": "The review is Positive because despite acknowledging confusing setup instructions and a difficult water tank, the reviewer explicitly states that the espresso is the best they have had at home and considers the purchase worth every penny.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and provides a valid reason that aligns with the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 40,
+    "GenMS": 781
+  },
+  {
+    "ID": "sh_05",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is Negative because the reviewer explicitly states that the game is \"not my cup of tea\" and concludes by shelving it after only two rounds.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and cites the appropriate evidence. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 32,
+    "GenMS": 619
+  },
+  {
+    "ID": "sh_06",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is Positive because the reviewer explicitly states that the heater warms the office quickly and would not hesitate to buy another unit.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid one-sentence reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 27,
+    "GenMS": 539
+  },
+  {
+    "ID": "sh_07",
+    "Cat": "sentiment",
+    "Answer": "The sentiment is Positive because the reviewer explicitly states they were not disappointed despite having low initial hopes, citing specific positive attributes like an early driver, a clean car, and a flat fare.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid one-sentence reason citing the concrete positives. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 38,
+    "GenMS": 725
+  },
+  {
+    "ID": "sh_08",
+    "Cat": "sentiment",
+    "Answer": "The review is Negative because despite acknowledging the quick delivery, the product quickly failed due to rust and a broken clasp, indicating poor quality and durability.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason acknowledging the quick delivery while emphasizing the product failures. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 31,
+    "GenMS": 596
+  }
+]

@@ -148,6 +148,7 @@ func main() {
 		BatchIsolation:     getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
 		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
 		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
+		LocalBaseLoraPath:  os.Getenv("LOCAL_BASE_LORA_PATH"),
 		LocalBaseExtended:  os.Getenv("LOCAL_BASE_EXTENDED"),
 		LocalLibPath:       getenv("YZMA_LIB", "/opt/homebrew/lib"),
 	}

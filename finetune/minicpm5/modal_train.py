@@ -1,8 +1,9 @@
-"""Modal runner for MiniCPM5 yassai LoRA training.
+"""Modal runner for yassai LoRA training (MiniCPM5 default; any ChatML base via --base-model).
 
 Usage:
   uvx modal run finetune/minicpm5/modal_train.py
   uvx modal run finetune/minicpm5/modal_train.py --dataset assist --epochs 3 --tag v7
+  uvx modal run finetune/minicpm5/modal_train.py --dataset assist --epochs 3 --tag q35-2b --base-model Qwen/Qwen3.5-2B
 """
 
 from __future__ import annotations
@@ -28,14 +29,17 @@ image = (
     .pip_install(
         "torch==2.7.1",
         "torchvision==0.22.1",
-        "transformers==4.57.3",
-        "trl==0.20.0",
-        "peft==0.11.1",
+        # Qwen3.5 (model_type qwen3_5) needs transformers>=5; peft 0.19 has
+        # known working Qwen3.5 LoRA target sets. Keep trl flexible.
+        "transformers==5.13.0",
+        "trl==0.24.0",
+        "peft==0.19.1",
         "datasets==3.6.0",
-        "accelerate==1.11.0",
-        "safetensors==0.6.2",
+        "accelerate>=1.11.0",
+        "safetensors>=0.6.2",
         "sentencepiece==0.2.1",
         "protobuf==6.33.0",
+        "huggingface_hub>=0.34",
     )
     .add_local_file("scripts/build_minicpm5_sft_data.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data.py"), copy=True)
     .add_local_file("scripts/build_minicpm5_sft_data_v2.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data_v2.py"), copy=True)
@@ -55,8 +59,10 @@ image = (
     gpu="H100",
     timeout=60 * 60 * 8,
     volumes={"/checkpoints": ckpt_volume, "/cache/huggingface": hf_cache},
+    secrets=[modal.Secret.from_name("huggingface-secret")],
 )
-def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = "") -> str:
+def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = "",
+          base_model: str = "openbmb/MiniCPM5-1B") -> str:
     data_dir = REMOTE_ROOT / "finetune/minicpm5/data"
     data_dir.mkdir(parents=True, exist_ok=True)
     eval_path = None
@@ -115,7 +121,7 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
         run_name += f"-{tag}"
     out_dir = CKPT_ROOT / run_name
     env = {
-        "BASE_MODEL": "openbmb/MiniCPM5-1B",
+        "BASE_MODEL": base_model,
         "DATA": str(data_path),
         "OUTPUT_DIR": str(out_dir),
         "EPOCHS": str(epochs),
@@ -123,6 +129,8 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
         "LORA_RANK": str(rank),
         "HF_HOME": "/cache/huggingface",
         "TRANSFORMERS_CACHE": "/cache/huggingface",
+        "HF_TOKEN": os.environ.get("HF_TOKEN", ""),
+        "HUGGING_FACE_HUB_TOKEN": os.environ.get("HF_TOKEN", os.environ.get("HUGGING_FACE_HUB_TOKEN", "")),
     }
     subprocess.run(["python", str(REMOTE_ROOT / "finetune/minicpm5/train_trl.py")], check=True, env={**os.environ, **env})
 
@@ -143,5 +151,6 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
 
 
 @app.local_entrypoint()
-def main(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = ""):
-    print(train.remote(dataset=dataset, epochs=epochs, lr=lr, rank=rank, tag=tag))
+def main(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = "",
+         base_model: str = "openbmb/MiniCPM5-1B"):
+    print(train.remote(dataset=dataset, epochs=epochs, lr=lr, rank=rank, tag=tag, base_model=base_model))

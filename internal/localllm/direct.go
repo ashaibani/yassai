@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -141,7 +142,7 @@ func NewDirect(cfg Config) (*DirectSolver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("localllm: no free port: %w", err)
 	}
-	cmd := exec.Command(server,
+	args := []string{
 		"-m", abs,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
@@ -157,7 +158,18 @@ func NewDirect(cfg Config) (*DirectSolver, error) {
 		"--cache-type-k", "q8_0",
 		"--cache-type-v", "q8_0",
 		"-ub", "256",
-	)
+	}
+	if lp := strings.TrimSpace(cfg.LoraPath); lp != "" {
+		// A missing adapter must degrade to stock serving (gates still guard
+		// accuracy), not kill the lane: llama-server exits on a bad --lora
+		// path and every assist family would silently go remote.
+		if _, err := os.Stat(lp); err != nil {
+			fmt.Fprintln(os.Stderr, "localllm: assist lora missing - serving stock base:", err)
+		} else {
+			args = append(args, "--lora", lp)
+		}
+	}
+	cmd := exec.Command(server, args...)
 	cmd.Env = append(cmd.Environ(), "LD_LIBRARY_PATH="+cfg.LibPath)
 	cmd.Stdout = nil
 	cmd.Stderr = nil

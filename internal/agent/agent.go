@@ -406,7 +406,7 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 	}
 
 	if len(assistJobs) > 0 {
-		solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
+		solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
 		if err != nil {
 			// Never fatal: the Fireworks path is the accuracy baseline.
 			fmt.Fprintln(os.Stderr, "local base model disabled:", err)

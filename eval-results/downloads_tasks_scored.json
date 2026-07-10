@@ -1,6 +1,6 @@
 {
-  "judge_all": true,
-  "pass": 18,
+  "judge_all": false,
+  "pass": 16,
   "rows": [
     {},
     {},

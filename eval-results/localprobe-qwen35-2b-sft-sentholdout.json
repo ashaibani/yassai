@@ -1,0 +1,82 @@
+[
+  {
+    "ID": "sh_01",
+    "Cat": "sentiment",
+    "Answer": "Negative. The praise is sarcastic - the tracker died and the writer now owns the most expensive bracelet, which is a complaint, not a compliment.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and explains the sarcasm. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 31,
+    "GenMS": 727
+  },
+  {
+    "ID": "sh_02",
+    "Cat": "sentiment",
+    "Answer": "Positive. The reviewer explicitly compares it favorably to a branded vacuum and expresses genuine impressedness.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 20,
+    "GenMS": 456
+  },
+  {
+    "ID": "sh_03",
+    "Cat": "sentiment",
+    "Answer": "Negative. The comfortable bed is outweighed by the repeated breakdown of essential services.",
+    "Via": "judge",
+    "Reason": "The candidate chose Negative and imposed an overall verdict, contradicting the rubric's Neutral/mixed classification. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 17,
+    "GenMS": 404
+  },
+  {
+    "ID": "sh_04",
+    "Cat": "sentiment",
+    "Answer": "Positive. The setup complaints are outweighed by the best espresso experience and the verdict that it's worth every penny.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 556
+  },
+  {
+    "ID": "sh_05",
+    "Cat": "sentiment",
+    "Answer": "Negative. The reviewer explicitly states they shelved the game after only two rounds, indicating disappointment despite the superficial praise mentioned.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as Negative and provides an adequate reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 25,
+    "GenMS": 566
+  },
+  {
+    "ID": "sh_06",
+    "Cat": "sentiment",
+    "Answer": "Positive. 'Not bad at all' is enthusiastic praise, and the promise of buying another confirms satisfaction.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives an adequate reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 22,
+    "GenMS": 512
+  },
+  {
+    "ID": "sh_07",
+    "Cat": "sentiment",
+    "Answer": "Positive. The writer expresses satisfaction with the service despite the initial negative expectation, using 'can't say I was disappointed' and highlighting punctuality, cleanliness, and honesty.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as Positive and accurately explains the reasoning based on the double negative and concrete positive details. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 35,
+    "GenMS": 739
+  },
+  {
+    "ID": "sh_08",
+    "Cat": "sentiment",
+    "Answer": "Negative. Quick delivery is a minor perk compared to the rust and broken clasp.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 18,
+    "GenMS": 464
+  }
+]

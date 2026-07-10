@@ -45,6 +45,7 @@ func main() {
 	gpuLayers := flag.Int("ngl", 99, "llama-server GPU layers (0 for CPU-only)")
 	reasoning := flag.String("reasoning", "off", "llama-server reasoning mode: on, off, or auto")
 	chatTemplateKwargs := flag.String("chat-template-kwargs", "", "optional llama-server chat-template kwargs JSON")
+	lora := flag.String("lora", "", "optional LoRA GGUF (llama-server --lora); hybrid bases where merged export is incomplete")
 	outPath := flag.String("out", "", "answers JSON (default eval-results/localprobe-<model>.json)")
 	assist := flag.Bool("assist", false, "probe with the serving lane's per-family system prompts (assist contract)")
 	flag.Parse()
@@ -66,6 +67,9 @@ func main() {
 		"-m", *model, "--host", "127.0.0.1", "--port", fmt.Sprint(*port),
 		"-c", fmt.Sprint(*ctxSize), "--threads", fmt.Sprint(*threads),
 		"-ngl", fmt.Sprint(*gpuLayers), "--reasoning", *reasoning,
+	}
+	if strings.TrimSpace(*lora) != "" {
+		serverArgs = append(serverArgs, "--lora", *lora)
 	}
 	if strings.TrimSpace(*chatTemplateKwargs) != "" {
 		serverArgs = append(serverArgs, "--chat-template-kwargs", *chatTemplateKwargs)
@@ -90,7 +94,11 @@ func main() {
 		GenMS                        int64
 	}
 	rows := make([]row, len(cases))
-	fmt.Printf("probing %d tasks with %s...\n", len(cases), filepath.Base(*model))
+	label := filepath.Base(*model)
+	if strings.TrimSpace(*lora) != "" {
+		label = label + "+" + filepath.Base(*lora)
+	}
+	fmt.Printf("probing %d tasks with %s...\n", len(cases), label)
 	for i, c := range cases {
 		t0 := time.Now()
 		system := ""

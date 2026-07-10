@@ -145,15 +145,15 @@ tr:last-child td { border-bottom: 0; }
   <div class="eyebrow">AMD Developer Hackathon Act 2 / Track 1</div>
   <div class="content">
     <h1>yassai<span class="accent">.</span></h1>
-    <p class="subtitle">Yet Another Stupid Simple AI agent.<br>Local-first, evidence-gated, and ruthlessly token-efficient.</p>
+    <p class="subtitle">Yet Another Super Simple AI agent.<br>Local-first, evidence-gated, and ruthlessly token-efficient.</p>
     <div class="metrics">
       <div class="metric"><div class="value green">#1</div><div class="label">Live Track-1 leaderboard rank</div></div>
-      <div class="metric"><div class="value">1,292</div><div class="label">Fireworks tokens (2nd place: 1,797)</div></div>
-      <div class="metric"><div class="value green">0.947</div><div class="label">Judge accuracy (18/19)</div></div>
-      <div class="metric"><div class="value orange">13/19</div><div class="label">Tasks answered locally, zero tokens</div></div>
+      <div class="metric"><div class="value">1,559</div><div class="label">Fireworks tokens (2nd place: 1,797)</div></div>
+      <div class="metric"><div class="value green">0.895</div><div class="label">Judge accuracy (17/19); best run 1,292 @ 0.947</div></div>
+      <div class="metric"><div class="value orange">19/19</div><div class="label">Current build on the sample-shaped local eval</div></div>
     </div>
     <div class="chips">
-      <span class="chip primary">Go 1.26</span><span class="chip primary">2x fine-tuned MiniCPM5-1B</span><span class="chip success">llama.cpp in-container</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">MiniMax-M3 insurance call</span><span class="chip">4 GB / 2 vCPU fit</span>
+      <span class="chip primary">Go 1.26</span><span class="chip primary">MiniCPM5-1B tool lane</span><span class="chip primary">Qwen3.5-2B + LoRA assist lane</span><span class="chip success">llama.cpp in-container</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">MiniMax-M3 insurance call</span><span class="chip">4 GB / 2 vCPU fit</span>
     </div>
     <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate. Local model inference counts as zero.</p>
   </div>
@@ -174,7 +174,7 @@ tr:last-child td { border-bottom: 0; }
         <strong>Two local lanes (sequential)</strong>
         <div class="split">
           <div class="mini"><b>TOOL LANE</b><small>maths + logic via fine-tuned run_python contract; executed, never trusted</small></div>
-          <div class="mini"><b>ASSIST LANE</b><small>codegen, NER, summaries, bug fixes - direct answers, gate-checked</small></div>
+          <div class="mini"><b>ASSIST LANE</b><small>codegen, NER, sentiment, summaries, bug fixes - direct answers, gate-checked</small></div>
         </div>
       </div>
       <div class="arrow">-&gt;</div>
@@ -192,10 +192,10 @@ tr:last-child td { border-bottom: 0; }
 <section class="slide">
   <div class="eyebrow">Local specialists</div>
   <div class="content">
-    <h2>Two 1B fine-tunes, each owning what it can prove.</h2>
+    <h2>Two local specialists, each owning what it can prove.</h2>
     <div class="grid2">
       <div class="card">
-        <h3>Tool lane - MiniCPM5-yassai-v2e3b</h3>
+        <h3>Tool lane - MiniCPM5-yassai-v2e3b (1B fine-tune)</h3>
         <ul>
           <li>Maths and logic through a trained run_python contract</li>
           <li>Code executes in a real subprocess; answers interpolate computed values</li>
@@ -204,16 +204,16 @@ tr:last-child td { border-bottom: 0; }
         </ul>
       </div>
       <div class="card">
-        <h3>Assist lane - MiniCPM5-yassai-assist-v6</h3>
+        <h3>Assist lane - Qwen3.5-2B + our SFT as a serve-time LoRA</h3>
         <ul>
-          <li>Judge-filtered teacher distillation (203/210 kept)</li>
-          <li>Claude-authored adversarial data: sarcasm, idioms, word caps, verified bug-fix pairs</li>
-          <li>Parametric NER/codegen with derived ground truth</li>
-          <li>Held-out behaviour gate before every export - including code functions never trained on</li>
+          <li>Same judge-filtered + Claude-authored + parametric training data, retargeted when measurement said the 1B had hit its ceiling</li>
+          <li>31/43 adversarial variants (1B assist: 21/43); 7-8/8 on a fresh sentiment holdout the 1B could never exceed 5/8 on</li>
+          <li>Two controlled DPO passes proved the 1B gap was model capacity, not calibration - so we changed the model, not the recipe</li>
+          <li>Held-out behaviour gate before every export; stock+LoRA serve path validated on native amd64</li>
         </ul>
       </div>
     </div>
-    <div class="callout">Six fine-tune iterations in one day: train (~2 min on Modal H100), gate, export GGUF, verify against 43 adversarial variants. The pipeline is the moat, not any single checkpoint.</div>
+    <div class="callout">Seven fine-tune iterations plus a base-model bake-off: train (~2-9 min on Modal H100), gate, export, verify against 43 adversarial variants and a never-trained holdout. The pipeline is the moat, not any single checkpoint - it re-based from MiniCPM5-1B to Qwen3.5-2B in an afternoon.</div>
     <div class="chips">
       <span class="chip">factual</span><span class="chip">maths</span><span class="chip">sentiment</span><span class="chip">summarisation</span><span class="chip">NER</span><span class="chip">debugging</span><span class="chip">logic</span><span class="chip">code generation</span>
     </div>
@@ -234,6 +234,7 @@ tr:last-child td { border-bottom: 0; }
           <li>Two-vehicle physics bounds, magnitude sanity</li>
           <li>Generated code must pass the prompt's own worked example</li>
           <li>Bug fixes must parse, keep the name, and differ from the buggy source</li>
+          <li>Bug-fix cause lines are rewritten to the OBSERVED exception when executing the buggy function proves it</li>
         </ul>
       </div>
       <div class="card">
@@ -255,7 +256,7 @@ tr:last-child td { border-bottom: 0; }
         </ul>
       </div>
     </div>
-    <div class="callout">Measured, not assumed: with gates bypassed the same models score 12/19 - below the accuracy gate. The gates ARE the accuracy. A zero-token mode exists behind a flag for the day a local model clears the bar alone.</div>
+    <div class="callout">Measured, not assumed: with gates bypassed the 1B-era stack scored 12/19 - below the accuracy gate. The gates ARE the accuracy. A zero-token mode exists behind a flag; the Qwen lane plus MTP speculative decoding is the measured path towards clearing the bar alone.</div>
   </div>
   <div class="page">04 / 06</div>
 </section>
@@ -272,7 +273,7 @@ tr:last-child td { border-bottom: 0; }
           <div class="bar-row"><span class="bar-label">tokenizer fix</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div><span class="bar-value">3,834</span></div>
           <div class="bar-row"><span class="bar-label">+ assist lane</span><div class="bar-track"><div class="bar-fill" style="width:43%"></div></div><span class="bar-value">2,761</span></div>
           <div class="bar-row"><span class="bar-label">+ tools-off fold</span><div class="bar-track"><div class="bar-fill" style="width:26%"></div></div><span class="bar-value">1,661</span></div>
-          <div class="bar-row"><span class="bar-label">live, rank 1</span><div class="bar-track"><div class="bar-fill" style="width:20.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">1,292</span></div>
+          <div class="bar-row"><span class="bar-label">best live run</span><div class="bar-track"><div class="bar-fill" style="width:20.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">1,292</span></div>
         </div>
       </div>
       <div class="card">
@@ -284,11 +285,11 @@ tr:last-child td { border-bottom: 0; }
           <li>Factual, summaries, bug fixes moved local behind gates</li>
           <li>Recipes tuned per batch kind; recovery retries stripped lean</li>
         </ul>
-        <div class="code">rehearsal (4 GB / 2 vCPU emulation): 1,297 tokens
-live judge run:                        1,292 tokens</div>
+        <div class="code">rehearsal (4 GB / 2 vCPU): 1,297 -> live: 1,292
+rehearsal (4 GB / 2 vCPU): 1,583 -> live: 1,559</div>
       </div>
     </div>
-    <div class="callout">The CI dress rehearsal predicted the live score within 5 tokens. Every submission is rehearsed on judge-shaped hardware before it spends a slot.</div>
+    <div class="callout">The CI dress rehearsal has predicted every live score within 25 tokens. Every submission is rehearsed on judge-shaped hardware before it spends a slot.</div>
   </div>
   <div class="page">05 / 06</div>
 </section>
@@ -311,7 +312,7 @@ live judge run:                        1,292 tokens</div>
         <h3>Portable image</h3>
         <ul>
           <li>linux/amd64 multi-stage build, immutable SHA tags</li>
-          <li>Two GGUFs + fp32 classifier + llama.cpp b9948</li>
+          <li>Tool GGUF + Qwen base + serve-time LoRA + fp32 classifier + llama.cpp b9948</li>
           <li>Env-only runtime config per the guide</li>
           <li>Compressed size far under the 10 GB cap</li>
         </ul>
@@ -325,10 +326,10 @@ live judge run:                        1,292 tokens</div>
         </ul>
       </div>
     </div>
-    <div class="callout">Data integrity, verified mechanically: shipped training sets have ZERO exact overlap with the sample tasks, our eval variants, or the captured live evaluation prompts (0/19). Training mirrors task style, never task content. One early ablation dataset containing sample copies was research-only, never shipped, and is now quarantined behind an explicit acknowledgement flag.</div>
+    <div class="callout">Data integrity, verified mechanically: shipped training sets have ZERO exact overlap with the sample tasks, our eval variants, or the captured live evaluation prompts (0/19), and the DPO pair miner hard-asserts against sample ids and prompt text. Training mirrors task style, never task content. One early ablation dataset containing sample copies was research-only, never shipped, and is quarantined behind an explicit acknowledgement flag.</div>
     <div class="metrics">
-      <div class="metric"><div class="value green">#1</div><div class="label">1,292 tokens @ 0.947</div></div>
-      <div class="metric"><div class="value">+505</div><div class="label">Token lead over 2nd place</div></div>
+      <div class="metric"><div class="value green">#1</div><div class="label">1,559 tokens @ 0.895 (best run 1,292 @ 0.947)</div></div>
+      <div class="metric"><div class="value">+238</div><div class="label">Token lead over 2nd place</div></div>
       <div class="metric"><div class="value orange">0</div><div class="label">Fallbacks, empty answers, DQs</div></div>
       <div class="metric"><div class="value green">ready</div><div class="label">Commit, image, docs, deck</div></div>
     </div>

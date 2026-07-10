@@ -52,6 +52,7 @@ After receiving a run_python result, return only the final answer requested by t
 
 type Config struct {
 	ModelPath  string // fine-tuned GGUF
+	LoraPath   string // optional LoRA adapter GGUF (DirectSolver: hybrid bases whose merged export is incomplete)
 	LibPath    string // directory containing llama-server and its shared libraries
 	ServerPath string // llama-server binary; default LibPath/llama-server
 	Threads    int

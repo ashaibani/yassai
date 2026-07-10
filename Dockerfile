@@ -19,9 +19,14 @@ ARG LLAMA_VERSION=b9948
 # URLs authenticate via the BuildKit secret `hf_token` (never an ARG - ARGs
 # persist in image history).
 ARG LOCAL_MODEL_URL=""
-# Optional: URL of the UN-tuned MiniCPM5 base GGUF (second local lane:
-# code_generation + gated NER). Same auth rules as LOCAL_MODEL_URL.
+# Optional: URL of the assist-lane base GGUF (second local lane:
+# code_generation + gated NER + LOCAL_BASE_EXTENDED families). Same auth
+# rules as LOCAL_MODEL_URL.
 ARG LOCAL_BASE_MODEL_URL=""
+# Optional: LoRA adapter GGUF applied to the assist base at serve time
+# (hybrid bases - Qwen3.5's MTP block - whose merged export the pinned
+# converter cannot produce). Missing file degrades to stock serving.
+ARG LOCAL_BASE_LORA_URL=""
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL -o /tmp/ort.tgz \
@@ -48,7 +53,10 @@ RUN --mount=type=secret,id=hf_token \
          fetch /localmodel/minicpm5-yassai.gguf "${LOCAL_MODEL_URL}"; \
        fi \
     && if [ -n "${LOCAL_BASE_MODEL_URL}" ]; then \
-         fetch /localmodel/minicpm5-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
+         fetch /localmodel/assist-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
+       fi \
+    && if [ -n "${LOCAL_BASE_LORA_URL}" ]; then \
+         fetch /localmodel/assist-lora.gguf "${LOCAL_BASE_LORA_URL}"; \
        fi
 
 # --- build the agent (cgo ON: both bindings are cgo; build on the target platform) ---
@@ -90,7 +98,8 @@ ENV ONNXRUNTIME_LIB=/opt/ort/libonnxruntime.so \
     TASKCLF_DIR=/assets/taskclf \
     YZMA_LIB=/opt/llama \
     LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf \
-    LOCAL_BASE_MODEL_PATH=/assets/localmodel/minicpm5-base.gguf \
+    LOCAL_BASE_MODEL_PATH=/assets/localmodel/assist-base.gguf \
+    LOCAL_BASE_LORA_PATH=/assets/localmodel/assist-lora.gguf \
     LOCAL_BASE_EXTENDED=${LOCAL_BASE_EXTENDED} \
     AGENT_NO_REMOTE=${AGENT_NO_REMOTE} \
     AGENT_ALLOW_SEMANTIC_CLUES=${AGENT_ALLOW_SEMANTIC_CLUES}

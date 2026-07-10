@@ -62,10 +62,13 @@ type Config struct {
 	LocalModelPath string
 	LocalLibPath   string
 
-	// LocalBaseModelPath enables the UN-tuned MiniCPM5 base GGUF as a second
-	// local lane for code_generation and gated NER - families the fine-tune
-	// lost to tool-contract specialisation. Empty disables.
+	// LocalBaseModelPath enables the assist-lane GGUF as a second local lane
+	// for code_generation and gated NER plus the Extended families. Empty
+	// disables. LocalBaseLoraPath optionally applies a LoRA adapter GGUF at
+	// serve time - used for hybrid bases (Qwen3.5 MTP block) whose merged
+	// export the pinned converter cannot produce.
 	LocalBaseModelPath string
+	LocalBaseLoraPath  string
 	// LocalBaseExtended unlocks assist-tuned families in the base lane:
 	// "all" or a CSV subset of sentiment_classification/text_summarisation/
 	// factual_knowledge. Only ever set for the assist fine-tune - the plain
