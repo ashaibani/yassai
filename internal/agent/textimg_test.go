@@ -9,7 +9,7 @@ func TestTextImgAutoFallsBackForShortQueries(t *testing.T) {
 	task := Task{TaskID: "s1", Prompt: "Summarize exactly two sentences:\n\n'A short passage.'"}
 	categories := map[string][]string{"s1": {"text_summarisation"}}
 	ag := &Agent{cfg: Config{TextImg: "auto"}, categories: categories}
-	messages := ag.buildBatchMessages([]Task{task}, false)
+	messages := ag.buildBatchMessages([]Task{task}, false, false)
 	if len(messages) != 2 || len(messages[1].ImageURLs) != 0 {
 		t.Fatalf("short query should stay text, got %#v", messages)
 	}
@@ -23,7 +23,7 @@ func TestTextImgAutoRendersLongSourceWithWireLabel(t *testing.T) {
 	task := Task{TaskID: "s1", Prompt: "Summarize the following passage in exactly two sentences:\n\n'" + source + "'"}
 	categories := map[string][]string{"s1": {"text_summarisation"}}
 	ag := &Agent{cfg: Config{TextImg: "auto"}, categories: categories}
-	messages := ag.buildBatchMessages([]Task{task}, false)
+	messages := ag.buildBatchMessages([]Task{task}, false, false)
 	if len(messages) != 2 || len(messages[1].ImageURLs) == 0 {
 		t.Fatalf("long source should render as image, got %#v", messages)
 	}
@@ -45,7 +45,7 @@ func TestTextImgNeverRendersCodeExecBatch(t *testing.T) {
 	task := Task{TaskID: "m1", Prompt: strings.Repeat("Calculate 17 * 23. ", 200)}
 	categories := map[string][]string{"m1": {"mathematical_reasoning"}}
 	ag := &Agent{cfg: Config{TextImg: "full"}, categories: categories}
-	messages := ag.buildBatchMessages([]Task{task}, true)
+	messages := ag.buildBatchMessages([]Task{task}, true, false)
 	if len(messages) != 2 || len(messages[1].ImageURLs) != 0 {
 		t.Fatalf("code-exec batch must stay text, got %#v", messages)
 	}

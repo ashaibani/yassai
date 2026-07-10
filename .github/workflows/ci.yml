@@ -258,6 +258,7 @@ jobs:
             -v /tmp/rehearsal-out:/output \
             -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
             -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e AGENT_TRACE_MESSAGES=1 \
             -e CALLBACK_LABEL="ci-rehearsal @ sha-$(git rev-parse --short HEAD)" \
             "$IMAGE" 2>/tmp/rehearsal-stderr.txt || true
           WALL=$(( $(date +%s) - START ))

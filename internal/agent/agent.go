@@ -373,7 +373,7 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 		run.Error = ctx.Err().Error()
 		return map[string]string{}, run
 	}
-	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
+	answers, calls, tools, err := a.solveBatch(ctx, exec, batch, false)
 	// Physics screen on remote answers: an impossible two-vehicle meeting time
 	// (03:04.5 for a 09:30 departure - observed from Fireworks) is dropped so
 	// the standard missing-ids recovery earns one retry at it. Applied only to
@@ -412,7 +412,7 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 		return merged, run
 	}
 	// One recovery call for all missing ids (avoid binary-split token blowups).
-	sub, calls, tools, _ := a.solveBatch(ctx, exec, missing)
+	sub, calls, tools, _ := a.solveBatch(ctx, exec, missing, true)
 	run.Calls += calls
 	run.Tools += tools
 	for k, v := range sub {
@@ -423,7 +423,7 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 	return merged, run
 }
 
-func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []Task) (map[string]string, int, int, error) {
+func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []Task, lean bool) (map[string]string, int, int, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, 0, err
 	}
@@ -435,7 +435,7 @@ func (a *Agent) solveBatch(ctx context.Context, exec *pyexec.Executor, batch []T
 	sessionID := "b-" + strings.Join(taskIDs(batch), "-")
 
 	allowCode := a.batchAllowsCode(batch)
-	messages := a.buildBatchMessages(batch, allowCode)
+	messages := a.buildBatchMessages(batch, allowCode, lean)
 
 	var calls, tools int
 	var lastText string
@@ -730,6 +730,15 @@ var categoryRecipe = map[string]string{
 	"text_summarisation":          "sum: output EXACTLY the N sentences or N bullets the task states (count them - never more, never fewer); obey every stated constraint (per-bullet word caps, required figures or terms); map each sentence/bullet to a DISTINCT major theme and cover ALL major themes - benefits/drivers, problems/challenges, AND any responses/countermeasures/outlook the source describes (the response theme is the one most often dropped - never drop it); if themes outnumber bullets, pack two related themes into one bullet rather than omitting one; the COUNT is the hardest constraint of all: N+1 bullets is an automatic fail even with perfect coverage - merge, never add",
 }
 
+// categoryRecipeNoTools replaces the run_python-centric recipes when the batch
+// has no code-exec surface (folded gate rejects in the direct batch). Same
+// answer-shape discipline, no references to a tool that is not there.
+var categoryRecipeNoTools = map[string]string{
+	"mathematical_reasoning":      "math: compute carefully step by step, double-check each arithmetic step, and answer in the exact shape asked (requested units/currency, numbered parts if the task numbers them).",
+	"logical_deductive_reasoning": "logic: deduce systematically - test each candidate against EVERY clue (including world-knowledge clues like allergies) and give only the final assignment in the exact shape asked; multiple-choice: the exact option text; never refuse.",
+	"code_debugging":              "cbug: if asked to FIX: one-line cause, then the minimal corrected fn - change only the bug, plain code no fences, preserve the stated semantics. If asked what code EVALUATES to: trace it carefully step by step; state the exact output/behaviour first, then the one-line mechanism (late binding, shared mutable default, exhausted iterator, aliasing).",
+}
+
 func systemPrompt(batch []Task, categories map[string][]string) string {
 	header, recipes := systemPromptParts(batch, categories)
 	if recipes == "" {
@@ -766,7 +775,17 @@ func systemPromptParts(batch []Task, categories map[string][]string) (string, st
 	}
 	for _, c := range []string{"mathematical_reasoning", "named_entity_recognition", "code_debugging", "code_generation", "logical_deductive_reasoning", "text_summarisation"} {
 		if present[c] {
-			r.WriteString(categoryRecipe[c])
+			recipe := categoryRecipe[c]
+			// Folded batches have no run_python: the tool-centric recipes are
+			// misleading there (and ~350 tokens of dead weight). Local lanes
+			// answer most of these families anyway; the folded remnants are
+			// gate rejects that need the short no-tools guidance instead.
+			if !needCode {
+				if alt, ok := categoryRecipeNoTools[c]; ok {
+					recipe = alt
+				}
+			}
+			r.WriteString(recipe)
 			r.WriteByte('\n')
 		}
 	}

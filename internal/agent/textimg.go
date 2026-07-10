@@ -42,15 +42,25 @@ const textImgSourceMinChars = 2000
 // buildBatchMessages assembles the system+user opening messages for a batch,
 // rendering the task sheet (and in "full" mode the category recipes) into
 // scale=1 PNGs when TextImg is enabled for a non-code batch.
-func (a *Agent) buildBatchMessages(batch []Task, allowCode bool) []llm.Message {
+//
+// lean drops the category recipes: recovery retries re-ask tasks the model
+// just saw with the full scaffold, and paying the recipes twice was the
+// biggest cost of an incomplete first reply (observed: a 9-task retry re-sent
+// 1,998 prompt tokens, nearly doubling the run).
+func (a *Agent) buildBatchMessages(batch []Task, allowCode, lean bool) []llm.Message {
 	plain := func() []llm.Message {
+		sys := systemPrompt(batch, a.categories)
+		if lean {
+			header, _ := systemPromptParts(batch, a.categories)
+			sys = header + "\nAnswer ONLY the tasks listed. Every task_id must appear in the JSON."
+		}
 		return []llm.Message{
-			{Role: "system", Content: systemPrompt(batch, a.categories)},
+			{Role: "system", Content: sys},
 			{Role: "user", Content: buildLeanUserPrompt(batch, a.categories)},
 		}
 	}
 	mode := a.textImgMode()
-	if mode == "" || allowCode {
+	if mode == "" || allowCode || lean {
 		return plain()
 	}
 	if mode == "hybrid" {

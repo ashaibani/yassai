@@ -76,7 +76,7 @@ func TestTextImgDirectBatchLive(t *testing.T) {
 		mode = "tasks"
 	}
 	ag := &Agent{cfg: Config{TextImg: mode}, categories: cats}
-	messages := ag.buildBatchMessages(batch, false)
+	messages := ag.buildBatchMessages(batch, false, false)
 	if len(messages) != 2 || len(messages[1].ImageURLs) == 0 {
 		t.Fatalf("expected system+user-with-images, got %d messages (images=%d)",
 			len(messages), len(messages[len(messages)-1].ImageURLs))
