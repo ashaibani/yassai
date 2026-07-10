@@ -40,6 +40,11 @@ func main() {
 	lib := flag.String("lib", firstNonEmpty(os.Getenv("YZMA_LIB"), os.Getenv("HOME")+"/opt/llama"), "dir with llama-server")
 	port := flag.Int("port", 18089, "llama-server port")
 	maxTok := flag.Int("maxtok", 768, "max generation tokens per task")
+	threads := flag.Int("threads", 6, "llama-server generation threads")
+	ctxSize := flag.Int("ctx", 4096, "llama-server context size")
+	gpuLayers := flag.Int("ngl", 99, "llama-server GPU layers (0 for CPU-only)")
+	reasoning := flag.String("reasoning", "off", "llama-server reasoning mode: on, off, or auto")
+	chatTemplateKwargs := flag.String("chat-template-kwargs", "", "optional llama-server chat-template kwargs JSON")
 	outPath := flag.String("out", "", "answers JSON (default eval-results/localprobe-<model>.json)")
 	assist := flag.Bool("assist", false, "probe with the serving lane's per-family system prompts (assist contract)")
 	flag.Parse()
@@ -57,9 +62,15 @@ func main() {
 
 	// --reasoning off: MiniCPM5 is a hybrid-thinking model; left on, the 1B
 	// spends the whole token budget inside <think> and content comes back empty.
-	srv := exec.Command(filepath.Join(*lib, "llama-server"),
+	serverArgs := []string{
 		"-m", *model, "--host", "127.0.0.1", "--port", fmt.Sprint(*port),
-		"-c", "4096", "--threads", "6", "-ngl", "99", "--reasoning", "off")
+		"-c", fmt.Sprint(*ctxSize), "--threads", fmt.Sprint(*threads),
+		"-ngl", fmt.Sprint(*gpuLayers), "--reasoning", *reasoning,
+	}
+	if strings.TrimSpace(*chatTemplateKwargs) != "" {
+		serverArgs = append(serverArgs, "--chat-template-kwargs", *chatTemplateKwargs)
+	}
+	srv := exec.Command(filepath.Join(*lib, "llama-server"), serverArgs...)
 	srv.Stdout, srv.Stderr = nil, nil
 	if err := srv.Start(); err != nil {
 		fmt.Fprintln(os.Stderr, "llama-server:", err)

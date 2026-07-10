@@ -221,3 +221,37 @@ func TestGateNERLabelSanity(t *testing.T) {
 		t.Error("acronym-led span labelled LOCATION must be rejected")
 	}
 }
+
+func TestGroundCodeFixCauseRewritesProvenException(t *testing.T) {
+	prompt := "This function should check whether a word reads the same forwards and backwards, " +
+		"but it doesn't work. State the cause and provide the fix.\n\n" +
+		"def is_mirror(word):\n    return word == word.reverse()"
+	answer := "word.reverse() creates a reversed copy of the string, so the comparison is subtly wrong.\n\n" +
+		"def is_mirror(word):\n    return word == word[::-1]"
+	got := groundCodeFixCause(context.Background(), prompt, answer)
+	if !strings.Contains(got, "AttributeError") {
+		t.Fatalf("proven exception must replace the confabulated cause, got %q", got)
+	}
+	if !strings.Contains(got, "def is_mirror(word):\n    return word == word[::-1]") {
+		t.Fatalf("the model's corrected function must be preserved verbatim, got %q", got)
+	}
+}
+
+func TestGroundCodeFixCauseKeepsWrongOutputBugs(t *testing.T) {
+	prompt := "This function should add two numbers but returns the wrong value. Fix it.\n\n" +
+		"def add(a, b):\n    return a - b"
+	answer := "The buggy line subtracts b instead of adding it.\n\ndef add(a, b):\n    return a + b"
+	if got := groundCodeFixCause(context.Background(), prompt, answer); got != answer {
+		t.Fatalf("wrong-output bugs must keep the model's cause line, got %q", got)
+	}
+}
+
+func TestGroundCodeFixCauseSkipsUnattributable(t *testing.T) {
+	// Both versions raise on the synthesized input: grounding must not fire.
+	prompt := "This function should return the first item but crashes. Fix it.\n\n" +
+		"def first_item(items):\n    return items[len(items)]"
+	answer := "The index is out of range by one.\n\ndef first_item(items):\n    return items[missing_helper()]"
+	if got := groundCodeFixCause(context.Background(), prompt, answer); got != answer {
+		t.Fatalf("both-raise must be left untouched, got %q", got)
+	}
+}

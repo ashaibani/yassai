@@ -1,0 +1,50 @@
+[
+  {
+    "task_id": "sh_01",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Brilliant. The fitness tracker died on day two, so now I own the world's most expensive bracelet. Five stars for teaching me not to trust adverts.'",
+    "expected": "Negative - the review is sarcastic throughout ('brilliant', 'five stars' are mock praise); the substance is that the tracker died on day two. Positive is wrong.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_02",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Honestly expected this cheap vacuum to be a joke, but it picks up pet hair better than the branded one I paid triple for. Genuinely impressed.'",
+    "expected": "Positive - the low expectation framing is a setup for genuine praise ('picks up pet hair better', 'genuinely impressed'). Negative or Neutral is wrong; this is not sarcasm.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_03",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'The hotel room was spotless and the bed genuinely comfortable, but the lift was broken all week and breakfast ran out by 8am every single day.'",
+    "expected": "Neutral (or mixed) - equal-weight genuine praise and genuine complaints with no overall verdict signalled. A confident Positive or Negative without acknowledging the balance is wrong.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_04",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Setup instructions for the coffee machine were confusing and the water tank is fiddly to refill, but the espresso it pulls is easily the best I have had at home - worth every penny.'",
+    "expected": "Positive - the reviewer's overall verdict ('worth every penny', 'easily the best') outweighs the setup complaints. Neutral under-calls it; Negative is wrong.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_05",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'I can see why people rave about this board game, but honestly it is just not my cup of tea - we shelved it after two rounds.'",
+    "expected": "Negative - 'not my cup of tea' plus abandoning it after two rounds expresses personal dislike despite the polite framing. Positive is wrong; Neutral is a weak but arguable alternative only if the reason notes the polite hedging.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_06",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Not bad at all, this little heater. Warms the office in minutes and the electricity bill has not noticed. Would not hesitate to buy another.'",
+    "expected": "Positive - British understatement ('not bad at all', 'would not hesitate') expresses clear approval. Negative or Neutral is wrong.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_07",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Booked the airport taxi with low hopes after last time, but I can't say I was disappointed - driver early, car clean, flat fare as promised.'",
+    "expected": "Positive - the double negative 'can't say I was disappointed' plus three concrete positives expresses satisfaction. Negative is wrong; Neutral under-calls it.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "sh_08",
+    "prompt": "Classify the sentiment of this customer review as Positive, Negative, or Neutral and give a one-sentence reason:\n\n'Delivery was quick, I'll give them that. The secateurs themselves rusted after one rainy afternoon and the locking clasp snapped within a week.'",
+    "expected": "Negative - one token positive (quick delivery) does not offset the product failing twice; the overall verdict is clearly negative. Positive or Neutral is wrong.",
+    "validate": "llm"
+  }
+]

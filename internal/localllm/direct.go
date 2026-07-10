@@ -349,6 +349,9 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 	if reason != "" {
 		return Result{Answer: answer, Reason: reason}
 	}
+	if family == FamilyCodeFix {
+		answer = groundCodeFixCause(tctx, prompt, answer)
+	}
 	return Result{Answer: answer, OK: true}
 }
 
@@ -775,6 +778,203 @@ func gateCodeFix(ctx context.Context, prompt, answer string) string {
 		return "code_fix: corrected function does not parse"
 	}
 	return ""
+}
+
+// --- grounded cause line for code_fix ---
+//
+// The SFT confabulates method semantics in cause lines ("s.reverse() creates
+// a reversed copy" - str has no reverse()) and the judge fails a factually
+// wrong cause even when the fix is right. When the bug is an exception we can
+// PROVE it: synthesize an argument, run the buggy function, and if it raises
+// inside itself while the model's corrected function succeeds on the same
+// input, that exception IS the bug - replace the cause line with it. A
+// candidate that runs the buggy function to completion stops the whole
+// attempt (wrong-output bug: the model's line stands), and both-raise is
+// treated as unattributable, so a synthesis artefact can never be promoted
+// into a stated cause.
+
+const pyProbeProg = `import json, sys, traceback
+d = json.load(sys.stdin)
+ns = {}
+try:
+    exec(compile(d["src"], "<src>", "exec"), ns)
+    eval(compile(d["call"], "<call>", "eval"), ns)
+except BaseException as e:
+    infunc = any(f.name == d["fn"] for f in traceback.extract_tb(e.__traceback__))
+    print(json.dumps({"etype": type(e).__name__, "msg": str(e)[:120], "in_func": bool(infunc)}))
+    sys.exit(0)
+print("{}")
+`
+
+type pyProbeOutcome struct {
+	EType  string `json:"etype"`
+	Msg    string `json:"msg"`
+	InFunc bool   `json:"in_func"`
+}
+
+// pyProbe execs src then evaluates call in the same namespace. ok is false
+// when the probe itself failed (timeout, python missing, bad JSON) - callers
+// must treat that as no signal.
+func pyProbe(ctx context.Context, src, call, fn string) (out pyProbeOutcome, ok bool) {
+	pctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	payload, err := json.Marshal(map[string]string{"src": src, "call": call, "fn": fn})
+	if err != nil {
+		return out, false
+	}
+	cmd := exec.CommandContext(pctx, "python3", "-c", pyProbeProg)
+	cmd.Stdin = bytes.NewReader(payload)
+	raw, err := cmd.Output()
+	if err != nil {
+		return out, false
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(raw), &out); err != nil {
+		return out, false
+	}
+	return out, true
+}
+
+// extractPyDef returns the first def block in text: the def line plus every
+// following line that is blank or indented.
+func extractPyDef(text string) string {
+	i := strings.Index(text, "def ")
+	if i < 0 {
+		return ""
+	}
+	lines := strings.Split(text[i:], "\n")
+	out := lines[:1]
+	for _, ln := range lines[1:] {
+		if strings.TrimSpace(ln) == "" || strings.HasPrefix(ln, " ") || strings.HasPrefix(ln, "\t") {
+			out = append(out, ln)
+			continue
+		}
+		break
+	}
+	return strings.TrimRight(strings.Join(out, "\n"), " \t\n")
+}
+
+var defParamsRe = regexp.MustCompile(`def\s+[A-Za-z_]\w*\s*\(([^)]*)\)`)
+
+// synthCallArgs builds up to three candidate Python argument lists for the
+// def's required parameters, keyed on naming conventions. Numbers lead the
+// unknown-name battery: they survive the widest range of operations, so a
+// wrong-output bug is detected (clean run -> stop) before a type-mismatch
+// artefact can masquerade as the cause.
+func synthCallArgs(src string) []string {
+	m := defParamsRe.FindStringSubmatch(src)
+	if m == nil {
+		return nil
+	}
+	raw := strings.TrimSpace(m[1])
+	if raw == "" {
+		return []string{""}
+	}
+	perParam := [][]string{}
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" || strings.HasPrefix(p, "*") {
+			return nil // *args/**kwargs: synthesis too speculative
+		}
+		if strings.Contains(p, "=") {
+			break // first defaulted param: call with the required prefix only
+		}
+		if i := strings.Index(p, ":"); i >= 0 {
+			p = strings.TrimSpace(p[:i])
+		}
+		perParam = append(perParam, synthValues(p))
+	}
+	if len(perParam) == 0 {
+		return []string{""}
+	}
+	// Combo k joins the k-th candidate of each param (clamped): unknown-name
+	// params advance through their battery together, named ones stay fixed.
+	depth := 0
+	for _, c := range perParam {
+		if len(c) > depth {
+			depth = len(c)
+		}
+	}
+	if depth > 3 {
+		depth = 3
+	}
+	combos := make([]string, 0, depth)
+	for k := 0; k < depth; k++ {
+		parts := make([]string, len(perParam))
+		for i, c := range perParam {
+			j := k
+			if j >= len(c) {
+				j = len(c) - 1
+			}
+			parts[i] = c[j]
+		}
+		combos = append(combos, strings.Join(parts, ", "))
+	}
+	return combos
+}
+
+func synthValues(name string) []string {
+	n := strings.ToLower(name)
+	intNames := map[string]bool{"n": true, "k": true, "x": true, "y": true, "i": true, "j": true,
+		"a": true, "b": true, "c": true, "num": true, "count": true, "size": true, "limit": true,
+		"target": true, "total": true, "idx": true, "depth": true, "amount": true}
+	switch {
+	case intNames[n]:
+		return []string{"5"}
+	case strings.Contains(n, "interval") || strings.Contains(n, "pair"):
+		return []string{"[[1, 3], [2, 6], [8, 10]]"}
+	case n == "s" || strings.Contains(n, "str") || strings.Contains(n, "text") ||
+		strings.Contains(n, "word") || strings.Contains(n, "phrase") || strings.Contains(n, "sentence") ||
+		strings.Contains(n, "msg") || strings.Contains(n, "title") || strings.Contains(n, "line") ||
+		strings.Contains(n, "name"):
+		return []string{"'abcba'"}
+	case strings.Contains(n, "num") || strings.Contains(n, "lst") || strings.Contains(n, "list") ||
+		strings.Contains(n, "arr") || strings.Contains(n, "item") || strings.Contains(n, "value") ||
+		strings.Contains(n, "element") || strings.Contains(n, "seq") || strings.Contains(n, "score") ||
+		n == "xs" || n == "data":
+		return []string{"[3, 1, 4, 1, 5, 9]"}
+	case strings.Contains(n, "dict") || strings.Contains(n, "map") || strings.Contains(n, "freq"):
+		return []string{"{'a': 1, 'b': 2}"}
+	default:
+		return []string{"5", "[3, 1, 4, 1, 5, 9]", "'abcba'"}
+	}
+}
+
+// groundCodeFixCause rewrites the answer's cause line with the executed
+// evidence when the differential probe attributes an exception to the bug.
+// Fenced answers are left alone (the rewrite would orphan the closing fence).
+func groundCodeFixCause(ctx context.Context, prompt, answer string) string {
+	m := defNameRe.FindStringSubmatch(prompt)
+	if m == nil || fenceRe.MatchString(answer) {
+		return answer
+	}
+	name := m[1]
+	buggy := extractPyDef(prompt)
+	defIdx := strings.Index(answer, "def ")
+	if buggy == "" || defIdx <= 0 {
+		return answer
+	}
+	fixed := strings.TrimSpace(answer[defIdx:])
+	for _, args := range synthCallArgs(buggy) {
+		call := name + "(" + args + ")"
+		bug, ok := pyProbe(ctx, buggy, call, name)
+		if !ok {
+			return answer
+		}
+		if bug.EType == "" {
+			return answer // buggy ran clean: wrong-output bug, model's line stands
+		}
+		if !bug.InFunc {
+			continue // synthesis artefact (arg binding etc.): try the next combo
+		}
+		fix, ok := pyProbe(ctx, fixed, call, name)
+		if !ok || fix.EType != "" {
+			return answer // unattributable: fixed also raises on this input
+		}
+		grounded := fmt.Sprintf("The buggy line raises %s (%s), so %s() crashes instead of returning the intended result.",
+			bug.EType, bug.Msg, name)
+		return grounded + "\n\n" + strings.TrimSpace(answer[defIdx:])
+	}
+	return answer
 }
 
 var (

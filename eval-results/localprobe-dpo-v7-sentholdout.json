@@ -1,0 +1,82 @@
+[
+  {
+    "ID": "sh_01",
+    "Cat": "sentiment",
+    "Answer": "Negative. The verdict is a five-star rating for a product that failed on day two.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as Negative and references the sarcastic five-star rating and product failure. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 19,
+    "GenMS": 189
+  },
+  {
+    "ID": "sh_02",
+    "Cat": "sentiment",
+    "Answer": "Positive. The writer praises the product despite its low price, citing better performance and value.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 19,
+    "GenMS": 175
+  },
+  {
+    "ID": "sh_03",
+    "Cat": "sentiment",
+    "Answer": "Negative. The broken lift and missed breakfast are deal-breaking.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classifies the review as Negative without acknowledging the balanced praise and complaints. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 13,
+    "GenMS": 130
+  },
+  {
+    "ID": "sh_04",
+    "Cat": "sentiment",
+    "Answer": "Positive. The reviewer praises the espresso quality despite the setup issues, framing it as an investment worth every penny.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives an adequate reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 23,
+    "GenMS": 261
+  },
+  {
+    "ID": "sh_05",
+    "Cat": "sentiment",
+    "Answer": "Negative. The verdict is explicitly that it is not the customer's cup of tea.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and cites the key phrase from the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 18,
+    "GenMS": 164
+  },
+  {
+    "ID": "sh_06",
+    "Cat": "sentiment",
+    "Answer": "Negative. The reviewer explicitly complains about the heater's failure to reduce the electricity bill and would only buy another, indicating dissatisfaction.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classifies the sentiment as Negative and misinterprets the text. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 26,
+    "GenMS": 231
+  },
+  {
+    "ID": "sh_07",
+    "Cat": "sentiment",
+    "Answer": "Positive. The writer explicitly states they were not disappointed despite the issues.",
+    "Via": "judge",
+    "Reason": "1.  **Analyze the Request:**",
+    "Pass": false,
+    "GenTokens": 15,
+    "GenMS": 143
+  },
+  {
+    "ID": "sh_08",
+    "Cat": "sentiment",
+    "Answer": "Negative. The reviewer expresses frustration over poor craftsmanship and a broken product.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 15,
+    "GenMS": 141
+  }
+]

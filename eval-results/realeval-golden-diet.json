@@ -1,0 +1,66 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 810,
+    "output_tokens": 525,
+    "total_tokens": 1335,
+    "cached_tokens": 116,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 11,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T01",
+          "T01b",
+          "T01c",
+          "T03",
+          "T03b",
+          "T05",
+          "T05b",
+          "T07b"
+        ],
+        "size": 8,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T19:28:45.277182+01:00",
+        "latency_ms": 6672,
+        "prompt_tokens": 810,
+        "completion_tokens": 525,
+        "total_tokens": 1335,
+        "cached_tokens": 116,
+        "reasoning_tokens": 0,
+        "batch_size": 8,
+        "output_chars": 2386,
+        "task_ids": [
+          "T01",
+          "T01b",
+          "T01c",
+          "T03",
+          "T03b",
+          "T05",
+          "T05b",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2360,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T01\",\"answer\":\"The three primary colors in the RGB color model are Red, Green, and Blue. Displays use RGB because screens emit light directly, and additive mixing of red, green, and blue light can produce the widest range of perceivable colors, whereas RYB (subtractive pigment mixing) is suited for paints and inks, not light-emitting devices.\"},{\"task_id\":\"T01b\",\"answer\":\"Machine learning is a broad field where algorithms learn patterns from data to make predictions or decisions, typically using hand-crafted features and models like decision trees or linear regression. Deep learning is a subset of machine learning that uses multi-layer neural networks to automatically learn hierarchical feature representations directly from raw data, requiring more data and compute but handling complex tasks like image and speech recognition.\"},{\"task_id\":\"T01c\",\"answer\":\"RAM (Random Access Memory) is volatile, read-write memory used to hold data and programs the CPU is actively working on, and its contents are lost when power is off. ROM (Read-Only Memory) is non-volatile memory used to store permanent firmware like the BIOS that boots the computer, and it retains its contents without power.\"},{\"task_id\":\"T03\",\"answer\":\"Positive. Despite the late arrival and damaged packaging, the reviewer highlights that the item worked perfectly and customer support quickly resolved the issue, indicating overall satisfaction.\"},{\"task_id\":\"T03b\",\"answer\":\"Positive. Although the box was dented and the manual missing, the user emphasizes the device is flawless and easy to set up, showing an overall favorable impression.\"},{\"task_id\":\"T05\",\"answer\":\"DATE: March 15 2023. PERSON: Sundar Pichai. ORGANIZATION: Google. LOCATION: Zurich. ORGANIZATION: ETH Zurich.\"},{\"task_id\":\"T05b\",\"answer\":\"DATE: September 2021. PERSON: Elon Musk. ORGANIZATION: SpaceX. ORGANIZATION: NASA. DATE: 2025. Note: 'Artemis programme' is a prominent named entity (a government space programme) that does not fit any of the permitted labels (PERSON, ORGANIZATION, LOCATION, DATE) and is therefore outside the inventory.\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat. Liam cannot have the cat or dog due to his fur allergy, so he must have the parrot; Emma cannot have the parrot, so she takes the dog; Priya cannot have the dog, leaving the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 17,
+  "overall_total": 19
+}

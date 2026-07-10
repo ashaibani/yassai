@@ -835,11 +835,29 @@ func systemPrompt(batch []Task, categories map[string][]string, allowCode bool) 
 // (header - always sent as text so parseAnswers never depends on OCR) and the
 // per-category recipes (movable into a textimg render in TextImg "full" mode).
 func systemPromptParts(batch []Task, categories map[string][]string, allowCode bool) (string, string) {
+	// Caveman-tight header (inspo/caveman: drop filler, keep every constraint
+	// byte-exact) - and family clauses ship only when their family is in the
+	// batch. The fact/sent/sum guidance used to ride along unconditionally.
 	var b strings.Builder
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
-	b.WriteString("\nAll ids; each answer a plain text string, English, no preamble. Be concise (correct+complete beats long) but omit no requested part: comparisons, reasons, labels, units, docstrings, edge cases.\n")
-	b.WriteString("fact: COUNT the parts the question asks - including sub-elements it mentions in passing or in brackets (e.g. 'plus X') - and answer EVERY one, 1-2 short sentences per part, no extra background; sent: Positive|Negative|Neutral + 1 short reason (judge the writer's overall verdict - sarcasm means the opposite of the surface words); sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - and RECOUNT each bullet against any word cap before answering.\n")
+	b.WriteString("\nAll ids. Plain English strings, no preamble. Terse but complete: every asked part, label, unit, reason, docstring, edge case.\n")
+	inBatch := map[string]bool{}
+	for _, t := range batch {
+		for _, c := range categories[t.TaskID] {
+			inBatch[c] = true
+		}
+		inBatch[heuristicCategory(t.Prompt)] = true
+	}
+	if inBatch["factual_knowledge"] {
+		b.WriteString("fact: COUNT the parts asked - incl. sub-elements in passing or brackets ('plus X') - answer EVERY one, 1-2 short sentences each, no extra background.\n")
+	}
+	if inBatch["sentiment_classification"] {
+		b.WriteString("sent: Positive|Negative|Neutral + 1 short reason; judge the writer's OVERALL verdict - sarcasm means the opposite of the surface words.\n")
+	}
+	if inBatch["text_summarisation"] {
+		b.WriteString("sum: EXACTLY the stated number of sentences/bullets - count them - and RECOUNT each bullet against any word cap before answering.\n")
+	}
 	var r strings.Builder
 	present := map[string]bool{}
 	for _, t := range batch {
