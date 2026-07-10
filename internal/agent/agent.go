@@ -12,6 +12,7 @@ import (
 
 	"github.com/ashaibani/yassai/internal/contextmgr"
 	"github.com/ashaibani/yassai/internal/llm"
+	"github.com/ashaibani/yassai/internal/localllm"
 	"github.com/ashaibani/yassai/internal/markdown"
 	"github.com/ashaibani/yassai/internal/memory"
 	"github.com/ashaibani/yassai/internal/pyexec"
@@ -27,6 +28,7 @@ type Agent struct {
 	memory     *memory.Store
 	skills     *skills.Loader
 	clf        *taskclf.Classifier
+	local      *localllm.Solver
 	categories map[string][]string
 	metrics    Metrics
 	mu         sync.Mutex
@@ -69,6 +71,15 @@ func New(cfg Config) (*Agent, error) {
 			ag.clf = clf
 		}
 	}
+	if mp := strings.TrimSpace(cfg.LocalModelPath); mp != "" {
+		// Never fatal: the Fireworks path is the accuracy baseline and must
+		// survive a missing/broken local model untouched.
+		if solver, lerr := localllm.New(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath}); lerr != nil {
+			fmt.Fprintln(os.Stderr, "local model disabled:", lerr)
+		} else {
+			ag.local = solver
+		}
+	}
 	return ag, nil
 }
 
@@ -109,11 +120,13 @@ func heuristicCategory(prompt string) string {
 		return "text_summarisation"
 	case strings.Contains(p, "named entit") || strings.Contains(p, "person, organization") || strings.Contains(p, "label each as person"):
 		return "named_entity_recognition"
-	case strings.Contains(p, "bug") || strings.Contains(p, "contains a bug") || strings.Contains(p, "corrected function") || strings.Contains(p, "identify the bug"):
+	case strings.Contains(p, "bug") || strings.Contains(p, "contains a bug") || strings.Contains(p, "corrected function") || strings.Contains(p, "identify the bug") || evalStyleCode(p):
 		return "code_debugging"
 	case strings.Contains(p, "write a python function") || strings.Contains(p, "write a function") || strings.Contains(p, "implement a") || strings.Contains(p, "called merge_") || strings.Contains(p, "called flatten"):
 		return "code_generation"
-	case strings.Contains(p, "clue") || strings.Contains(p, "who drinks") || strings.Contains(p, "who owns") || strings.Contains(p, "each own a different") || strings.Contains(p, "determine who"):
+	case strings.Contains(p, "clue") || strings.Contains(p, "who drinks") || strings.Contains(p, "who owns") || strings.Contains(p, "each own a different") || strings.Contains(p, "determine who") ||
+		strings.Contains(p, "seating order") || strings.Contains(p, "sits in seat") || strings.Contains(p, "seats numbered") || strings.Contains(p, "in a row") ||
+		strings.Contains(p, "one weight per") || strings.Contains(p, "the heaviest") || strings.Contains(p, "each have a different") || strings.Contains(p, "each drink"):
 		return "logical_deductive_reasoning"
 	case strings.Contains(p, "calculate") || strings.Contains(p, "how many") || strings.Contains(p, "how much") || strings.Contains(p, "%") || strings.Contains(p, "km/h") || strings.Contains(p, "revenue") || strings.Contains(p, "growth rate") || strings.Contains(p, "restock") || strings.Contains(p, "units remain"):
 		return "mathematical_reasoning"
@@ -270,7 +283,36 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 		run.Error = ctx.Err().Error()
 		return map[string]string{}, run
 	}
+	// Local-first: the in-container model answers maths/logic tasks for zero
+	// Fireworks tokens; only tasks its validation gate rejects stay in the
+	// remote batch. Fully-local batches skip Fireworks entirely.
+	localAnswers := map[string]string{}
+	if a.local != nil && a.batchAllowsCode(batch) {
+		var remaining []Task
+		localBudget := time.Now().Add(4 * time.Minute) // protect the 10-min container cap
+		for _, t := range batch {
+			if ctx.Err() != nil || time.Now().After(localBudget) || !a.taskUsesCode(t) {
+				remaining = append(remaining, t)
+				continue
+			}
+			res := a.local.SolveTask(ctx, t.Prompt)
+			if res.OK {
+				localAnswers[t.TaskID] = res.Answer
+				a.mu.Lock()
+				a.metrics.LocalAnswers++
+				a.mu.Unlock()
+			} else {
+				fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
+				remaining = append(remaining, t)
+			}
+		}
+		if len(remaining) == 0 {
+			return localAnswers, run
+		}
+		batch = remaining
+	}
 	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
+	answers = mergeAnswers(cloneAnswerMap(localAnswers), answers)
 	run.Calls = calls
 	run.Tools = tools
 	if err == nil && completeAnswers(answers, batch) {
@@ -606,12 +648,12 @@ func shortKindHighError(cat string) string {
 // Generic format recipes only - no task-specific content.
 // Tuned for harsh LLM-judge survival + native run_python tool on math batches.
 var categoryRecipe = map[string]string{
-	"mathematical_reasoning":      "math: call run_python once; build the submit answer by INTERPOLATING the computed variables (str(round(after_q3))+' units'), NEVER hand-type a computed number; multi-part label 1) 2) 3); requested units/currency; ASCII signs; preserve exact times incl seconds; NEVER store rounded rates for later math; projections use raw unrounded rates only and include the raw average used; for 'last K' use final K entries (growth[-K:]) and assert len(subset)==K; a month 'declines' iff its value < the previous month's (the first month has no predecessor, so it cannot decline)",
-	"named_entity_recognition":    "ner: read the label inventory from the prompt and use its exact names/abbreviations (for example PERSON/ORGANIZATION/LOCATION/DATE or PER/ORG/LOC/MISC); preserve exact source spans and order; do not invent labels or entities; when a named programme/mission has no permitted type, mention it separately as an out-of-taxonomy reference",
-	"code_debugging":              "cbug: one-line cause; minimal fixed fn only - change only the bug; plain code no fences; preserve input/list/string semantics; for second-largest/rank fixes, if duplicate/distinct semantics are ambiguous mention both nums[-2] positional and sorted(set(nums))[-2] distinct variants; for the string call str.reverse(), say only that strings have no reverse method and raise AttributeError, then use s[::-1]; do not discuss list.reverse() or normalise strings unless asked",
-	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; stated edges only; implement EXACTLY the spec - add no operation it does not require (no stray reverse/sort/dedup); mentally trace one example to verify output order",
-	"logical_deductive_reasoning": "logic: solve via run_python - itertools.permutations over the candidates; encode EACH clue as an explicit boolean condition and keep only assignments satisfying ALL of them; assert exactly ONE assignment survives (if 0 or >1, a clue is mis-encoded - re-read it); then build the answer by INTERPOLATING the winning variables (\"Alice drinks \"+A+...), NEVER hand-type the names; multiple-choice: submit the exact option text; state every person:value; never refuse",
-	"text_summarisation":          "sum: output EXACTLY the N sentences or N bullets the task states (count them - never more, never fewer); each bullet <= word cap if given; map each to a DISTINCT major theme of the source and cover ALL of them (benefits, challenges, and any response/outlook) - never merge two themes or omit one",
+	"mathematical_reasoning":      "math: call run_python once; write STRAIGHT-LINE code (no assert, no try) and build the submit answer by INTERPOLATING the computed variables (str(round(total))+' units'), NEVER hand-type a computed number; answer in the exact shape asked (numbered parts if the task numbers them); requested units/currency; ASCII signs; preserve exact times incl seconds (offset departures: head start covered first, then closing speed); chained maths (growth rates, projections) MUST reuse the raw variables - idiom: rates=[(v[i]-v[i-1])/v[i-1]*100 ...]; proj=last*(1+sum(rates[-3:])/3/100); round(r,1) is for DISPLAY only, never feed a rounded value into later maths; for 'last K' slices use the final K entries (v[-K:]); sequential percent changes compound in order",
+	"named_entity_recognition":    "ner: read the label inventory from the prompt and use its exact names/abbreviations (for example PERSON/ORGANIZATION/LOCATION/DATE or PER/ORG/LOC/MISC); preserve exact source spans and order of appearance; do not invent labels or entities; label only what the inventory permits - and when a prominent named entity (programme, mission, product) fits NO permitted label, note it separately as outside the inventory instead of mislabelling or silently dropping it",
+	"code_debugging":              "cbug: if asked to FIX: one-line cause, then the minimal corrected fn - change only the bug, plain code no fences, preserve the stated semantics. If asked what code EVALUATES to or does: when run_python is available RUN the snippet, print the values and read the REAL result - never hand-trace; state the exact output/behaviour first, then the one-line mechanism (late binding, shared mutable default, exhausted iterator, float representation, aliasing, wrong base case); infinite recursion/hangs: reason it out instead of running",
+	"code_generation":             "cgen: plain code no fences; full fn + 1-line docstring; handle the edge cases the spec states; implement EXACTLY the spec - add no operation it does not require (no stray reverse/sort/dedup); trace the given example input to verify output shape and order before answering",
+	"logical_deductive_reasoning": "logic: solve via run_python - brute-force enumerate (itertools.permutations/product) over the candidates; encode EACH clue as an explicit boolean condition - including world-knowledge clues (allergic to fur => not in {cat, dog, hamster, rabbit}; 'immediately left of' => index difference exactly 1) - and collect assignments satisfying ALL of them; exactly ONE should survive - submit from sols[0] only when len(sols)==1, otherwise a clue is mis-encoded: re-read the clues and fix the conditions (never assert/crash, never guess); build the answer by INTERPOLATING the winning variables, NEVER hand-type names or values; answer in the exact shape asked (assignment list, seating order left to right, or single value); multiple-choice: the exact option text; never refuse",
+	"text_summarisation":          "sum: output EXACTLY the N sentences or N bullets the task states (count them - never more, never fewer); obey every stated constraint (per-bullet word caps, required figures or terms); map each sentence/bullet to a DISTINCT major theme and cover ALL major themes - benefits/drivers, problems/challenges, AND any responses/countermeasures/outlook the source describes (the response theme is the one most often dropped - never drop it); if themes outnumber bullets, pack two related themes into one bullet rather than omitting one",
 }
 
 func systemPrompt(batch []Task, categories map[string][]string) string {
@@ -630,7 +672,7 @@ func systemPromptParts(batch []Task, categories map[string][]string) (string, st
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"answers":[{"task_id":"...","answer":"..."},...]}`)
 	b.WriteString("\nAll ids; each answer a plain text string, English, no preamble. Be concise (correct+complete beats long) but omit no requested part: comparisons, reasons, labels, units, docstrings, edge cases.\n")
-	b.WriteString("fact: answer every part asked in <=2 sentences / ~40 words, no extra background; sent: Positive|Negative|Neutral + 1 short reason; sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - within any word cap.\n")
+	b.WriteString("fact: COUNT the parts the question asks - including sub-elements it mentions in passing or in brackets (e.g. 'plus X') - and answer EVERY one, 1-2 short sentences per part, no extra background; sent: Positive|Negative|Neutral + 1 short reason (judge the writer's overall verdict - sarcasm means the opposite of the surface words); sum: output EXACTLY the stated number of sentences/bullets - count them, never more/fewer - and RECOUNT each bullet against any word cap before answering.\n")
 	var r strings.Builder
 	needCode := false
 	present := map[string]bool{}
@@ -658,7 +700,7 @@ func systemPromptParts(batch []Task, categories map[string][]string) (string, st
 		// Native tool surface: call run_python instead of fencing markdown. Maths
 		// and logic both run here; the executed code (not the model) is authoritative,
 		// and calling submit() ends the task with no extra formatting call.
-		r.WriteString("tool run_python(code): Python 3 with the FULL stdlib (import freely - itertools, math, etc.). submit(answers=[{\"task_id\":..,\"answer\":..}, ...]) is ALREADY PRE-DEFINED by the runtime: call it once with ALL ids; NEVER write 'def submit'. CRITICAL: every number and name inside a submit answer MUST be interpolated from a computed VARIABLE (e.g. \"Alice drinks \"+A, or str(round(after_q3))+\" units\") - NEVER hand-type a value your code computed, because hand-typed values are usually wrong even when the code is right. maths: keep raw floats, round() only for display. logic: itertools.permutations over the candidates, keep the assignment satisfying EVERY clue, build the answer from the winning variables. Write terse code, NO comments, and do NOT print() anything - only call submit() (you get one run and never see stdout, so prints are wasted tokens). Trivia may skip the tool.\n")
+		r.WriteString("tool run_python(code): Python 3 with the FULL stdlib (import freely - itertools, math, etc.). submit(answers=[{\"task_id\":..,\"answer\":..}, ...]) is ALREADY PRE-DEFINED by the runtime: call it once with ALL ids; NEVER write 'def submit'. CRITICAL: every number and name inside a submit answer MUST be interpolated from a computed VARIABLE (e.g. \"Alice drinks \"+A, or str(round(after_q3))+\" units\") - NEVER hand-type a value your code computed, because hand-typed values are usually wrong even when the code is right. maths: keep raw floats, round() only for display. logic: itertools.permutations over the candidates, keep the assignment satisfying EVERY clue, build the answer from the winning variables. 'what does this code evaluate to' tasks: PASTE the snippet into your code, capture its variables, and interpolate the REAL values into that answer - never trace by hand. Write terse code, NO comments, and do NOT print() anything - only call submit() (you get one run and never see stdout, so prints are wasted tokens). Trivia may skip the tool.\n")
 	}
 	return strings.TrimSpace(b.String()), strings.TrimSpace(r.String())
 }
@@ -866,8 +908,33 @@ func usesCodeExec(cat string) bool {
 	return cat == "mathematical_reasoning" || cat == "logical_deductive_reasoning"
 }
 
+// evalStyleCode detects 'what does this code evaluate to / what happens when'
+// questions. Hand-tracing Python semantics gotchas (late binding, shared
+// mutable defaults, iterator exhaustion) at effort none is unreliable -
+// running the snippet is deterministic truth, so these join the code batch.
+func evalStyleCode(lowerPrompt string) bool {
+	if !strings.Contains(lowerPrompt, "code") && !strings.Contains(lowerPrompt, "def ") {
+		return false
+	}
+	return strings.Contains(lowerPrompt, "evaluate to") ||
+		strings.Contains(lowerPrompt, "what happens when") ||
+		strings.Contains(lowerPrompt, "what does") || strings.Contains(lowerPrompt, "what do")
+}
+
 func (a *Agent) taskUsesCode(t Task) bool {
-	return usesCodeExec(a.primaryCat(t))
+	if usesCodeExec(a.primaryCat(t)) {
+		return true
+	}
+	if os.Getenv("AGENT_NO_CODE") == "" && evalStyleCode(strings.ToLower(t.Prompt)) {
+		return true
+	}
+	// The classifier's first label over-fires (code_debugging noise) and can
+	// bury or drop maths/logic entirely, which would silently route a
+	// computation task away from code-exec - the accuracy-critical path. The
+	// keyword heuristic is precise for these two categories (clues/km/h/%/...)
+	// so it routes to code-exec on its own; a rare false positive just means
+	// one extra task solved in the code batch, which the recipes handle.
+	return usesCodeExec(heuristicCategory(t.Prompt))
 }
 
 func (a *Agent) batchAllowsCode(batch []Task) bool {

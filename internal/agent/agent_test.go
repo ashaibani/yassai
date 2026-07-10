@@ -140,7 +140,7 @@ func TestLeanEffortMathIsNone(t *testing.T) {
 
 func TestMathRecipeRequiresSubsetAndTimeChecks(t *testing.T) {
 	recipe := categoryRecipe["mathematical_reasoning"]
-	for _, want := range []string{"assert len(subset)==K", "preserve exact times incl seconds", "NEVER store rounded rates", "include the raw average used"} {
+	for _, want := range []string{"STRAIGHT-LINE code", "preserve exact times incl seconds", "never feed a rounded value into later maths", "INTERPOLATING the computed variables"} {
 		if !strings.Contains(recipe, want) {
 			t.Fatalf("math recipe missing %q: %s", want, recipe)
 		}

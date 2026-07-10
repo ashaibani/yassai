@@ -134,6 +134,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # LOCAL_MODEL_URL: direct URL of the fine-tuned MiniCPM5 GGUF baked
+          # in for the token-free local offload. The repo variable overrides
+          # the default (set it empty to build Fireworks-only). Private HF
+          # downloads authenticate via the hf_token BuildKit secret.
+          build-args: |
+            LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}
           # Single-arch image -> keep a plain manifest (no provenance index), which
           # is simplest for the judge to pull.
           provenance: false

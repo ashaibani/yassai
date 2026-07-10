@@ -146,6 +146,8 @@ func main() {
 		Timeout:          180 * time.Second,
 		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
 		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
+		LocalModelPath:   os.Getenv("LOCAL_MODEL_PATH"),
+		LocalLibPath:     getenv("YZMA_LIB", "/opt/homebrew/lib"),
 	}
 	mode := getenv("EFFORT_MODE", "") // "adaptive" = per-category tier; else uniform AGENT_REASONING_EFFORT
 	ansByID := map[string]string{}
@@ -156,11 +158,18 @@ func main() {
 		cfg.AllowedModels = []string{mdl}
 		cfg.PreferredModel = mdl
 		cfg.ReasoningEffort = effort
-		cats := map[string][]string{}
-		for _, t := range ts {
-			cats[t.TaskID] = []string{canonicalCat(categoryOf(t.TaskID))}
+		if getenv("USE_CLASSIFIER", "") == "1" {
+			// Production-path mode: classify at runtime with the ONNX taskclf
+			// (same as the shipped container) instead of oracle categories.
+			cfg.ClassifierDir = getenv("TASKCLF_DIR", "assets/taskclf")
+			cfg.ClassifierLib = os.Getenv("ONNXRUNTIME_LIB")
+		} else {
+			cats := map[string][]string{}
+			for _, t := range ts {
+				cats[t.TaskID] = []string{canonicalCat(categoryOf(t.TaskID))}
+			}
+			cfg.Categories = cats // true categories → drives technique hints
 		}
-		cfg.Categories = cats // true categories → drives technique hints (classifier not needed in eval)
 		ag, nerr := agent.New(cfg)
 		if nerr != nil {
 			fmt.Fprintln(os.Stderr, "agent.New:", nerr)
@@ -275,9 +284,9 @@ func main() {
 	for _, c := range cats {
 		fmt.Printf("  %-16s %d/%d\n", c, byCat[c].pass, byCat[c].total)
 	}
-	fmt.Printf("\nOVERALL: %d/%d (%.1f%%)  tokens=%d (prompt=%d out=%d reason=%d)  calls=%d  %.1fs\n",
+	fmt.Printf("\nOVERALL: %d/%d (%.1f%%)  tokens=%d (prompt=%d out=%d reason=%d)  calls=%d  local=%d  %.1fs\n",
 		pass, total, 100*float64(pass)/float64(total),
-		metrics.TotalTokens, metrics.PromptTokens, metrics.OutputTokens, metrics.ReasoningTokens, metrics.Calls, dur)
+		metrics.TotalTokens, metrics.PromptTokens, metrics.OutputTokens, metrics.ReasoningTokens, metrics.Calls, metrics.LocalAnswers, dur)
 
 	// failures detail
 	fmt.Println("\nfailures:")

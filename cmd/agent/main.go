@@ -68,6 +68,8 @@ func run() error {
 		DisableHints:     envBool("AGENT_DISABLE_HINTS", false),
 		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", false),
 		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
+		LocalModelPath:   os.Getenv("LOCAL_MODEL_PATH"),
+		LocalLibPath:     getenv("YZMA_LIB", "/opt/llama"),
 	}
 
 	ag, err := agent.New(cfg)

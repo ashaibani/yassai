@@ -54,6 +54,13 @@ type Config struct {
 	// plus grouped task sheets. The JSON output contract always stays as text.
 	// Code-exec batches always stay text: maths/logic need digit-exact reads.
 	TextImg string
+
+	// LocalModelPath enables the in-container MiniCPM5 GGUF for maths/logic
+	// tasks (local-first with verified fallback). Local answers count toward
+	// accuracy but not the token score, so each accepted answer is free.
+	// Empty disables. LocalLibPath is the llama.cpp shared-library directory.
+	LocalModelPath string
+	LocalLibPath   string
 }
 
 type BatchPlanRecord struct {
