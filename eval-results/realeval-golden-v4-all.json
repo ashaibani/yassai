@@ -1,0 +1,56 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 833,
+    "output_tokens": 224,
+    "total_tokens": 1057,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 16,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T04b",
+          "T09",
+          "T07b"
+        ],
+        "size": 3,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T15:36:24.965692+01:00",
+        "latency_ms": 1942,
+        "prompt_tokens": 833,
+        "completion_tokens": 224,
+        "total_tokens": 1057,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 3,
+        "output_chars": 850,
+        "task_ids": [
+          "T04b",
+          "T09",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2048,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T04b\",\"answer\":\"• Remote work has transformed global company operations.\\n• Employees gain flexibility, but face collaboration and culture challenges.\\n• Firms invest in digital tools and redesign offices for creative work.\"},{\"task_id\":\"T09\",\"answer\":\"def merge_intervals(intervals):\\n    \\\"\\\"\\\"Merge overlapping intervals; handles unsorted, single, and empty input.\\\"\\\"\\\"\\n    if not intervals:\\n        return []\\n    sorted_intervals = sorted(intervals, key=lambda x: x[0])\\n    merged = [sorted_intervals[0][:]]\\n    for start, end in sorted_intervals[1:]:\\n        if start \u003c= merged[-1][1]:\\n            merged[-1][1] = max(merged[-1][1], end)\\n        else:\\n            merged.append([start, end])\\n    return merged\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 15,
+  "overall_total": 19
+}

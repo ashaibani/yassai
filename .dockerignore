@@ -26,10 +26,10 @@ scripts
 testdata
 tmp
 assets/taskclf_backup_*
-# int8 quant is BROKEN (code_debugging over-fires ~0.6 on everything - a
-# syllogism scores as code; caught by TestClassifyIntegration the first time
-# CI actually loaded it). Ship the CI-validated fp32; image stays far under
-# the 10GB cap.
+# Ship the fp32 classifier (the int8 quant is BROKEN: code_debugging
+# over-fires ~0.6 on everything). The 4 GB judge VM handles fp32 because the
+# agent classifies ONCE up front and frees the ONNX arena before any
+# llama-server spawns - phases peak sequentially, never together.
 assets/taskclf/model.int8.onnx
 # Never ship seeded/host-generated agent memory into the build context.
 MEMORY.md

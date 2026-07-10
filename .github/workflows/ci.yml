@@ -146,8 +146,10 @@ jobs:
           # sentiment/summarisation/factual in the base lane).
           build-args: |
             LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
-            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-assist-e3-r32-Q4_K_M.gguf' }}
-            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'factual_knowledge,text_summarisation' }}
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-assist-e3-r32-v6-Q4_K_M.gguf' }}
+            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'factual_knowledge,text_summarisation,code_fix' }}
+            AGENT_NO_REMOTE=${{ vars.AGENT_NO_REMOTE || '' }}
+            AGENT_ALLOW_SEMANTIC_CLUES=${{ vars.AGENT_ALLOW_SEMANTIC_CLUES || '' }}
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
           # Single-arch image -> keep a plain manifest (no provenance index), which
@@ -253,7 +255,11 @@ jobs:
           json.dump([{'task_id': t['task_id'], 'prompt': t['prompt']} for t in tasks], open('/tmp/rehearsal-in/tasks.json', 'w'))
           "
           START=$(date +%s)
+          # --memory/--cpus emulate the judging VM (4 GB RAM, 2 vCPU per the
+          # updated participant guide) so OOM or thread-thrash shows up HERE,
+          # not on a burned submission slot.
           docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 2 \
             -v /tmp/rehearsal-in:/input:ro \
             -v /tmp/rehearsal-out:/output \
             -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \

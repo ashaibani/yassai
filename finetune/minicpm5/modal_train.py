@@ -43,6 +43,7 @@ image = (
     # Teacher cache is judge-filtered locally (needs the Fireworks key, which
     # this image must not have) and shipped in as data.
     .add_local_file("finetune/minicpm5/data/assist_teacher_raw.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"), copy=True)
+    .add_local_file("finetune/minicpm5/data/assist_claude_authored.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"), copy=True)
     .add_local_file("finetune/minicpm5/train_trl.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/train_trl.py"), copy=True)
     .add_local_file("finetune/minicpm5/eval_tool_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_tool_behavior.py"), copy=True)
     .add_local_file("finetune/minicpm5/eval_assist_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_assist_behavior.py"), copy=True)
@@ -55,7 +56,7 @@ image = (
     timeout=60 * 60 * 8,
     volumes={"/checkpoints": ckpt_volume, "/cache/huggingface": hf_cache},
 )
-def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32) -> str:
+def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = "") -> str:
     data_dir = REMOTE_ROOT / "finetune/minicpm5/data"
     data_dir.mkdir(parents=True, exist_ok=True)
     eval_path = None
@@ -66,11 +67,13 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
         data_path = data_dir / "minicpm5_yassai_assist.jsonl"
         build_cmd = ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
                      "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
+                     "--claude", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"),
                      "--out", str(data_path), "--teacher-split", "train"]
         eval_path = data_dir / "minicpm5_yassai_assist_heldout.jsonl"
         subprocess.run(
             ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
              "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
+             "--claude", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"),
              "--out", str(eval_path), "--seed", "20269998", "--ner", "24",
              "--teacher-split", "heldout"],
             check=True,
@@ -101,6 +104,10 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
     subprocess.run(build_cmd, check=True)
 
     run_name = f"{dataset}-e{epochs:g}-r{rank}"
+    if tag:
+        # Distinct checkpoints per iteration: v4 silently overwrote v3 (same
+        # run_name), destroying the rollback path.
+        run_name += f"-{tag}"
     out_dir = CKPT_ROOT / run_name
     env = {
         "BASE_MODEL": "openbmb/MiniCPM5-1B",
@@ -131,5 +138,5 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
 
 
 @app.local_entrypoint()
-def main(dataset: str = "exact", epochs: float = 14.0, lr: float = 1.0e-4, rank: int = 32):
-    print(train.remote(dataset=dataset, epochs=epochs, lr=lr, rank=rank))
+def main(dataset: str = "exact", epochs: float = 14.0, lr: float = 1.0e-4, rank: int = 32, tag: str = ""):
+    print(train.remote(dataset=dataset, epochs=epochs, lr=lr, rank=rank, tag=tag))

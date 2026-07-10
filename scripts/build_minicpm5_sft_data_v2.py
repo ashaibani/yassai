@@ -498,6 +498,18 @@ def main() -> None:
             seen_prompts.add(p)
             out.extend(pair)
             made += 1
+    # World-knowledge exclusion clues (allergic-to-fur) appear only when the
+    # pet domain and solution alignment coincide, so they are rare in the mix -
+    # and v2e3b still mis-encodes them at eval. Triplicate those cases so the
+    # exclusion pattern carries real gradient weight.
+    boosted: list[dict] = []
+    for i in range(0, len(out), 2):
+        pair = out[i:i + 2]
+        boosted.extend(pair)
+        if "allergic" in pair[0]["messages"][1]["content"]:
+            boosted.extend(pair)
+            boosted.extend(pair)
+    out = boosted
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:

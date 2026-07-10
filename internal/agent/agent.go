@@ -29,8 +29,6 @@ type Agent struct {
 	memory       *memory.Store
 	skills       *skills.Loader
 	clf          *taskclf.Classifier
-	local        *localllm.Solver
-	localBase    *localllm.DirectSolver
 	localRejects map[string]string // gate-rejected local answers, kept as last-ditch fallbacks
 	categories   map[string][]string
 	metrics      Metrics
@@ -75,22 +73,9 @@ func New(cfg Config) (*Agent, error) {
 			ag.clf = clf
 		}
 	}
-	if mp := strings.TrimSpace(cfg.LocalModelPath); mp != "" {
-		// Never fatal: the Fireworks path is the accuracy baseline and must
-		// survive a missing/broken local model untouched.
-		if solver, lerr := localllm.New(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath}); lerr != nil {
-			fmt.Fprintln(os.Stderr, "local model disabled:", lerr)
-		} else {
-			ag.local = solver
-		}
-	}
-	if mp := strings.TrimSpace(cfg.LocalBaseModelPath); mp != "" {
-		if solver, lerr := localllm.NewDirect(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath, Extended: cfg.LocalBaseExtended}); lerr != nil {
-			fmt.Fprintln(os.Stderr, "local base model disabled:", lerr)
-		} else {
-			ag.localBase = solver
-		}
-	}
+	// Local solvers spawn LAZILY inside localFirstPass, one lane at a time,
+	// and are closed as soon as their lane finishes: on the 4 GB judge VM the
+	// classifier arena, the assist server, and the tool server never coexist.
 	return ag, nil
 }
 
@@ -160,6 +145,13 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	} else {
 		a.categories = a.classifyTasks(tasks)
 	}
+	// The classifier's one job is done: free its ONNX arena (fp32 is ~0.5 GB)
+	// before any llama-server spawns. Peak memory on the 4 GB judge VM is the
+	// max of the phases, not their sum - so classify, free, then infer.
+	if a.clf != nil {
+		a.clf.Close()
+		a.clf = nil
+	}
 
 	pending := make([]Task, 0, len(tasks))
 	for _, task := range tasks {
@@ -179,6 +171,13 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	// stranding as a solo call that pays the whole per-batch scaffold again
 	// (observed: one leftover logic task = 1,318 tokens, 40% of the run).
 	pending = a.localFirstPass(ctx, pending, answers)
+	// AGENT_NO_REMOTE=1: the zero-token mode. Nothing ever reaches Fireworks;
+	// gate-rejected local answers ship as-is (recall-biased gates bounce many
+	// correct answers) and the run scores ZERO_API_CALLS. Rank is tokens
+	// ascending, so matching the 0-token leaders requires exactly this.
+	if os.Getenv("AGENT_NO_REMOTE") == "1" {
+		pending = nil
+	}
 	if len(pending) > 0 && a.llm == nil {
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required for %d unsolved task(s)", len(pending))
 	}
@@ -189,7 +188,17 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	if len(batches) == 0 {
 		out := make([]Result, 0, len(tasks))
 		for _, task := range tasks {
-			out = append(out, Result{TaskID: task.TaskID, Answer: strings.TrimSpace(answers[task.TaskID])})
+			answer := strings.TrimSpace(answers[task.TaskID])
+			if answer == "" {
+				if rej := strings.TrimSpace(a.localRejects[task.TaskID]); rej != "" {
+					fmt.Fprintf(os.Stderr, "fallback %s: shipping gate-rejected local answer\n", task.TaskID)
+					answer = rej
+				} else {
+					answer = "Unable to answer."
+				}
+				a.metrics.Fallbacks++
+			}
+			out = append(out, Result{TaskID: task.TaskID, Answer: answer})
 		}
 		a.metrics.FinishedAt = time.Now()
 		a.metrics.DurationMS = a.metrics.FinishedAt.Sub(a.metrics.StartedAt).Milliseconds()
@@ -313,51 +322,116 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 // dice-roll fallback answers). Local solving must always leave the remote
 // path its reserve.
 func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[string]string) []Task {
-	if a.local == nil && a.localBase == nil {
+	baseCfgd := strings.TrimSpace(a.cfg.LocalBaseModelPath) != ""
+	toolCfgd := strings.TrimSpace(a.cfg.LocalModelPath) != ""
+	if !baseCfgd && !toolCfgd {
 		return pending
 	}
 	// Reserve enough of the context for the remote batches + response
 	// assembly. Everything before deadline-reserve belongs to local solving,
 	// capped at 4 minutes so dev runs without deadlines stay bounded too.
+	reserve := remoteReserve
+	if os.Getenv("AGENT_NO_REMOTE") == "1" {
+		// No remote phase to protect - keep only enough slack to assemble and
+		// write results, and let local solving use the rest of the window.
+		reserve = 30 * time.Second
+	}
 	localBudget := time.Now().Add(4 * time.Minute)
 	if deadline, ok := ctx.Deadline(); ok {
-		if cut := deadline.Add(-remoteReserve); cut.Before(localBudget) {
+		if cut := deadline.Add(-reserve); cut.Before(localBudget) {
 			localBudget = cut
 		}
 	}
+	if reserve != remoteReserve {
+		// Zero-token runs on the 2 vCPU judge VM need the whole window: 19
+		// tasks with retries can exceed the 4-minute dev default.
+		if deadline, ok := ctx.Deadline(); ok {
+			localBudget = deadline.Add(-reserve)
+		}
+	}
+
+	// Partition by lane so each server lives only for its own pass: the
+	// assist server closes before the tool server spawns, keeping one model
+	// resident at a time on the 4 GB judge VM.
+	type assistJob struct {
+		task   Task
+		family string // "" => code trace
+	}
+	var assistJobs []assistJob
+	var toolTasks []Task
 	remaining := make([]Task, 0, len(pending))
 	for _, t := range pending {
-		if ctx.Err() != nil || time.Now().After(localBudget) {
-			remaining = append(remaining, t)
-			continue
-		}
-		var res localllm.Result
-		switch fam := heuristicCategory(t.Prompt); {
-		case a.localBase != nil && (fam == localllm.FamilyCodeGen || fam == localllm.FamilyNER):
-			res = a.localBase.SolveTask(ctx, t.Prompt, fam)
-		case a.localBase != nil && a.cfg.LocalBaseExtended != "" &&
+		fam := heuristicCategory(t.Prompt)
+		switch {
+		case baseCfgd && (fam == localllm.FamilyCodeGen || fam == localllm.FamilyNER):
+			assistJobs = append(assistJobs, assistJob{t, fam})
+		case baseCfgd && a.cfg.LocalBaseExtended != "" &&
 			(fam == localllm.FamilySentiment || fam == localllm.FamilySummarisation || fam == localllm.FamilyFactual):
-			res = a.localBase.SolveTask(ctx, t.Prompt, fam)
-		case a.localBase != nil && fam == "code_debugging" && evalStyleCode(strings.ToLower(t.Prompt)):
-			res = a.localBase.SolveCodeTrace(ctx, t.Prompt)
-		case a.local != nil && localTrainedFamily(t.Prompt) && a.taskUsesCode(t):
-			res = a.local.SolveTask(ctx, t.Prompt)
+			assistJobs = append(assistJobs, assistJob{t, fam})
+		case baseCfgd && fam == "code_debugging" && evalStyleCode(strings.ToLower(t.Prompt)):
+			assistJobs = append(assistJobs, assistJob{t, ""})
+		case baseCfgd && fam == "code_debugging":
+			assistJobs = append(assistJobs, assistJob{t, localllm.FamilyCodeFix})
+		case toolCfgd && localTrainedFamily(t.Prompt) && a.taskUsesCode(t):
+			toolTasks = append(toolTasks, t)
 		default:
 			remaining = append(remaining, t)
-			continue
 		}
+	}
+
+	record := func(t Task, res localllm.Result) {
 		if res.OK {
 			answers[t.TaskID] = res.Answer
 			a.metrics.LocalAnswers++
-		} else {
-			fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
-			if strings.TrimSpace(res.Answer) != "" {
-				// Recall-biased gates reject plenty of correct answers. Keep
-				// them: if the remote path dies (timeout, provider error), a
-				// rejected local answer beats shipping nothing.
-				a.localRejects[t.TaskID] = res.Answer
+			return
+		}
+		fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
+		if strings.TrimSpace(res.Answer) != "" {
+			// Recall-biased gates reject plenty of correct answers. Keep
+			// them: if the remote path dies (timeout, provider error), a
+			// rejected local answer beats shipping nothing.
+			a.localRejects[t.TaskID] = res.Answer
+		}
+		remaining = append(remaining, t)
+	}
+
+	if len(assistJobs) > 0 {
+		solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
+		if err != nil {
+			// Never fatal: the Fireworks path is the accuracy baseline.
+			fmt.Fprintln(os.Stderr, "local base model disabled:", err)
+			for _, j := range assistJobs {
+				remaining = append(remaining, j.task)
 			}
-			remaining = append(remaining, t)
+		} else {
+			for _, j := range assistJobs {
+				if ctx.Err() != nil || time.Now().After(localBudget) {
+					remaining = append(remaining, j.task)
+					continue
+				}
+				if j.family == "" {
+					record(j.task, solver.SolveCodeTrace(ctx, j.task.Prompt))
+				} else {
+					record(j.task, solver.SolveTask(ctx, j.task.Prompt, j.family))
+				}
+			}
+			solver.Close()
+		}
+	}
+	if len(toolTasks) > 0 {
+		solver, err := localllm.New(localllm.Config{ModelPath: a.cfg.LocalModelPath, LibPath: a.cfg.LocalLibPath})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "local model disabled:", err)
+			remaining = append(remaining, toolTasks...)
+		} else {
+			for _, t := range toolTasks {
+				if ctx.Err() != nil || time.Now().After(localBudget) {
+					remaining = append(remaining, t)
+					continue
+				}
+				record(t, solver.SolveTask(ctx, t.Prompt))
+			}
+			solver.Close()
 		}
 	}
 	return remaining

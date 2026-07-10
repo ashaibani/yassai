@@ -80,10 +80,18 @@ COPY assets/taskclf/ /assets/taskclf/
 # fine-tune: it unlocks sentiment/summarisation/factual in the base lane,
 # which the un-tuned base model would fail.
 ARG LOCAL_BASE_EXTENDED=""
+# AGENT_NO_REMOTE=1 = zero-token mode: no Fireworks calls ever; gate rejects
+# ship the best local answer. Rank is tokens ascending, so matching the
+# 0-token leaders requires exactly this. AGENT_ALLOW_SEMANTIC_CLUES=1 lets the
+# tool lane attempt world-knowledge clues (toolv3 weights trained on them).
+ARG AGENT_NO_REMOTE=""
+ARG AGENT_ALLOW_SEMANTIC_CLUES=""
 ENV ONNXRUNTIME_LIB=/opt/ort/libonnxruntime.so \
     TASKCLF_DIR=/assets/taskclf \
     YZMA_LIB=/opt/llama \
     LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf \
     LOCAL_BASE_MODEL_PATH=/assets/localmodel/minicpm5-base.gguf \
-    LOCAL_BASE_EXTENDED=${LOCAL_BASE_EXTENDED}
+    LOCAL_BASE_EXTENDED=${LOCAL_BASE_EXTENDED} \
+    AGENT_NO_REMOTE=${AGENT_NO_REMOTE} \
+    AGENT_ALLOW_SEMANTIC_CLUES=${AGENT_ALLOW_SEMANTIC_CLUES}
 ENTRYPOINT ["/yassai"]

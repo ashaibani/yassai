@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -86,10 +87,18 @@ func New(cfg Config) (*Solver, error) {
 		return nil, errors.New("localllm: empty model path")
 	}
 	if cfg.Threads <= 0 {
-		cfg.Threads = 6
+		// The judge VM is 2 vCPU (updated guide): more llama.cpp threads than
+		// cores oversubscribes and slows decode badly. GOMAXPROCS is
+		// container-quota-aware on modern Go, unlike NumCPU.
+		cfg.Threads = runtime.GOMAXPROCS(0)
+		if cfg.Threads > 6 {
+			cfg.Threads = 6
+		}
 	}
 	if cfg.CtxSize == 0 {
-		cfg.CtxSize = 4096
+		// Largest local exchange (tool turn + stdout + final ask) stays well
+		// under 2k tokens; halving the KV cache matters on the 4 GB judge VM.
+		cfg.CtxSize = 2048
 	}
 	if cfg.MaxGen <= 0 {
 		// Logic/revenue tool calls run ~200-300 tokens of code inside JSON;
@@ -125,6 +134,13 @@ func New(cfg Config) (*Solver, error) {
 		"-c", strconv.Itoa(int(cfg.CtxSize)),
 		"-np", "1",
 		"--no-webui",
+		// 4 GB judge VM: q8_0 KV halves cache memory (needs flash-attn for V),
+		// and a small microbatch shrinks compute buffers at negligible speed
+		// cost for our short prompts.
+		"--flash-attn", "on",
+		"--cache-type-k", "q8_0",
+		"--cache-type-v", "q8_0",
+		"-ub", "256",
 	)
 	cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+cfg.LibPath)
 	cmd.Stdout = nil
@@ -211,9 +227,11 @@ var semanticClueMarkers = []string{"allergic", "vegetarian", "afraid of"}
 // and usually corrected - attempt for zero Fireworks tokens.
 func (s *Solver) SolveTask(ctx context.Context, prompt string) Result {
 	lp := strings.ToLower(prompt)
-	for _, m := range semanticClueMarkers {
-		if strings.Contains(lp, m) {
-			return Result{Reason: "semantic clue (" + m + ") outside trained families"}
+	if os.Getenv("AGENT_ALLOW_SEMANTIC_CLUES") == "" {
+		for _, m := range semanticClueMarkers {
+			if strings.Contains(lp, m) {
+				return Result{Reason: "semantic clue (" + m + ") outside trained families"}
+			}
 		}
 	}
 	res := s.solveOnce(ctx, prompt)

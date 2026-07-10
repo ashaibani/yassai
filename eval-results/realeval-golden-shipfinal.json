@@ -1,0 +1,62 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 1129,
+    "output_tokens": 345,
+    "total_tokens": 1474,
+    "cached_tokens": 1128,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 13,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "size": 6,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T16:07:38.265584+01:00",
+        "latency_ms": 2177,
+        "prompt_tokens": 1129,
+        "completion_tokens": 345,
+        "total_tokens": 1474,
+        "cached_tokens": 1128,
+        "reasoning_tokens": 0,
+        "batch_size": 6,
+        "output_chars": 1383,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2048,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T03\",\"answer\":\"Positive — despite the late arrival and damaged packaging, the working product and fast customer support resolution leave an overall favorable impression.\"},{\"task_id\":\"T03b\",\"answer\":\"Positive — the dented box and missing manual are negatives, but the flawless device and quick setup dominate the writer's overall verdict.\"},{\"task_id\":\"T04b\",\"answer\":\"• Remote work gives employees flexibility and better work-life balance globally.\\n• Collaboration, culture, and blurred boundaries remain key challenges.\\n• Firms invest in digital tools and redesign offices for creative, social use.\"},{\"task_id\":\"T05b\",\"answer\":\"DATE: September 2021\\nPERSON: Elon Musk\\nORGANIZATION: SpaceX, NASA\\nDATE: 2025\\nPROGRAMME (outside inventory): Artemis\"},{\"task_id\":\"T09\",\"answer\":\"def merge_intervals(intervals):\\n    \\\"\\\"\\\"Merge overlapping intervals; handles unsorted, single, and empty input.\\\"\\\"\\\"\\n    if not intervals:\\n        return []\\n    sorted_intervals = sorted(intervals, key=lambda x: x[0])\\n    merged = [sorted_intervals[0][:]]\\n    for start, end in sorted_intervals[1:]:\\n        if start \u003c= merged[-1][1]:\\n            merged[-1][1] = max(merged[-1][1], end)\\n        else:\\n            merged.append([start, end])\\n    return merged\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 17,
+  "overall_total": 19
+}

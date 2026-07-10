@@ -1,0 +1,64 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 1204,
+    "output_tokens": 470,
+    "total_tokens": 1674,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 12,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "size": 7,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T16:09:29.19455+01:00",
+        "latency_ms": 3319,
+        "prompt_tokens": 1204,
+        "completion_tokens": 470,
+        "total_tokens": 1674,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 7,
+        "output_chars": 1887,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04b",
+          "T05",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2140,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T03\",\"answer\":\"Positive. Despite the late arrival and damaged packaging, the reviewer praises the working product and the fast, effective customer support, indicating overall satisfaction.\"},{\"task_id\":\"T03b\",\"answer\":\"Positive. The dented box and missing manual are negatives, but the writer's emphasis on the flawless device and easy setup shows an overall favorable verdict.\"},{\"task_id\":\"T04b\",\"answer\":\"• Remote work has transformed global company operations, giving employees flexibility and better work-life balance.\\n• Collaboration, culture, and blurred boundaries remain key challenges for remote teams.\\n• Firms are investing in digital tools and redesigning offices as creative, social hubs.\"},{\"task_id\":\"T05\",\"answer\":\"DATE: March 15 2023. PERSON: Sundar Pichai. ORGANIZATION: Google. LOCATION: Zurich. ORGANIZATION: ETH Zurich.\"},{\"task_id\":\"T05b\",\"answer\":\"DATE: September 2021. PERSON: Elon Musk. ORGANIZATION: SpaceX. ORGANIZATION: NASA. DATE: 2025. Note: 'Artemis programme' is a prominent named entity (programme) that fits no permitted label and is outside the inventory.\"},{\"task_id\":\"T09\",\"answer\":\"def merge_intervals(intervals):\\n    \\\"\\\"\\\"Merge overlapping intervals; handles unsorted, single, and empty input.\\\"\\\"\\\"\\n    if not intervals:\\n        return []\\n    sorted_intervals = sorted(intervals, key=lambda x: x[0])\\n    merged = [sorted_intervals[0][:]]\\n    for start, end in sorted_intervals[1:]:\\n        if start \u003c= merged[-1][1]:\\n            merged[-1][1] = max(merged[-1][1], end)\\n        else:\\n            merged.append([start, end])\\n    return merged\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat. Liam cannot have the cat or dog (allergic to fur), so he gets the parrot; Emma cannot have the parrot, so she gets the dog; Priya cannot have the dog, leaving the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 18,
+  "overall_total": 19
+}

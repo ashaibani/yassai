@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +35,9 @@ const (
 	FamilySentiment     = "sentiment_classification"
 	FamilySummarisation = "text_summarisation"
 	FamilyFactual       = "factual_knowledge"
+	// FamilyCodeFix is correction-style code_debugging ("supposed to X but
+	// contains a bug"); eval-style tracing is FamilyCodeTrace.
+	FamilyCodeFix = "code_fix"
 )
 
 // directInstructions are terse per-family system prompts (the track-1 inspo
@@ -49,6 +53,7 @@ var directInstructions = map[string]string{
 	FamilySentiment:     "Classify the sentiment and justify it in one accurate sentence. Never contradict the text.",
 	FamilySummarisation: "Obey the stated length and format limits exactly; cover every major theme; no preamble.",
 	FamilyFactual:       "Answer directly and concisely; explanations max 3 short sentences.",
+	FamilyCodeFix:       "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
 }
 
 var directMaxGen = map[string]int{
@@ -58,6 +63,7 @@ var directMaxGen = map[string]int{
 	FamilySentiment:     120,
 	FamilySummarisation: 260,
 	FamilyFactual:       200,
+	FamilyCodeFix:       420,
 }
 
 // extendedFamilies are served only by the assist fine-tune (Config.Extended).
@@ -65,6 +71,7 @@ var extendedFamilies = map[string]bool{
 	FamilySentiment:     true,
 	FamilySummarisation: true,
 	FamilyFactual:       true,
+	FamilyCodeFix:       true,
 }
 
 // DirectInstruction exposes the serving system prompt for a family ("" when
@@ -111,10 +118,13 @@ func NewDirect(cfg Config) (*DirectSolver, error) {
 		return nil, errors.New("localllm: empty base model path")
 	}
 	if cfg.Threads <= 0 {
-		cfg.Threads = 6
+		cfg.Threads = runtime.GOMAXPROCS(0) // container-quota-aware; judge VM is 2 vCPU
+		if cfg.Threads > 6 {
+			cfg.Threads = 6
+		}
 	}
 	if cfg.CtxSize == 0 {
-		cfg.CtxSize = 4096
+		cfg.CtxSize = 2048 // assist prompts+gen fit; halves KV on the 4 GB judge VM
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 60 * time.Second
@@ -140,6 +150,13 @@ func NewDirect(cfg Config) (*DirectSolver, error) {
 		"-np", "1",
 		"--no-webui",
 		"--reasoning", "off",
+		// 4 GB judge VM: q8_0 KV halves cache memory (needs flash-attn for V),
+		// and a small microbatch shrinks compute buffers at negligible speed
+		// cost for our short prompts.
+		"--flash-attn", "on",
+		"--cache-type-k", "q8_0",
+		"--cache-type-v", "q8_0",
+		"-ub", "256",
 	)
 	cmd.Env = append(cmd.Environ(), "LD_LIBRARY_PATH="+cfg.LibPath)
 	cmd.Stdout = nil
@@ -211,6 +228,26 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		return Result{Reason: "family " + family + " not unlocked (LOCAL_BASE_EXTENDED)"}
 	}
 	res := s.solveGated(ctx, prompt, family)
+	if res.OK && family == FamilySentiment {
+		// Self-consistency: sentiment labels are unverifiable by any cheap
+		// gate, and the observed failure is a clean flip (a mixed-positive
+		// review labelled Negative). A second, verdict-focused phrasing takes
+		// a different greedy path; agreement is strong evidence, disagreement
+		// goes remote. Costs one local generation, zero tokens.
+		if reason := s.sentimentConsistent(ctx, prompt, res.Answer); reason != "" {
+			return Result{Answer: res.Answer, Reason: reason}
+		}
+		return res
+	}
+	if res.OK && family == FamilyNER {
+		// NER assignments wobble across runs (ETH Zurich has been labelled
+		// LOCATION, DATE, and omitted outright). A second phrasing must agree
+		// on the label:span pairs; disagreement goes remote.
+		if reason := s.nerConsistent(ctx, prompt, res.Answer); reason != "" {
+			return Result{Answer: res.Answer, Reason: reason}
+		}
+		return res
+	}
 	if res.OK || res.Reason == "" || ctx.Err() != nil {
 		return res
 	}
@@ -221,6 +258,58 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	// Keep the first attempt as the fallback candidate: it failed one check,
 	// the retry failed too, and the first is the less-prompted of the two.
 	return res
+}
+
+// nerConsistent re-extracts with a second phrasing and demands the identical
+// LABEL:span pair set. Wobble across phrasings is exactly how the observed
+// mislabels and omissions present; stable extractions agree.
+func (s *DirectSolver) nerConsistent(ctx context.Context, prompt, answer string) string {
+	tctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	check, err := s.chat(tctx, prompt+"\n\nList every entity again, one per line, exactly as LABEL: span. Include all of them.", FamilyNER)
+	if err != nil {
+		return "ner consistency check failed: " + err.Error()
+	}
+	pairs := func(text string) map[string]bool {
+		out := map[string]bool{}
+		for _, m := range nerPairRe.FindAllStringSubmatch(text, -1) {
+			out[m[1]+"|"+strings.TrimSpace(m[2])] = true
+		}
+		return out
+	}
+	first, second := pairs(answer), pairs(check)
+	if len(first) == 0 {
+		return "ner: no LABEL: span pairs found in answer"
+	}
+	if len(first) != len(second) {
+		return fmt.Sprintf("ner extractions disagree across phrasings (%d vs %d pairs)", len(first), len(second))
+	}
+	for k := range first {
+		if !second[k] {
+			return "ner extractions disagree across phrasings on " + k
+		}
+	}
+	return ""
+}
+
+var sentLabelRe = regexp.MustCompile(`\b(Positive|Negative|Neutral)\b`)
+
+func (s *DirectSolver) sentimentConsistent(ctx context.Context, prompt, answer string) string {
+	first := sentLabelRe.FindString(answer)
+	if first == "" {
+		return "sentiment: no label found in answer"
+	}
+	tctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	check, err := s.chat(tctx, prompt+"\n\nConsider only the writer's OVERALL verdict, weighing every praise and complaint. Answer with exactly one word: Positive, Negative, or Neutral.", FamilySentiment)
+	if err != nil {
+		return "sentiment consistency check failed: " + err.Error()
+	}
+	second := sentLabelRe.FindString(check)
+	if second == "" || second != first {
+		return fmt.Sprintf("sentiment labels disagree across phrasings (%s vs %s)", first, second)
+	}
+	return ""
 }
 
 func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Result {
@@ -234,6 +323,14 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 	if answer == "" {
 		return Result{Reason: "base produced no content"}
 	}
+	if family == FamilyNER {
+		// The outside-the-inventory training convention backfired at the
+		// judge ("fabricates a nonexistent LOCATION: Outside the inventory"):
+		// live reference answers want pure entity lists. Strip the note.
+		if i := strings.Index(answer, "Outside the inventory"); i >= 0 {
+			answer = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(answer[:i]), ";,-"))
+		}
+	}
 	var reason string
 	switch family {
 	case FamilyCodeGen:
@@ -246,6 +343,8 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 		reason = gateSummarisation(prompt, answer)
 	case FamilyFactual:
 		reason = gateFactual(answer)
+	case FamilyCodeFix:
+		reason = gateCodeFix(tctx, prompt, answer)
 	}
 	if reason != "" {
 		return Result{Answer: answer, Reason: reason}
@@ -635,6 +734,49 @@ func lastLineOf(s string) string {
 	return lines[len(lines)-1]
 }
 
+var defNameRe = regexp.MustCompile(`def\s+([A-Za-z_]\w*)\s*\(`)
+
+// gateCodeFix: the answer must open with a prose cause line, then a corrected
+// function that parses, keeps the buggy function's name, and actually differs
+// from the buggy source. Correctness beyond that rests on the SFT (every
+// training pair is execution-verified); these checks kill the observed
+// failure shapes - echoing the buggy code back, code-only answers with no
+// cause, and truncated code.
+func gateCodeFix(ctx context.Context, prompt, answer string) string {
+	m := defNameRe.FindStringSubmatch(prompt)
+	if m == nil {
+		return "code_fix: prompt has no function definition"
+	}
+	name := m[1]
+	defIdx := strings.Index(answer, "def ")
+	if defIdx < 0 {
+		return "code_fix: no corrected function in answer"
+	}
+	if strings.TrimSpace(answer[:defIdx]) == "" {
+		return "code_fix: missing cause line before the corrected function"
+	}
+	code := answer[defIdx:]
+	if fence := fenceRe.FindStringSubmatch(answer); fence != nil {
+		code = fence[1]
+	}
+	if !strings.Contains(code, "def "+name) {
+		return "code_fix: corrected function renames " + name
+	}
+	squash := func(v string) string { return strings.Join(strings.Fields(v), " ") }
+	buggyIdx := strings.Index(prompt, "def ")
+	if buggyIdx >= 0 && squash(code) == squash(prompt[buggyIdx:]) {
+		return "code_fix: corrected function is identical to the buggy one"
+	}
+	pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(pctx, "python3", "-c", "import ast,sys; ast.parse(sys.stdin.read())")
+	cmd.Stdin = strings.NewReader(code)
+	if err := cmd.Run(); err != nil {
+		return "code_fix: corrected function does not parse"
+	}
+	return ""
+}
+
 var (
 	yearRe    = regexp.MustCompile(`\b(19|20)\d{2}\b`)
 	capRunRe  = regexp.MustCompile(`\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b`)
@@ -706,18 +848,46 @@ var (
 )
 
 // gateNERLabels rejects label assignments that are near-certainly wrong on
-// surface form alone: an acronym-led multiword span ("ETH Zurich", "MIT
-// Media Lab") is an organisation, and labelling it LOCATION - the observed
-// city-name bias - fails the judge outright.
+// surface form alone: acronym spans ("ETH Zurich", "NASA") are organisations,
+// not locations, and programme/mission names are not people or places -
+// observed live as NASA->LOCATION and Artemis->PERSON, both judge-fatal.
 func gateNERLabels(answer string) string {
 	for _, m := range nerPairRe.FindAllStringSubmatch(answer, -1) {
 		span := strings.TrimSpace(m[2])
-		if m[1] == "LOCATION" && acronymLedRe.MatchString(span) {
-			return "acronym-led span labelled LOCATION: " + span
+		if m[1] == "LOCATION" && (acronymLedRe.MatchString(span) || allCapsRe.MatchString(span)) {
+			return "acronym span labelled LOCATION: " + span
+		}
+		low := strings.ToLower(span)
+		if (strings.Contains(low, "programme") || strings.Contains(low, "program") || strings.Contains(low, "mission")) && m[1] != "ORGANIZATION" {
+			return "programme/mission span labelled " + m[1] + ": " + span
+		}
+		// A DATE span must look like a date: digits or a month name. Observed
+		// live: "ETH Zurich" labelled DATE.
+		if m[1] == "DATE" && !dateShapeRe.MatchString(span) {
+			return "non-date span labelled DATE: " + span
+		}
+	}
+	// The outside-the-inventory note is for programmes/missions that fit no
+	// label - never for organisations. The v5 weights learnt to relegate
+	// acronym-led orgs there ("Outside the inventory: ETH Zurich"), which the
+	// judge scores as an omission.
+	if i := strings.Index(answer, "Outside the inventory"); i >= 0 {
+		note := answer[i:]
+		if sp := acronymLedRe.FindString(note); sp != "" || allCapsRe.MatchString(strings.TrimSpace(note)) {
+			return "organisation-pattern span relegated outside the inventory"
+		}
+		for _, w := range acronymRe.FindAllString(note, -1) {
+			if !nerLabelVocab[w] && !noiseAcronyms[w] {
+				return "acronym " + w + " relegated outside the inventory"
+			}
 		}
 	}
 	return ""
 }
+
+var dateShapeRe = regexp.MustCompile(`(?i)\d|january|february|march|april|may|june|july|august|september|october|november|december`)
+
+var allCapsRe = regexp.MustCompile(`^[A-Z]{2,}$`)
 
 func firstLineOf(s string) string {
 	s = strings.TrimSpace(s)

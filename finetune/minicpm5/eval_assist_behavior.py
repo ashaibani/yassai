@@ -30,7 +30,7 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-FLOORS = {"ner": 0.80, "code_generation": 0.70, "sentiment": 0.75, "summarisation": 0.60, "factual": 0.90}
+FLOORS = {"ner": 0.80, "code_generation": 0.70, "sentiment": 0.75, "summarisation": 0.60, "factual": 0.90, "code_fix": 0.70}
 PER_FAMILY = int(os.environ.get("EVAL_PER_FAMILY", "12"))
 
 
@@ -125,8 +125,23 @@ def check_factual(prompt: str, gold: str, got: str) -> bool:
     return len([s for s in re.split(r"(?<=[.!?])\s+", got.strip()) if s]) <= 4
 
 
+def check_code_fix(prompt: str, gold: str, got: str) -> bool:
+    m = re.search(r"def\s+([A-Za-z_]\w*)\s*\(", prompt)
+    if not m or f"def {m.group(1)}" not in got:
+        return False
+    def_idx = got.find("def ")
+    if def_idx <= 0 or not got[:def_idx].strip():
+        return False  # cause line must precede the code
+    try:
+        ast.parse(got[def_idx:])
+    except SyntaxError:
+        return False
+    return " ".join(got[def_idx:].split()) != " ".join(prompt[prompt.find("def "):].split())
+
+
 CHECKS = {
     "ner": check_ner,
+    "code_fix": check_code_fix,
     "code_generation": check_cg,
     "sentiment": check_sentiment,
     "summarisation": check_summarisation,

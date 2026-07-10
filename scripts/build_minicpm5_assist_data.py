@@ -30,6 +30,7 @@ SYSTEM = {
     "sentiment": "Classify the sentiment and justify it in one accurate sentence. Never contradict the text.",
     "summarisation": "Obey the stated length and format limits exactly; cover every major theme; no preamble.",
     "factual": "Answer directly and concisely; explanations max 3 short sentences.",
+    "code_fix": "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
 }
 
 # ------------------------------------------------------------------------ ner
@@ -95,7 +96,9 @@ NER_TEMPLATES = [
 
 def build_ner(rng: random.Random, n: int) -> list[dict]:
     rows = []
-    orgs_all = ORGS_WORD + ORGS_ACRONYM + ORGS_MULTI
+    # Acronym orgs are weighted up: the ETH-Zurich-in-partnership shape keeps
+    # producing mislabels/omissions at eval, so it needs more gradient share.
+    orgs_all = ORGS_WORD + ORGS_ACRONYM + ORGS_ACRONYM + ORGS_MULTI
     attempts = 0
     while len(rows) < n and attempts < n * 20:
         attempts += 1
@@ -252,6 +255,8 @@ def build_cg(rng: random.Random, split: str) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--teacher", default="finetune/minicpm5/data/assist_teacher_raw.jsonl")
+    ap.add_argument("--claude", default="finetune/minicpm5/data/assist_claude_authored.jsonl",
+                    help="Claude-authored sentiment/code_fix rows (gen_assist_claude_data.py)")
     ap.add_argument("--out", default="finetune/minicpm5/data/minicpm5_yassai_assist.jsonl")
     ap.add_argument("--seed", type=int, default=20260711)
     ap.add_argument("--ner", type=int, default=120)
@@ -264,14 +269,19 @@ def main() -> None:
 
     rng = random.Random(args.seed)
     split = args.teacher_split if args.teacher_split != "all" else "train"
-    rows = build_ner(rng, args.ner) + build_cg(rng, split)
+    # cg appears twice: six families squeezed a rank-32 LoRA in v4 and cg
+    # regressed on basics (empty-string handling) as its data share halved.
+    cg = build_cg(rng, split)
+    rows = build_ner(rng, args.ner) + cg + cg
 
-    teacher_path = Path(args.teacher)
+    import hashlib
+
     n_teacher = 0
-    if teacher_path.exists():
-        import hashlib
-
-        for line in teacher_path.read_text(encoding="utf-8").splitlines():
+    for cache in (Path(args.teacher), Path(args.claude)):
+        if not cache.exists():
+            print(f"WARNING: cache {cache} missing - skipping")
+            continue
+        for line in cache.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             r = json.loads(line)
@@ -282,8 +292,6 @@ def main() -> None:
                 continue
             rows.append({"family": r["family"], "prompt": r["prompt"], "answer": r["answer"]})
             n_teacher += 1
-    else:
-        print(f"WARNING: teacher cache {teacher_path} missing - building parametric families only")
 
     rng.shuffle(rows)
     out = Path(args.out)

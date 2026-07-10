@@ -1,0 +1,96 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 2,
+    "prompt_tokens": 2440,
+    "output_tokens": 903,
+    "total_tokens": 3343,
+    "cached_tokens": 271,
+    "reasoning_tokens": 0,
+    "tool_runs": 1,
+    "local_answers": 36,
+    "batch_count": 2,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "su_v02",
+          "cd_a01",
+          "su_a01"
+        ],
+        "size": 3,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      },
+      {
+        "index": 1,
+        "task_ids": [
+          "m_v05",
+          "l_v02",
+          "l_v04",
+          "l_a01"
+        ],
+        "size": 4,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T16:03:11.669481+01:00",
+        "latency_ms": 3881,
+        "prompt_tokens": 1591,
+        "completion_tokens": 746,
+        "total_tokens": 2337,
+        "cached_tokens": 271,
+        "reasoning_tokens": 0,
+        "batch_size": 4,
+        "output_chars": 0,
+        "task_ids": [
+          "m_v05",
+          "l_v02",
+          "l_v04",
+          "l_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\nfrom itertools import permutations\n\n# m_v05\n# Train A leaves 07:30 at 80 km/h from A toward B\n# Train B leaves 09:00 at 100 km/h from B toward A\n# Distance = 390 km\n# At 09:00, train A has traveled 1.5h * 80 = 120 km, so gap = 270 km\n# Closing speed = 180 km/h\n# Time to meet after 09:00 = 270/180 = 1.5h =\u003e 10:30\n# Distance from A = 120 + 80*1.5 = 240 km\ngap = 390 - 1.5*80\nt_meet = gap/180\nmeet_time_h = 9 + t_meet\ndist_from_A = 1.5*80 + 80*t_meet\nmeet_time_str = f\"{int(meet_time_h):02d}:{int((meet_time_h%1)*60):02d}\"\n\n# l_v02\npeople = ['Ravi','Sofia','Tara']\nmodes = ['bicycle','bus','car']\nsols=[]\nfor p in permutations(modes):\n    r,s,t = p\n    if r!='bicycle': continue\n    if s=='bus': continue\n    if t=='bicycle': continue\n    sols.append(p)\nl_v02_ans = sols[0]\n\n# l_v04\npeople2 = ['Yara','Zane','Alba']\nanimals = ['rabbit','hamster','canary']\nsols2=[]\nfor p in permutations(animals):\n    y,z,a = p\n    if z in ('rabbit','hamster'): continue\n    if y=='canary': continue\n    if a=='rabbit': continue\n    sols2.append(p)\nl_v04_ans = sols2[0]\n\n# l_a01\nnames = ['Ana','Bram','Cleo','Dev','Esme']\nsols3=[]\nfor p in permutations(names):\n    if p[0]!='Ana': continue\n    if p[4]!='Esme': continue\n    ci = p.index('Cleo'); di = p.index('Dev')\n    if di-ci!=1: continue\n    if abs(p.index('Bram')-p.index('Esme'))==1: continue\n    sols3.append(p)\nl_a01_ans = sols3[0]\n\nsubmit(answers=[\n    {\"task_id\":\"m_v05\",\"answer\":f\"They meet at {meet_time_str}, {int(dist_from_A)} km from Station A.\"},\n    {\"task_id\":\"l_v02\",\"answer\":f\"Ravi: {l_v02_ans[0]}, Sofia: {l_v02_ans[1]}, Tara: {l_v02_ans[2]}.\"},\n    {\"task_id\":\"l_v04\",\"answer\":f\"Yara: {l_v04_ans[0]}, Zane: {l_v04_ans[1]}, Alba: {l_v04_ans[2]}.\"},\n    {\"task_id\":\"l_a01\",\"answer\":f\"Seat 1 to 5: {l_a01_ans[0]}, {l_a01_ans[1]}, {l_a01_ans[2]}, {l_a01_ans[3]}, {l_a01_ans[4]}.\"},\n])\n",
+            "json": "[{\"task_id\": \"m_v05\", \"answer\": \"They meet at 10:30, 240 km from Station A.\"}, {\"task_id\": \"l_v02\", \"answer\": \"Ravi: bicycle, Sofia: car, Tara: bus.\"}, {\"task_id\": \"l_v04\", \"answer\": \"Yara: rabbit, Zane: canary, Alba: hamster.\"}, {\"task_id\": \"l_a01\", \"answer\": \"Seat 1 to 5: Ana, Bram, Cleo, Dev, Esme.\"}]"
+          }
+        ]
+      },
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T16:03:15.593294+01:00",
+        "latency_ms": 1208,
+        "prompt_tokens": 849,
+        "completion_tokens": 157,
+        "total_tokens": 1006,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 3,
+        "output_chars": 696,
+        "task_ids": [
+          "su_v02",
+          "cd_a01",
+          "su_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2048,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"su_v02\",\"answer\":\"- Open-source software underpins most commercial technology stacks today.\\n- Companies gain faster development, shared maintenance, and code auditability.\\n- Firms, security teams, and governments are funding and protecting critical projects.\"},{\"task_id\":\"cd_a01\",\"answer\":\"results evaluates to [13, 13, 13]. Cause: the lambdas close over `i` by reference, so all capture the final loop value 3.\"},{\"task_id\":\"su_a01\",\"answer\":\"- Global smartphone shipments fell for the eighth consecutive quarter.\\n- Analysts attribute 61% of the decline to longer replacement cycles.\\n- Manufacturers shift budgets to trade-ins, AI features, and software support.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 34,
+  "overall_total": 43
+}

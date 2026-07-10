@@ -1,0 +1,58 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 1007,
+    "output_tokens": 281,
+    "total_tokens": 1288,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 15,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T04b",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "size": 4,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T15:53:55.922156+01:00",
+        "latency_ms": 5032,
+        "prompt_tokens": 1007,
+        "completion_tokens": 281,
+        "total_tokens": 1288,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 4,
+        "output_chars": 1069,
+        "task_ids": [
+          "T04b",
+          "T05b",
+          "T09",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2048,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"T04b\",\"answer\":\"- Remote work boosts flexibility and work-life balance for employees globally.\\n- Collaboration, culture, and blurred boundaries remain key challenges.\\n- Firms invest in digital tools and redesign offices for creative, social use.\"},{\"task_id\":\"T05b\",\"answer\":\"September 2021 — DATE; Elon Musk — PERSON; SpaceX — ORGANIZATION; NASA — ORGANIZATION; Artemis programme — outside inventory (programme/mission); 2025 — DATE.\"},{\"task_id\":\"T09\",\"answer\":\"def merge_intervals(intervals):\\n    \\\"\\\"\\\"Merge overlapping intervals; handles unsorted, single, and empty input.\\\"\\\"\\\"\\n    if not intervals:\\n        return []\\n    sorted_intervals = sorted(intervals, key=lambda x: x[0])\\n    merged = [sorted_intervals[0][:]]\\n    for start, end in sorted_intervals[1:]:\\n        if start \u003c= merged[-1][1]:\\n            merged[-1][1] = max(merged[-1][1], end)\\n        else:\\n            merged.append([start, end])\\n    return merged\"},{\"task_id\":\"T07b\",\"answer\":\"Emma owns the dog, Liam owns the parrot, Priya owns the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 17,
+  "overall_total": 19
+}
