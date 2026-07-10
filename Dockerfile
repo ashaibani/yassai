@@ -76,9 +76,14 @@ COPY --from=deps /localmodel/ /assets/localmodel/
 COPY assets/taskclf/ /assets/taskclf/
 # LOCAL_MODEL_PATH points at the baked GGUF; if the build arg was empty the
 # file is absent and the agent logs 'local model disabled' and continues.
+# LOCAL_BASE_EXTENDED=1 only when LOCAL_BASE_MODEL_URL is the assist
+# fine-tune: it unlocks sentiment/summarisation/factual in the base lane,
+# which the un-tuned base model would fail.
+ARG LOCAL_BASE_EXTENDED=""
 ENV ONNXRUNTIME_LIB=/opt/ort/libonnxruntime.so \
     TASKCLF_DIR=/assets/taskclf \
     YZMA_LIB=/opt/llama \
     LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf \
-    LOCAL_BASE_MODEL_PATH=/assets/localmodel/minicpm5-base.gguf
+    LOCAL_BASE_MODEL_PATH=/assets/localmodel/minicpm5-base.gguf \
+    LOCAL_BASE_EXTENDED=${LOCAL_BASE_EXTENDED}
 ENTRYPOINT ["/yassai"]

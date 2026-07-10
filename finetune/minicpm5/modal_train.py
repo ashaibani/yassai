@@ -39,8 +39,13 @@ image = (
     )
     .add_local_file("scripts/build_minicpm5_sft_data.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data.py"), copy=True)
     .add_local_file("scripts/build_minicpm5_sft_data_v2.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data_v2.py"), copy=True)
+    .add_local_file("scripts/build_minicpm5_assist_data.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"), copy=True)
+    # Teacher cache is judge-filtered locally (needs the Fireworks key, which
+    # this image must not have) and shipped in as data.
+    .add_local_file("finetune/minicpm5/data/assist_teacher_raw.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"), copy=True)
     .add_local_file("finetune/minicpm5/train_trl.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/train_trl.py"), copy=True)
     .add_local_file("finetune/minicpm5/eval_tool_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_tool_behavior.py"), copy=True)
+    .add_local_file("finetune/minicpm5/eval_assist_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_assist_behavior.py"), copy=True)
 )
 
 
@@ -54,7 +59,23 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
     data_dir = REMOTE_ROOT / "finetune/minicpm5/data"
     data_dir.mkdir(parents=True, exist_ok=True)
     eval_path = None
-    if dataset == "v2":
+    if dataset == "assist":
+        # Assistant-lane families (ner/cg parametric + judge-filtered teacher
+        # rows for sentiment/summarisation/factual). Direct answers, no tool
+        # contract - this adapter replaces the BASE model in the second lane.
+        data_path = data_dir / "minicpm5_yassai_assist.jsonl"
+        build_cmd = ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
+                     "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
+                     "--out", str(data_path), "--teacher-split", "train"]
+        eval_path = data_dir / "minicpm5_yassai_assist_heldout.jsonl"
+        subprocess.run(
+            ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
+             "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
+             "--out", str(eval_path), "--seed", "20269998", "--ner", "24",
+             "--teacher-split", "heldout"],
+            check=True,
+        )
+    elif dataset == "v2":
         # Parameterised, execution-verified cases. No sample-task copies: the
         # leaderboard scores unseen variants and forbids hardcoding.
         data_path = data_dir / "minicpm5_yassai_v2.jsonl"
@@ -99,7 +120,10 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
     }
     if eval_path is not None:
         eval_env["DATA"] = str(eval_path)
-    subprocess.run(["python", str(REMOTE_ROOT / "finetune/minicpm5/eval_tool_behavior.py")], check=True, env={**os.environ, **eval_env})
+    # The assist adapter answers directly (no tool contract), so it gets the
+    # verifiable per-family behaviour gate instead of the tool-call eval.
+    eval_script = "eval_assist_behavior.py" if dataset == "assist" else "eval_tool_behavior.py"
+    subprocess.run(["python", str(REMOTE_ROOT / ("finetune/minicpm5/" + eval_script))], check=True, env={**os.environ, **eval_env})
 
     ckpt_volume.commit()
     hf_cache.commit()

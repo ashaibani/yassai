@@ -141,9 +141,13 @@ jobs:
           # LOCAL_BASE_MODEL_URL: the UN-tuned MiniCPM5 base GGUF (official
           # openbmb artefact) for the second local lane (code_generation +
           # gated NER).
+          # LOCAL_BASE_EXTENDED: set the repo variable to 1 ONLY when
+          # LOCAL_BASE_MODEL_URL points at the assist fine-tune (unlocks
+          # sentiment/summarisation/factual in the base lane).
           build-args: |
             LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
-            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf' }}
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-assist-e3-r32-Q4_K_M.gguf' }}
+            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'factual_knowledge,text_summarisation' }}
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
           # Single-arch image -> keep a plain manifest (no provenance index), which

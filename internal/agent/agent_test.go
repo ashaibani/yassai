@@ -82,9 +82,11 @@ func TestPlanBatchesMathBatchSize(t *testing.T) {
 
 func TestPlanBatchesIsolatesLogic(t *testing.T) {
 	// Focus isolation (the default) keeps logic in its own code-exec batch,
-	// separate from the direct categories. NER/debugging now merge into the
-	// direct batch (they run reliably at effort "none" via python3), so logic
-	// is the only isolated category.
+	// separate from the direct categories - UNLESS the code group is tiny:
+	// with the model lanes running before batching, a 1-2 task code group is
+	// gate rejects, and folding them into the direct batch saves the ~1.1k
+	// token per-batch scaffold. AGENT_FOLD_CODE_REMAINDER=0 restores strict
+	// isolation.
 	tasks := []Task{
 		{TaskID: "F", Prompt: "What is RAM?"},
 		{TaskID: "L", Prompt: "Who owns which pet given these clues?"},
@@ -100,12 +102,34 @@ func TestPlanBatchesIsolatesLogic(t *testing.T) {
 		t.Fatal(err)
 	}
 	ag.categories = cats
+
+	// Default fold: the lone logic task joins the direct batch.
 	batches := ag.planBatches(tasks)
+	if len(batches) != 1 || len(batches[0]) != 3 {
+		t.Fatalf("small code group must fold into the direct batch, got %#v", batches)
+	}
+
+	// Fold disabled: strict isolation as before.
+	t.Setenv("AGENT_FOLD_CODE_REMAINDER", "0")
+	batches = ag.planBatches(tasks)
 	if len(batches) != 2 {
-		t.Fatalf("want 2 batches (direct + logic), got %d %#v", len(batches), batches)
+		t.Fatalf("fold=0: want 2 batches (direct + logic), got %d %#v", len(batches), batches)
 	}
 	if len(batches[1]) != 1 || batches[1][0].TaskID != "L" {
-		t.Fatalf("logic task should be isolated in its own batch, got %#v", batches)
+		t.Fatalf("fold=0: logic task should be isolated, got %#v", batches)
+	}
+
+	// A code group above the fold threshold keeps its own batch.
+	t.Setenv("AGENT_FOLD_CODE_REMAINDER", "2")
+	tasks = append(tasks,
+		Task{TaskID: "L2", Prompt: "Five friends sit in a row given these clues, who sits where?"},
+		Task{TaskID: "L3", Prompt: "Who drinks tea given these clues?"},
+	)
+	cats["L2"] = []string{"logical_deductive_reasoning"}
+	cats["L3"] = []string{"logical_deductive_reasoning"}
+	batches = ag.planBatches(tasks)
+	if len(batches) != 2 || len(batches[1]) != 3 {
+		t.Fatalf("3-task code group must stay isolated, got %#v", batches)
 	}
 }
 

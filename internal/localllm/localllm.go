@@ -57,6 +57,10 @@ type Config struct {
 	CtxSize    uint32
 	MaxGen     int32         // max generated tokens per turn
 	Timeout    time.Duration // per-task wall clock budget
+	// Extended (DirectSolver only): which assist-tuned families to unlock -
+	// "all"/"1" for every extended family, or a CSV subset (e.g.
+	// "factual_knowledge,text_summarisation"). Empty disables them all.
+	Extended string
 }
 
 type Solver struct {

@@ -210,3 +210,12 @@ func TestGateNERAcronyms(t *testing.T) {
 		t.Error("omitted all-caps acronym (ETH) must be rejected")
 	}
 }
+
+func TestGateNERLabelSanity(t *testing.T) {
+	if r := gateNERLabels("ORGANIZATION: ETH Zurich; LOCATION: Zurich"); r != "" {
+		t.Errorf("correct labels must pass, got %q", r)
+	}
+	if r := gateNERLabels("LOCATION: ETH Zurich; PERSON: Sundar Pichai"); r == "" {
+		t.Error("acronym-led span labelled LOCATION must be rejected")
+	}
+}

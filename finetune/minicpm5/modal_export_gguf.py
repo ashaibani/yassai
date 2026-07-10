@@ -19,7 +19,7 @@ CKPT_ROOT = Path("/checkpoints")
 # tree, matched to the runtime libs the agent ships (Dockerfile LLAMA_VERSION).
 # An unpinned PyPI `gguf` once drifted ahead of the b9620 converter and wrote
 # scrambled tokenizer metadata (models emitted <|fim_middle|>/stripped JSON).
-LLAMA_CPP_VERSION = "b9946"
+LLAMA_CPP_VERSION = "b9948"
 
 app = modal.App(APP_NAME)
 ckpt_volume = modal.Volume.from_name("yassai-minicpm5-checkpoints", create_if_missing=False)

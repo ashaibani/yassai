@@ -26,6 +26,13 @@ func main() {
 }
 
 func run() error {
+	// The judge kills the container at 10 minutes measured from START, and
+	// loading two local GGUFs (+ boot canaries) on the VM's shared CPU eats
+	// real minutes before Solve begins. The solve deadline must anchor to
+	// process entry, not post-load time, or local inference starves the
+	// remote batch of its slot (observed live: a maths batch shipped
+	// dice-roll fallbacks after "context deadline exceeded" with zero calls).
+	start := time.Now()
 	loadLocalEnv()
 
 	inputPath := getenv("TASKS_PATH", defaultInputPath)
@@ -70,6 +77,7 @@ func run() error {
 		TextImg:            getenv("AGENT_TEXTIMG", "auto"),
 		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
 		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
+		LocalBaseExtended:  os.Getenv("LOCAL_BASE_EXTENDED"),
 		LocalLibPath:       getenv("YZMA_LIB", "/opt/llama"),
 	}
 
@@ -78,7 +86,7 @@ func run() error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Minute+30*time.Second)
+	ctx, cancel := context.WithDeadline(context.Background(), start.Add(9*time.Minute))
 	defer cancel()
 
 	results, metrics, err := ag.Solve(ctx, tasks)

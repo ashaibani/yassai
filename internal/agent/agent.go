@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,18 +22,19 @@ import (
 )
 
 type Agent struct {
-	cfg        Config
-	model      string
-	llm        *llm.Client
-	ctx        contextmgr.Manager
-	memory     *memory.Store
-	skills     *skills.Loader
-	clf        *taskclf.Classifier
-	local      *localllm.Solver
-	localBase  *localllm.DirectSolver
-	categories map[string][]string
-	metrics    Metrics
-	mu         sync.Mutex
+	cfg          Config
+	model        string
+	llm          *llm.Client
+	ctx          contextmgr.Manager
+	memory       *memory.Store
+	skills       *skills.Loader
+	clf          *taskclf.Classifier
+	local        *localllm.Solver
+	localBase    *localllm.DirectSolver
+	localRejects map[string]string // gate-rejected local answers, kept as last-ditch fallbacks
+	categories   map[string][]string
+	metrics      Metrics
+	mu           sync.Mutex
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -56,11 +58,12 @@ func New(cfg Config) (*Agent, error) {
 	}
 	model := chooseModel(cfg.AllowedModels, cfg.PreferredModel)
 	ag := &Agent{
-		cfg:    cfg,
-		model:  model,
-		ctx:    contextmgr.Manager{MaxContextTokens: cfg.MaxContextTokens, ReserveTokens: 8000},
-		memory: memory.New(cfg.MemoryRoot),
-		skills: skills.NewLoader(cfg.SkillRoots),
+		cfg:          cfg,
+		model:        model,
+		ctx:          contextmgr.Manager{MaxContextTokens: cfg.MaxContextTokens, ReserveTokens: 8000},
+		memory:       memory.New(cfg.MemoryRoot),
+		skills:       skills.NewLoader(cfg.SkillRoots),
+		localRejects: map[string]string{},
 	}
 	if strings.TrimSpace(cfg.APIKey) != "" {
 		ag.llm = llm.New(llm.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: model, Timeout: cfg.Timeout})
@@ -82,7 +85,7 @@ func New(cfg Config) (*Agent, error) {
 		}
 	}
 	if mp := strings.TrimSpace(cfg.LocalBaseModelPath); mp != "" {
-		if solver, lerr := localllm.NewDirect(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath}); lerr != nil {
+		if solver, lerr := localllm.NewDirect(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath, Extended: cfg.LocalBaseExtended}); lerr != nil {
 			fmt.Fprintln(os.Stderr, "local base model disabled:", lerr)
 		} else {
 			ag.localBase = solver
@@ -171,6 +174,11 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 		}
 		pending = append(pending, task)
 	}
+	// Model lanes run BEFORE batch planning so batching only ever sees truly
+	// remote work: a gate reject then joins an existing batch instead of
+	// stranding as a solo call that pays the whole per-batch scaffold again
+	// (observed: one leftover logic task = 1,318 tokens, 40% of the run).
+	pending = a.localFirstPass(ctx, pending, answers)
 	if len(pending) > 0 && a.llm == nil {
 		return nil, a.metrics, fmt.Errorf("FIREWORKS_API_KEY is required for %d unsolved task(s)", len(pending))
 	}
@@ -276,7 +284,15 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	for _, task := range tasks {
 		answer := strings.TrimSpace(answers[task.TaskID])
 		if answer == "" {
-			answer = "Unable to answer."
+			// A gate-rejected local answer is a real attempt the recall-biased
+			// gates bounced; when the remote path produced nothing (deadline,
+			// provider error) it is strictly better than an admission.
+			if rej := strings.TrimSpace(a.localRejects[task.TaskID]); rej != "" {
+				fmt.Fprintf(os.Stderr, "fallback %s: shipping gate-rejected local answer\n", task.TaskID)
+				answer = rej
+			} else {
+				answer = "Unable to answer."
+			}
 			a.metrics.Fallbacks++
 		}
 		out = append(out, Result{TaskID: task.TaskID, Answer: answer})
@@ -286,64 +302,76 @@ func (a *Agent) Solve(ctx context.Context, tasks []Task) ([]Result, Metrics, err
 	return out, a.metrics, nil
 }
 
+// localFirstPass answers what the in-container models can before any batch is
+// planned: zero Fireworks tokens per accepted answer, and gate rejects join a
+// shared remote batch instead of stranding in their own scaffolded call.
+//
+// The budget is deadline-aware, not a fixed slice: on the judging VM the 1B
+// decodes on shared CPU at 10-20x below dev-machine speed, and a fixed budget
+// let local attempts starve the remote batch entirely (observed live: the
+// maths batch died on "context deadline exceeded" with zero calls and two
+// dice-roll fallback answers). Local solving must always leave the remote
+// path its reserve.
+func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[string]string) []Task {
+	if a.local == nil && a.localBase == nil {
+		return pending
+	}
+	// Reserve enough of the context for the remote batches + response
+	// assembly. Everything before deadline-reserve belongs to local solving,
+	// capped at 4 minutes so dev runs without deadlines stay bounded too.
+	localBudget := time.Now().Add(4 * time.Minute)
+	if deadline, ok := ctx.Deadline(); ok {
+		if cut := deadline.Add(-remoteReserve); cut.Before(localBudget) {
+			localBudget = cut
+		}
+	}
+	remaining := make([]Task, 0, len(pending))
+	for _, t := range pending {
+		if ctx.Err() != nil || time.Now().After(localBudget) {
+			remaining = append(remaining, t)
+			continue
+		}
+		var res localllm.Result
+		switch fam := heuristicCategory(t.Prompt); {
+		case a.localBase != nil && (fam == localllm.FamilyCodeGen || fam == localllm.FamilyNER):
+			res = a.localBase.SolveTask(ctx, t.Prompt, fam)
+		case a.localBase != nil && a.cfg.LocalBaseExtended != "" &&
+			(fam == localllm.FamilySentiment || fam == localllm.FamilySummarisation || fam == localllm.FamilyFactual):
+			res = a.localBase.SolveTask(ctx, t.Prompt, fam)
+		case a.localBase != nil && fam == "code_debugging" && evalStyleCode(strings.ToLower(t.Prompt)):
+			res = a.localBase.SolveCodeTrace(ctx, t.Prompt)
+		case a.local != nil && localTrainedFamily(t.Prompt) && a.taskUsesCode(t):
+			res = a.local.SolveTask(ctx, t.Prompt)
+		default:
+			remaining = append(remaining, t)
+			continue
+		}
+		if res.OK {
+			answers[t.TaskID] = res.Answer
+			a.metrics.LocalAnswers++
+		} else {
+			fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
+			if strings.TrimSpace(res.Answer) != "" {
+				// Recall-biased gates reject plenty of correct answers. Keep
+				// them: if the remote path dies (timeout, provider error), a
+				// rejected local answer beats shipping nothing.
+				a.localRejects[t.TaskID] = res.Answer
+			}
+			remaining = append(remaining, t)
+		}
+	}
+	return remaining
+}
+
+// remoteReserve is the context slice localFirstPass must leave for the remote
+// batches: one folded batch call plus recovery and output writing.
+const remoteReserve = 3 * time.Minute
+
 func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executor, batch []Task) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
 	if ctx.Err() != nil {
 		run.Error = ctx.Err().Error()
 		return map[string]string{}, run
-	}
-	// Local-first: the in-container models answer tasks for zero Fireworks
-	// tokens; only tasks their validation gates reject stay in the remote
-	// batch. Fully-local batches skip Fireworks entirely.
-	localAnswers := map[string]string{}
-	localBudget := time.Now().Add(4 * time.Minute) // shared local wall clock, protects the 10-min container cap
-	if a.localBase != nil {
-		var remaining []Task
-		for _, t := range batch {
-			fam := heuristicCategory(t.Prompt)
-			if ctx.Err() != nil || time.Now().After(localBudget) ||
-				(fam != localllm.FamilyCodeGen && fam != localllm.FamilyNER) {
-				remaining = append(remaining, t)
-				continue
-			}
-			res := a.localBase.SolveTask(ctx, t.Prompt, fam)
-			if res.OK {
-				localAnswers[t.TaskID] = res.Answer
-				a.mu.Lock()
-				a.metrics.LocalAnswers++
-				a.mu.Unlock()
-			} else {
-				fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
-				remaining = append(remaining, t)
-			}
-		}
-		if len(remaining) == 0 {
-			return localAnswers, run
-		}
-		batch = remaining
-	}
-	if a.local != nil && a.batchAllowsCode(batch) {
-		var remaining []Task
-		for _, t := range batch {
-			if ctx.Err() != nil || time.Now().After(localBudget) || !localTrainedFamily(t.Prompt) || !a.taskUsesCode(t) {
-				remaining = append(remaining, t)
-				continue
-			}
-			res := a.local.SolveTask(ctx, t.Prompt)
-			if res.OK {
-				localAnswers[t.TaskID] = res.Answer
-				a.mu.Lock()
-				a.metrics.LocalAnswers++
-				a.mu.Unlock()
-			} else {
-				fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
-				remaining = append(remaining, t)
-			}
-		}
-		if len(remaining) == 0 {
-			return localAnswers, run
-		}
-		batch = remaining
 	}
 	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
 	// Physics screen on remote answers: an impossible two-vehicle meeting time
@@ -359,7 +387,6 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 			}
 		}
 	}
-	answers = mergeAnswers(cloneAnswerMap(localAnswers), answers)
 	run.Calls = calls
 	run.Tools = tools
 	if err == nil && completeAnswers(answers, batch) {
@@ -895,6 +922,35 @@ func (a *Agent) planBatches(tasks []Task) [][]Task {
 			order = append(order, k)
 		}
 		groups[k] = append(groups[k], t)
+	}
+	// Fold a tiny code group into a direct group: with the model lanes running
+	// before batching, a code group is usually just 1-2 gate rejects, and a
+	// dedicated batch pays ~1.1k tokens of code-exec scaffold for them. Losing
+	// the run_python tool on 1-2 tasks costs less than that scaffold.
+	fold := 2
+	if v, err := strconv.Atoi(os.Getenv("AGENT_FOLD_CODE_REMAINDER")); err == nil {
+		fold = v
+	}
+	if fold > 0 {
+		var directKey *key
+		for i := range order {
+			if !order[i].code {
+				directKey = &order[i]
+				break
+			}
+		}
+		if directKey != nil {
+			kept := order[:0]
+			for _, k := range order {
+				if k.code && len(groups[k]) <= fold {
+					groups[*directKey] = append(groups[*directKey], groups[k]...)
+					delete(groups, k)
+					continue
+				}
+				kept = append(kept, k)
+			}
+			order = kept
+		}
 	}
 	var batches [][]Task
 	for _, k := range order {

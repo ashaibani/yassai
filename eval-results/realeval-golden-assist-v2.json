@@ -1,0 +1,72 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 2034,
+    "output_tokens": 800,
+    "total_tokens": 2834,
+    "cached_tokens": 97,
+    "reasoning_tokens": 0,
+    "tool_runs": 1,
+    "local_answers": 11,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04",
+          "T04b",
+          "T05b",
+          "T06",
+          "T06b",
+          "T07b"
+        ],
+        "size": 8,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T13:29:10.976084+01:00",
+        "latency_ms": 3605,
+        "prompt_tokens": 2034,
+        "completion_tokens": 800,
+        "total_tokens": 2834,
+        "cached_tokens": 97,
+        "reasoning_tokens": 0,
+        "batch_size": 8,
+        "output_chars": 0,
+        "task_ids": [
+          "T03",
+          "T03b",
+          "T04",
+          "T04b",
+          "T05b",
+          "T06",
+          "T06b",
+          "T07b"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\nfrom itertools import permutations\n\n# T03\nt03 = \"Positive — the writer praises the product's performance and the fast customer support, outweighing the late arrival and damaged packaging.\"\n\n# T03b\nt03b = \"Positive — the writer calls the device 'flawless' and highlights easy setup, which outweighs the dented box and missing manual.\"\n\n# T04 - exactly two sentences\nt04 = (\"Machine learning is being widely adopted in healthcare for diagnosis, treatment planning, and patient monitoring, but raises concerns about interpretability, privacy, liability, and algorithmic bias. \"\n       \"Regulatory frameworks have not kept pace with deployment, leaving providers and developers facing uncertainty.\")\n\n# T04b - exactly three bullets, each \u003c=15 words\nt04b_b1 = \"Remote work has transformed global company operations.\"\nt04b_b2 = \"Employees gain flexibility, less commuting, and better work-life balance.\"\nt04b_b3 = \"Firms invest in collaboration tools and redesign offices for creative work.\"\n# verify word counts\nfor i,b in enumerate([t04b_b1,t04b_b2,t04b_b3],1):\n    assert len(b.split())\u003c=15, (i,b)\n\n# T05b - NER with exact labels\nt05b = (\"DATE: September 2021; \"\n        \"PERSON: Elon Musk; \"\n        \"ORGANIZATION: SpaceX, NASA; \"\n        \"PROGRAMME (outside inventory): Artemis; \"\n        \"DATE: 2025.\")\n\n# T06 - cfix\nt06 = (\"Bug: returns the largest element (nums[-1]) instead of the second largest. \"\n       \"Fix: def second_largest(nums):\\n    uniq = sorted(set(nums), reverse=True)\\n    return uniq[1] if len(uniq) \u003e= 2 else None\")\n\n# T06b - cfix\nt06b = (\"Bug: strings have no .reverse() method (lists do) and it mutates in place. \"\n        \"Fix: def is_palindrome(s):\\n    return s == s[::-1]\")\n\n# T07b - logic\npeople = ['Emma','Liam','Priya']\npets = ['cat','dog','parrot']\nsols=[]\nfor p in permutations(pets):\n    assign = dict(zip(people,p))\n    # 1. Liam allergic to fur -\u003e not cat, dog, hamster, rabbit -\u003e not cat, not dog\n    if assign['Liam'] in ('cat','dog'): continue\n    # 2. Emma does not own the parrot\n    if assign['Emma']=='parrot': continue\n    # 3. Priya does not own the dog\n    if assign['Priya']=='dog': continue\n    sols.append(assign)\nassert len(sols)==1\nA=sols[0]\nt07b = f\"Emma owns the {A['Emma']}, Liam owns the {A['Liam']}, Priya owns the {A['Priya']}.\"\n\nsubmit(answers=[\n    {\"task_id\":\"T03\",\"answer\":t03},\n    {\"task_id\":\"T03b\",\"answer\":t03b},\n    {\"task_id\":\"T04\",\"answer\":t04},\n    {\"task_id\":\"T04b\",\"answer\":t04b_b1+\"\\n\"+t04b_b2+\"\\n\"+t04b_b3},\n    {\"task_id\":\"T05b\",\"answer\":t05b},\n    {\"task_id\":\"T06\",\"answer\":t06},\n    {\"task_id\":\"T06b\",\"answer\":t06b},\n    {\"task_id\":\"T07b\",\"answer\":t07b},\n])\n",
+            "json": "[{\"task_id\": \"T03\", \"answer\": \"Positive \\u2014 the writer praises the product's performance and the fast customer support, outweighing the late arrival and damaged packaging.\"}, {\"task_id\": \"T03b\", \"answer\": \"Positive \\u2014 the writer calls the device 'flawless' and highlights easy setup, which outweighs the dented box and missing manual.\"}, {\"task_id\": \"T04\", \"answer\": \"Machine learning is being widely adopted in healthcare for diagnosis, treatment planning, and patient monitoring, but raises concerns about interpretability, privacy, liability, and algorithmic bias. Regulatory frameworks have not kept pace with deployment, leaving providers and developers facing uncertainty.\"}, {\"task_id\": \"T04b\", \"answer\": \"Remote work has transformed global company operations.\\nEmployees gain flexibility, less commuting, and better work-life balance.\\nFirms invest in collaboration tools and redesign offices for creative work.\"}, {\"task_id\": \"T05b\", \"answer\": \"DATE: September 2021; PERSON: Elon Musk; ORGANIZATION: SpaceX, NASA; PROGRAMME (outside inventory): Artemis; DATE: 2025.\"}, {\"task_id\": \"T06\", \"answer\": \"Bug: returns the largest element (nums[-1]) instead of the second largest. Fix: def second_largest(nums):\\n    uniq = sorted(set(nums), reverse=True)\\n    return uniq[1] if len(uniq) \u003e= 2 else None\"}, {\"task_id\": \"T06b\", \"answer\": \"Bug: strings have no .reverse() method (lists do) and it mutates in place. Fix: def is_palindrome(s):\\n    return s == s[::-1]\"}, {\"task_id\": \"T07b\", \"answer\": \"Emma owns the dog, Liam owns the parrot, Priya owns the cat.\"}]"
+          }
+        ]
+      }
+    ]
+  },
+  "overall_pass": 17,
+  "overall_total": 19
+}

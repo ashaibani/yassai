@@ -23,33 +23,84 @@ import (
 	"time"
 )
 
-// Families the base lane accepts. Sentiment/summarisation/factual stay remote:
-// the judge fails right-label-wrong-rationale answers and rubric omissions,
-// which no cheap gate can see (2/6, 1/3, 2/3 on the variant probe).
+// Families the base lane accepts. With the PLAIN base model only ner and
+// code_generation are safe (sentiment/summarisation/factual judge at 2/6, 1/3,
+// 2/3 on the variant probe - rationale and rubric failures no cheap gate can
+// see). The v3 assist fine-tune (judge-filtered teacher SFT) unlocks the other
+// three; they activate only when Config.Extended is set.
 const (
-	FamilyCodeGen = "code_generation"
-	FamilyNER     = "named_entity_recognition"
+	FamilyCodeGen       = "code_generation"
+	FamilyNER           = "named_entity_recognition"
+	FamilySentiment     = "sentiment_classification"
+	FamilySummarisation = "text_summarisation"
+	FamilyFactual       = "factual_knowledge"
 )
 
 // directInstructions are terse per-family system prompts (the track-1 inspo
 // ROUTES pattern): output tokens are free locally, but short answers keep the
 // judge focused on content instead of stray claims.
+// directInstructions must stay byte-identical to the SYSTEM prompts in
+// scripts/build_minicpm5_assist_data.py: the assist model is trained on the
+// exact render it is served with.
 var directInstructions = map[string]string{
-	FamilyCodeGen: "Write exactly the code requested, nothing extra. Code only, minimal comments, no explanation or demos unless asked.",
-	FamilyNER:     "Extract the entities in exactly the requested format, nothing else. Include every entity present; omissions are failures.",
+	FamilyCodeGen:       "Write exactly the code requested, nothing extra. Code only, minimal comments, no explanation or demos unless asked.",
+	FamilyNER:           "Extract the entities in exactly the requested format, nothing else. Include every entity present; omissions are failures.",
+	FamilyCodeTrace:     "State the exact evaluated values first (copy the ground-truth values verbatim), then explain the mechanism in one or two sentences (late binding, shared mutable default, iterator exhaustion, aliasing, wrong base case). Be brief.",
+	FamilySentiment:     "Classify the sentiment and justify it in one accurate sentence. Never contradict the text.",
+	FamilySummarisation: "Obey the stated length and format limits exactly; cover every major theme; no preamble.",
+	FamilyFactual:       "Answer directly and concisely; explanations max 3 short sentences.",
 }
 
 var directMaxGen = map[string]int{
-	FamilyCodeGen: 512,
-	FamilyNER:     320,
+	FamilyCodeGen:       512,
+	FamilyNER:           320,
+	FamilyCodeTrace:     350,
+	FamilySentiment:     120,
+	FamilySummarisation: 260,
+	FamilyFactual:       200,
 }
 
+// extendedFamilies are served only by the assist fine-tune (Config.Extended).
+var extendedFamilies = map[string]bool{
+	FamilySentiment:     true,
+	FamilySummarisation: true,
+	FamilyFactual:       true,
+}
+
+// DirectInstruction exposes the serving system prompt for a family ("" when
+// the base lane does not serve it) so eval harnesses probe with the exact
+// render production uses.
+func DirectInstruction(family string) string { return directInstructions[family] }
+
 type DirectSolver struct {
-	proc    *exec.Cmd
-	baseURL string
-	client  *http.Client
-	timeout time.Duration
-	mu      sync.Mutex // -np 1 server: one request at a time
+	proc     *exec.Cmd
+	baseURL  string
+	client   *http.Client
+	timeout  time.Duration
+	extended map[string]bool // assist-tuned families unlocked for this model
+	mu       sync.Mutex      // -np 1 server: one request at a time
+}
+
+// parseExtended expands Config.Extended into the family set it unlocks.
+func parseExtended(spec string) map[string]bool {
+	out := map[string]bool{}
+	spec = strings.TrimSpace(spec)
+	if spec == "" || spec == "0" {
+		return out
+	}
+	if spec == "1" || strings.EqualFold(spec, "all") {
+		for f := range extendedFamilies {
+			out[f] = true
+		}
+		return out
+	}
+	for _, f := range strings.Split(spec, ",") {
+		f = strings.TrimSpace(f)
+		if extendedFamilies[f] {
+			out[f] = true
+		}
+	}
+	return out
 }
 
 // NewDirect spawns a llama-server for the base GGUF with thinking disabled.
@@ -97,10 +148,11 @@ func NewDirect(cfg Config) (*DirectSolver, error) {
 		return nil, fmt.Errorf("localllm: start base llama-server: %w", err)
 	}
 	s := &DirectSolver{
-		proc:    cmd,
-		baseURL: "http://127.0.0.1:" + strconv.Itoa(port),
-		client:  &http.Client{Timeout: 3 * time.Minute},
-		timeout: cfg.Timeout,
+		proc:     cmd,
+		baseURL:  "http://127.0.0.1:" + strconv.Itoa(port),
+		client:   &http.Client{Timeout: 3 * time.Minute},
+		timeout:  cfg.Timeout,
+		extended: parseExtended(cfg.Extended),
 	}
 	if err := s.waitHealthy(90 * time.Second); err != nil {
 		s.Close()
@@ -150,6 +202,9 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	if _, ok := directInstructions[family]; !ok {
 		return Result{Reason: "family " + family + " not served by base lane"}
 	}
+	if extendedFamilies[family] && !s.extended[family] {
+		return Result{Reason: "family " + family + " not unlocked (LOCAL_BASE_EXTENDED)"}
+	}
 	tctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	answer, err := s.chat(tctx, prompt, family)
@@ -166,11 +221,103 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		reason = gateCodeGen(tctx, prompt, answer)
 	case FamilyNER:
 		reason = gateNER(prompt, answer)
+	case FamilySentiment:
+		reason = gateSentiment(answer)
+	case FamilySummarisation:
+		reason = gateSummarisation(prompt, answer)
+	case FamilyFactual:
+		reason = gateFactual(answer)
 	}
 	if reason != "" {
 		return Result{Answer: answer, Reason: reason}
 	}
 	return Result{Answer: answer, OK: true}
+}
+
+var shapeRe = regexp.MustCompile(`exactly (two|three|four|five|\d+) (sentences|bullet points)`)
+
+var wordNum = map[string]int{"two": 2, "three": 3, "four": 4, "five": 5}
+
+// gateSentiment: format only - the label must lead and a justification must
+// follow. Label correctness rests on the assist SFT; a malformed answer goes
+// remote rather than gambling the judge.
+func gateSentiment(answer string) string {
+	for _, label := range []string{"Positive", "Negative", "Neutral"} {
+		if strings.HasPrefix(answer, label) {
+			if len(strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(answer, label), "."))) < 15 {
+				return "sentiment answer lacks a justification sentence"
+			}
+			return ""
+		}
+	}
+	return "sentiment answer does not start with a Positive/Negative/Neutral label"
+}
+
+var wordCapRe = regexp.MustCompile(`(?i)(?:at most|no more than|no longer than|max(?:imum)?(?: of)?|within|under) (\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty) words`)
+
+var wordNumExt = map[string]int{
+	"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+	"nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "fifteen": 15, "twenty": 20,
+}
+
+// gateSummarisation enforces the prompt's own stated shape - the constraints
+// the judge fails most often: the item count and any per-item word cap. Both
+// are deterministic, so a violation goes remote instead of gambling the judge.
+func gateSummarisation(prompt, answer string) string {
+	m := shapeRe.FindStringSubmatch(prompt)
+	if m == nil {
+		return ""
+	}
+	n := wordNum[m[1]]
+	if n == 0 {
+		if v, err := strconv.Atoi(m[1]); err == nil {
+			n = v
+		}
+	}
+	var units []string
+	if m[2] == "bullet points" {
+		for _, line := range strings.Split(answer, "\n") {
+			t := strings.TrimSpace(line)
+			if strings.HasPrefix(t, "-") || strings.HasPrefix(t, "•") || strings.HasPrefix(t, "*") {
+				units = append(units, strings.TrimLeft(t, "-•* "))
+			}
+		}
+	} else {
+		units = sentenceRe.Split(strings.TrimSpace(answer), -1)
+	}
+	if len(units) != n {
+		return fmt.Sprintf("summary has %d %s, prompt demands exactly %d", len(units), m[2], n)
+	}
+	if wc := wordCapRe.FindStringSubmatch(prompt); wc != nil {
+		cap := wordNumExt[strings.ToLower(wc[1])]
+		if cap == 0 {
+			if v, err := strconv.Atoi(wc[1]); err == nil {
+				cap = v
+			}
+		}
+		for i, u := range units {
+			if words := len(strings.Fields(u)); cap > 0 && words > cap {
+				return fmt.Sprintf("item %d has %d words, prompt caps at %d", i+1, words, cap)
+			}
+		}
+	}
+	if strings.Contains(strings.ToLower(prompt), "must mention the percentage") && !strings.Contains(answer, "%") {
+		return "prompt demands the percentage figure and the answer has none"
+	}
+	return ""
+}
+
+var sentenceRe = regexp.MustCompile(`[.!?]\s+`)
+
+func gateFactual(answer string) string {
+	if len(sentenceRe.Split(strings.TrimSpace(answer), -1)) > 4 {
+		return "factual answer exceeds 4 sentences"
+	}
+	low := strings.ToLower(answer)
+	if strings.Contains(low, "i don't know") || strings.Contains(low, "i cannot") {
+		return "factual answer refuses"
+	}
+	return ""
 }
 
 // chat calls /v1/chat/completions so the server applies the base model's own
@@ -216,6 +363,115 @@ func (s *DirectSolver) chat(ctx context.Context, prompt, family string) (string,
 		ans = out.Choices[0].Message.ReasoningContent
 	}
 	return ans, nil
+}
+
+// FamilyCodeTrace is the eval-style code_debugging subset ("what does X
+// evaluate to, and why"). The snippet is executed for ground truth before the
+// model explains it - hand-tracing Python gotchas is exactly what 1B models
+// (and, ~2/6 runs, the remote model at effort none) get wrong.
+const FamilyCodeTrace = "code_trace"
+
+var backtickIdentRe = regexp.MustCompile("`([A-Za-z_]\\w*)`")
+
+// SolveCodeTrace answers an eval-style code_debugging task: run the prompt's
+// snippet, capture the asked identifiers' real values, generate a short
+// explanation with those values in hand, and gate on the answer echoing every
+// value. Not-applicable prompts (no backticked identifiers, no code after the
+// question) reject to the remote batch.
+func (s *DirectSolver) SolveCodeTrace(ctx context.Context, prompt string) Result {
+	q := strings.LastIndexByte(prompt, '?')
+	if q < 0 || q == len(prompt)-1 {
+		return Result{Reason: "code_trace: no question/code split"}
+	}
+	question, code := prompt[:q+1], strings.TrimSpace(prompt[q+1:])
+	idents := uniqueStrings(backtickIdentRe.FindAllStringSubmatch(question, -1))
+	if len(idents) == 0 || code == "" {
+		return Result{Reason: "code_trace: no backticked identifiers or empty snippet"}
+	}
+	var sb strings.Builder
+	sb.WriteString(code)
+	sb.WriteString("\n\n")
+	for _, id := range idents {
+		fmt.Fprintf(&sb, "print(%q, repr(%s))\n", id+" =", id)
+	}
+	truth, err := runPython(ctx, sb.String())
+	if err != nil || strings.TrimSpace(truth) == "" {
+		return Result{Reason: fmt.Sprintf("code_trace: snippet execution failed: %v", err)}
+	}
+	if hint := mechanismHint(code); hint != "" {
+		truth += "\nMechanism: " + hint
+	}
+	tctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	answer, err := s.chat(tctx, prompt+"\n\nGround truth from ACTUALLY executing the code (trust these values over any hand-trace):\n"+truth, FamilyCodeTrace)
+	if err != nil {
+		return Result{Reason: "code_trace generate: " + err.Error()}
+	}
+	answer = strings.TrimSpace(answer)
+	squash := func(v string) string { return strings.ReplaceAll(strings.ReplaceAll(v, " ", ""), "'", "\"") }
+	sqAns := squash(answer)
+	for _, line := range strings.Split(truth, "\n") {
+		ident, val, ok := strings.Cut(line, " = ")
+		if !ok || strings.HasPrefix(ident, "Mechanism:") {
+			continue
+		}
+		val = squash(strings.TrimSpace(val))
+		// The value must appear NEAR its identifier, not merely anywhere: a
+		// trace answer that says "total1 is 12" and later "both evaluate to 12"
+		// contains every value yet contradicts itself, and the judge fails it.
+		sqIdent := squash(strings.TrimSpace(ident))
+		found, named := false, false
+		for idx := strings.Index(sqAns, sqIdent); idx >= 0; {
+			named = true
+			window := sqAns[idx:]
+			if len(window) > 90+len(val) {
+				window = window[:90+len(val)]
+			}
+			if strings.Contains(window, val) {
+				found = true
+				break
+			}
+			next := strings.Index(sqAns[idx+1:], sqIdent)
+			if next < 0 {
+				break
+			}
+			idx += 1 + next
+		}
+		if !named {
+			return Result{Answer: answer, Reason: "code_trace: answer never names " + strings.TrimSpace(ident)}
+		}
+		if !found {
+			return Result{Answer: answer, Reason: fmt.Sprintf("code_trace: value %s not stated next to %s", val, strings.TrimSpace(ident))}
+		}
+	}
+	return Result{Answer: answer, OK: true}
+}
+
+// mechanismHint names the Python gotcha the snippet exhibits, when one is
+// syntactically detectable. Judges fail trace answers that state the right
+// value but not the mechanism, and the 1B names it reliably only when told.
+func mechanismHint(code string) string {
+	switch {
+	case strings.Contains(code, "lambda") && (strings.Contains(code, "for ") || strings.Contains(code, " in range")):
+		return "late binding - the lambdas capture the loop VARIABLE, not its value, so all of them see its final value"
+	case regexp.MustCompile(`def \w+\([^)]*=\s*(\[\]|\{\})`).MatchString(code):
+		return "shared mutable default argument - the same default object persists across calls"
+	case strings.Contains(code, "(n for") || strings.Contains(code, "(x for") || regexp.MustCompile(`=\s*\(.+for .+in .+\)`).MatchString(code):
+		return "generator exhaustion - a generator can be consumed only once; the second consumption sees nothing"
+	}
+	return ""
+}
+
+func uniqueStrings(matches [][]string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range matches {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			out = append(out, m[1])
+		}
+	}
+	return out
 }
 
 var calledRe = regexp.MustCompile(`called\s+` + "`?" + `([A-Za-z_]\w*)`)
@@ -406,12 +662,39 @@ func gateNER(prompt, answer string) string {
 	}
 	// All-caps acronyms (ETH, NASA) are invisible to the capitalised-word
 	// patterns above but are near-certain entity parts in a NER source text.
+	// Common descriptor acronyms (an "AI research lab") are exempt: reference
+	// answers do not list them, so demanding them only false-rejects.
 	for _, w := range acronymRe.FindAllString(prompt, -1) {
-		if nerLabelVocab[w] {
+		if nerLabelVocab[w] || noiseAcronyms[w] {
 			continue
 		}
 		if !strings.Contains(answer, w) {
 			return "answer omits acronym " + w
+		}
+	}
+	return gateNERLabels(answer)
+}
+
+var noiseAcronyms = map[string]bool{
+	"AI": true, "ML": true, "IT": true, "LLM": true, "API": true, "GPU": true,
+	"CPU": true, "USB": true, "CEO": true, "CTO": true, "CFO": true, "COO": true,
+	"GDP": true, "HR": true, "PR": true, "USD": true, "GBP": true, "EUR": true,
+}
+
+var (
+	nerPairRe    = regexp.MustCompile(`(PERSON|ORGANIZATION|LOCATION|DATE)\s*:\s*([^;\n]+)`)
+	acronymLedRe = regexp.MustCompile(`^[A-Z]{2,}\s+[A-Z]`)
+)
+
+// gateNERLabels rejects label assignments that are near-certainly wrong on
+// surface form alone: an acronym-led multiword span ("ETH Zurich", "MIT
+// Media Lab") is an organisation, and labelling it LOCATION - the observed
+// city-name bias - fails the judge outright.
+func gateNERLabels(answer string) string {
+	for _, m := range nerPairRe.FindAllStringSubmatch(answer, -1) {
+		span := strings.TrimSpace(m[2])
+		if m[1] == "LOCATION" && acronymLedRe.MatchString(span) {
+			return "acronym-led span labelled LOCATION: " + span
 		}
 	}
 	return ""

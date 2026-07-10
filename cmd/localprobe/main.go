@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/ashaibani/yassai/internal/judge"
+	"github.com/ashaibani/yassai/internal/localllm"
 	"github.com/ashaibani/yassai/internal/validate"
 )
 
@@ -40,6 +41,7 @@ func main() {
 	port := flag.Int("port", 18089, "llama-server port")
 	maxTok := flag.Int("maxtok", 768, "max generation tokens per task")
 	outPath := flag.String("out", "", "answers JSON (default eval-results/localprobe-<model>.json)")
+	assist := flag.Bool("assist", false, "probe with the serving lane's per-family system prompts (assist contract)")
 	flag.Parse()
 
 	apiKey := os.Getenv("FIREWORKS_API_KEY")
@@ -80,7 +82,11 @@ func main() {
 	fmt.Printf("probing %d tasks with %s...\n", len(cases), filepath.Base(*model))
 	for i, c := range cases {
 		t0 := time.Now()
-		ans, ntok, gerr := chat(base, c.Prompt, *maxTok)
+		system := ""
+		if *assist {
+			system = localllm.DirectInstruction(canonicalFamily(categoryOf(c.TaskID)))
+		}
+		ans, ntok, gerr := chat(base, system, c.Prompt, *maxTok)
 		rows[i] = row{ID: c.TaskID, Cat: categoryOf(c.TaskID), Answer: ans,
 			GenTokens: ntok, GenMS: time.Since(t0).Milliseconds()}
 		if gerr != nil {
@@ -162,9 +168,31 @@ func main() {
 	fmt.Println("\nanswers ->", out)
 }
 
-func chat(base, prompt string, maxTok int) (string, int, error) {
+// canonicalFamily maps realeval's short category names to the agent's
+// canonical family labels (the keys DirectInstruction expects).
+func canonicalFamily(short string) string {
+	switch short {
+	case "factual":
+		return "factual_knowledge"
+	case "sentiment":
+		return "sentiment_classification"
+	case "summarisation":
+		return "text_summarisation"
+	case "ner":
+		return "named_entity_recognition"
+	default:
+		return short
+	}
+}
+
+func chat(base, system, prompt string, maxTok int) (string, int, error) {
+	msgs := []map[string]string{}
+	if system != "" {
+		msgs = append(msgs, map[string]string{"role": "system", "content": system})
+	}
+	msgs = append(msgs, map[string]string{"role": "user", "content": prompt})
 	body, _ := json.Marshal(map[string]any{
-		"messages":    []map[string]string{{"role": "user", "content": prompt}},
+		"messages":    msgs,
 		"temperature": 0,
 		"max_tokens":  maxTok,
 	})

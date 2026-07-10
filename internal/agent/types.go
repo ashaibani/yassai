@@ -66,6 +66,11 @@ type Config struct {
 	// local lane for code_generation and gated NER - families the fine-tune
 	// lost to tool-contract specialisation. Empty disables.
 	LocalBaseModelPath string
+	// LocalBaseExtended unlocks assist-tuned families in the base lane:
+	// "all" or a CSV subset of sentiment_classification/text_summarisation/
+	// factual_knowledge. Only ever set for the assist fine-tune - the plain
+	// base model judges at 2/6, 1/3, 2/3 on these untuned.
+	LocalBaseExtended string
 }
 
 type BatchPlanRecord struct {

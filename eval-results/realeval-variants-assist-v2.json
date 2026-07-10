@@ -1,0 +1,157 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 3,
+    "prompt_tokens": 7636,
+    "output_tokens": 3467,
+    "total_tokens": 11103,
+    "cached_tokens": 951,
+    "reasoning_tokens": 0,
+    "tool_runs": 2,
+    "local_answers": 25,
+    "batch_count": 2,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "l_v02",
+          "l_v04",
+          "l_a01"
+        ],
+        "size": 3,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      },
+      {
+        "index": 1,
+        "task_ids": [
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v02",
+          "cd_a03",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "size": 15,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T13:30:24.169016+01:00",
+        "latency_ms": 9182,
+        "prompt_tokens": 2195,
+        "completion_tokens": 1892,
+        "total_tokens": 4087,
+        "cached_tokens": 271,
+        "reasoning_tokens": 0,
+        "batch_size": 15,
+        "output_chars": 0,
+        "task_ids": [
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v02",
+          "cd_a03",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3900,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\n# cd_v01: sum_evens bug - checks odd instead of even\ndef sum_evens(nums):\n    total = 0\n    for n in nums:\n        if n % 2 == 0:\n            total += n\n    return total\n\n# cd_v02: count_target bug - starts at index 1, misses index 0\ndef count_target(nums, target):\n    count = 0\n    for i in range(len(nums)):\n        if nums[i] == target:\n            count += 1\n    return count\n\n# cd_v03: average bug - divides by len-1 instead of len\ndef average(nums):\n    total = 0\n    for n in nums:\n        total += n\n    return total / len(nums)\n\n# cg_v01: run_length_encode\ndef run_length_encode(s):\n    if not s:\n        return []\n    result = []\n    prev = s[0]\n    count = 1\n    for ch in s[1:]:\n        if ch == prev:\n            count += 1\n        else:\n            result.append((prev, count))\n            prev = ch\n            count = 1\n    result.append((prev, count))\n    return result\n\n# cg_v02: interval_intersection\ndef interval_intersection(a, b):\n    result = []\n    i = j = 0\n    while i \u003c len(a) and j \u003c len(b):\n        s = max(a[i][0], b[j][0])\n        e = min(a[i][1], b[j][1])\n        if s \u003c= e:\n            result.append([s, e])\n        if a[i][1] \u003c b[j][1]:\n            i += 1\n        else:\n            j += 1\n    return result\n\n# cd_a03: generator exhausted\nnums = [1, 2, 3, 4, 5, 6]\nevens = (n for n in nums if n % 2 == 0)\ntotal1 = sum(evens)\ntotal2 = sum(evens)\nprint(\"total1:\", total1, \"total2:\", total2)\n\n# cg_a02: lis_length\ndef lis_length(arr):\n    if not arr:\n        return 0\n    tails = []\n    for x in arr:\n        lo, hi = 0, len(tails)\n        while lo \u003c hi:\n            mid = (lo + hi) // 2\n            if tails[mid] \u003c x:\n                lo = mid + 1\n            else:\n                hi = mid\n        if lo == len(tails):\n            tails.append(x)\n        else:\n            tails[lo] = x\n    return len(tails)\n\n# Verify\nprint(\"rle:\", run_length_encode('aaabbc'))\nprint(\"rle empty:\", run_length_encode(''))\nprint(\"rle no rep:\", run_length_encode('abc'))\nprint(\"ii:\", interval_intersection([[1,4],[7,10]], [[3,8]]))\nprint(\"ii touch:\", interval_intersection([[1,3]], [[3,5]]))\nprint(\"ii empty:\", interval_intersection([], [[1,2]]))\nprint(\"lis:\", lis_length([10,9,2,5,3,7,101,18]))\nprint(\"lis empty:\", lis_length([]))\n\nanswers = [\n    (\"cd_v01\", \"Bug: condition `n % 2 == 1` selects odd numbers instead of even. Fix: change to `n % 2 == 0`.\\n\\ndef sum_evens(nums):\\n    total = 0\\n    for n in nums:\\n        if n % 2 == 0:\\n            total += n\\n    return total\"),\n    (\"cd_v02\", \"Bug: `range(1, len(nums))` skips index 0, so the first element is never checked. Fix: use `range(len(nums))`.\\n\\ndef count_target(nums, target):\\n    count = 0\\n    for i in range(len(nums)):\\n        if nums[i] == target:\\n            count += 1\\n    return count\"),\n    (\"cd_v03\", \"Bug: divides by `len(nums) - 1` instead of `len(nums)`, giving a wrong (and crash-prone) average. Fix: use `len(nums)`.\\n\\ndef average(nums):\\n    total = 0\\n    for n in nums:\\n        total += n\\n    return total / len(nums)\"),\n    (\"cg_v01\", \"def run_length_encode(s):\\n    \\\"\\\"\\\"Return list of (char, count) tuples for consecutive runs in s.\\\"\\\"\\\"\\n    if not s:\\n        return []\\n    result = []\\n    prev = s[0]\\n    count = 1\\n    for ch in s[1:]:\\n        if ch == prev:\\n            count += 1\\n        else:\\n            result.append((prev, count))\\n            prev = ch\\n            count = 1\\n    result.append((prev, count))\\n    return result\"),\n    (\"cg_v02\", \"def interval_intersection(a, b):\\n    \\\"\\\"\\\"Return intersections of two sorted, non-overlapping closed-interval lists.\\\"\\\"\\\"\\n    result = []\\n    i = j = 0\\n    while i \u003c len(a) and j \u003c len(b):\\n        s = max(a[i][0], b[j][0])\\n        e = min(a[i][1], b[j][1])\\n        if s \u003c= e:\\n            result.append([s, e])\\n        if a[i][1] \u003c b[j][1]:\\n            i += 1\\n        else:\\n            j += 1\\n    return result\"),\n    (\"s_v01\", \"Positive - despite setup issues, the writer praises flawless syncing and fast support, ending on a clearly favorable note.\"),\n    (\"s_v02\", \"Negative - the product failed within a week and the unresolved refund dominates the review, outweighing the positive packaging/delivery.\"),\n    (\"s_v03\", \"Neutral - the reviewer notes both pros and cons and explicitly states they are undecided ('Jury's still out').\"),\n    (\"s_v04\", \"Positive - the reviewer expresses pleasant surprise at the sound quality, comfort, and premium feel of the headphones.\"),\n    (\"su_v02\", \"- Open-source underpins most commercial tech stacks, enabling faster development and auditable code. (14 words)\\n- Maintainer burnout, unfunded projects, and supply-chain attacks reveal ecosystem fragility. (11 words)\\n- Firms fund foundations, security teams scan dependencies, and governments treat OSS as critical infrastructure. (14 words)\"),\n    (\"cd_a03\", \"total1 = 12, total2 = 0. `evens` is a generator that is exhausted after the first sum, so the second sum over an empty iterator yields 0.\"),\n    (\"cg_a02\", \"def lis_length(arr):\\n    \\\"\\\"\\\"Return length of the longest strictly increasing subsequence.\\\"\\\"\\\"\\n    if not arr:\\n        return 0\\n    tails = []\\n    for x in arr:\\n        lo, hi = 0, len(tails)\\n        while lo \u003c hi:\\n            mid = (lo + hi) // 2\\n            if tails[mid] \u003c x:\\n                lo = mid + 1\\n            else:\\n                hi = mid\\n        if lo == len(tails):\\n            tails.append(x)\\n        else:\\n            tails[lo] = x\\n    return len(tails)\"),\n    (\"s_a01\", \"Negative - the sarcasm ('fantastic', 'Five stars for consistency, I guess') masks genuine frustration with a regression that resets settings and hides features.\"),\n    (\"s_a02\", \"Positive - despite modest decor, the reviewer enthusiastically praises the food as the best noodles they've had all year.\"),\n    (\"su_a01\", \"- Global smartphone shipments fell for the eighth consecutive quarter as consumers keep devices longer. (14 words)\\n- Analysts attribute 61% of the decline to lengthening replacement cycles, not economic pressure. (14 words)\\n- Makers shift budgets to trade-ins, on-device AI, and extended software support to drive upgrades. (15 words)\"),\n]\n\n# Verify word counts for summaries\ndef wc(s):\n    return len(s.split())\n\nfor i, (tid, ans) in enumerate(answers):\n    if tid in (\"su_v02\", \"su_a01\"):\n        print(tid, \"bullets:\")\n        for line in ans.split(\"\\n\"):\n            if line.startswith(\"- \"):\n                print(\"  \", wc(line[2:]), \"words:\", line)\n\n# Verify su_a01 second bullet mentions 61%\nprint(\"su_a01 has 61%:\", \"61%\" in answers[14][1])\n",
+            "stdout": "total1: 12 total2: 0\nrle: [('a', 3), ('b', 2), ('c', 1)]\nrle empty: []\nrle no rep: [('a', 1), ('b', 1), ('c', 1)]\nii: [[3, 4], [7, 8]]\nii touch: [[3, 3]]\nii empty: []\nlis: 4\nlis empty: 0\nsu_v02 bullets:\n   14 words: - Open-source underpins most commercial tech stacks, enabling faster development and auditable code. (14 words)\n   12 words: - Maintainer burnout, unfunded projects, and supply-chain attacks reveal ecosystem fragility. (11 words)\n   16 words: - Firms fund foundations, security teams scan dependencies, and governments treat OSS as critical infrastructure. (14 words)\nsu_a01 bullets:\n   16 words: - Global smartphone shipments fell for the eighth consecutive quarter as consumers keep devices longer. (14 words)\n   15 words: - Analysts attribute 61% of the decline to lengthening replacement cycles, not economic pressure. (14 words)\n   16 words: - Makers shift budgets to trade-ins, on-device AI, and extended software support to drive upgrades. (15 words)\nsu_a01 has 61%: True"
+          }
+        ]
+      },
+      {
+        "turn": 1,
+        "timestamp": "2026-07-10T13:30:33.396856+01:00",
+        "latency_ms": 4054,
+        "prompt_tokens": 4121,
+        "completion_tokens": 1087,
+        "total_tokens": 5208,
+        "cached_tokens": 583,
+        "reasoning_tokens": 0,
+        "batch_size": 15,
+        "output_chars": 4055,
+        "task_ids": [
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v02",
+          "cd_a03",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 4875,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"cd_v01\",\"answer\":\"Bug: condition `n % 2 == 1` selects odd numbers instead of even. Fix: change to `n % 2 == 0`.\\n\\ndef sum_evens(nums):\\n    total = 0\\n    for n in nums:\\n        if n % 2 == 0:\\n            total += n\\n    return total\"},{\"task_id\":\"cd_v02\",\"answer\":\"Bug: `range(1, len(nums))` skips index 0, so the first element is never checked. Fix: use `range(len(nums))`.\\n\\ndef count_target(nums, target):\\n    count = 0\\n    for i in range(len(nums)):\\n        if nums[i] == target:\\n            count += 1\\n    return count\"},{\"task_id\":\"cd_v03\",\"answer\":\"Bug: divides by `len(nums) - 1` instead of `len(nums)`, giving a wrong (and crash-prone) average. Fix: use `len(nums)`.\\n\\ndef average(nums):\\n    total = 0\\n    for n in nums:\\n        total += n\\n    return total / len(nums)\"},{\"task_id\":\"cg_v01\",\"answer\":\"def run_length_encode(s):\\n    \\\"\\\"\\\"Return list of (char, count) tuples for consecutive runs in s.\\\"\\\"\\\"\\n    if not s:\\n        return []\\n    result = []\\n    prev = s[0]\\n    count = 1\\n    for ch in s[1:]:\\n        if ch == prev:\\n            count += 1\\n        else:\\n            result.append((prev, count))\\n            prev = ch\\n            count = 1\\n    result.append((prev, count))\\n    return result\"},{\"task_id\":\"cg_v02\",\"answer\":\"def interval_intersection(a, b):\\n    \\\"\\\"\\\"Return intersections of two sorted, non-overlapping closed-interval lists.\\\"\\\"\\\"\\n    result = []\\n    i = j = 0\\n    while i \u003c len(a) and j \u003c len(b):\\n        s = max(a[i][0], b[j][0])\\n        e = min(a[i][1], b[j][1])\\n        if s \u003c= e:\\n            result.append([s, e])\\n        if a[i][1] \u003c b[j][1]:\\n            i += 1\\n        else:\\n            j += 1\\n    return result\"},{\"task_id\":\"s_v01\",\"answer\":\"Positive - despite setup issues, the writer praises flawless syncing and fast support, ending on a clearly favorable note.\"},{\"task_id\":\"s_v02\",\"answer\":\"Negative - the product failed within a week and the unresolved refund dominates the review, outweighing the positive packaging/delivery.\"},{\"task_id\":\"s_v03\",\"answer\":\"Neutral - the reviewer notes both pros and cons and explicitly states they are undecided ('Jury's still out').\"},{\"task_id\":\"s_v04\",\"answer\":\"Positive - the reviewer expresses pleasant surprise at the sound quality, comfort, and premium feel of the headphones.\"},{\"task_id\":\"su_v02\",\"answer\":\"- Open-source underpins most commercial tech stacks, enabling faster development and auditable code.\\n- Maintainer burnout, unfunded projects, and supply-chain attacks reveal ecosystem fragility.\\n- Firms fund foundations, security teams scan dependencies, and governments treat OSS as critical infrastructure.\"},{\"task_id\":\"cd_a03\",\"answer\":\"total1 = 12, total2 = 0. `evens` is a generator that is exhausted after the first sum, so the second sum over an empty iterator yields 0.\"},{\"task_id\":\"cg_a02\",\"answer\":\"def lis_length(arr):\\n    \\\"\\\"\\\"Return length of the longest strictly increasing subsequence.\\\"\\\"\\\"\\n    if not arr:\\n        return 0\\n    tails = []\\n    for x in arr:\\n        lo, hi = 0, len(tails)\\n        while lo \u003c hi:\\n            mid = (lo + hi) // 2\\n            if tails[mid] \u003c x:\\n                lo = mid + 1\\n            else:\\n                hi = mid\\n        if lo == len(tails):\\n            tails.append(x)\\n        else:\\n            tails[lo] = x\\n    return len(tails)\"},{\"task_id\":\"s_a01\",\"answer\":\"Negative - the sarcasm ('fantastic', 'Five stars for consistency, I guess') masks genuine frustration with a regression that resets settings and hides features.\"},{\"task_id\":\"s_a02\",\"answer\":\"Positive - despite modest decor, the reviewer enthusiastically praises the food as the best noodles they've had all year.\"},{\"task_id\":\"su_a01\",\"answer\":\"- Global smartphone shipments fell for the eighth consecutive quarter as consumers keep devices longer.\\n- Analysts attribute 61% of the decline to lengthening replacement cycles, not economic pressure.\\n- Makers shift budgets to trade-ins, on-device AI, and extended software support to drive upgrades.\"}]}"
+      },
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T13:30:37.452546+01:00",
+        "latency_ms": 2345,
+        "prompt_tokens": 1320,
+        "completion_tokens": 488,
+        "total_tokens": 1808,
+        "cached_tokens": 97,
+        "reasoning_tokens": 0,
+        "batch_size": 3,
+        "output_chars": 0,
+        "task_ids": [
+          "l_v02",
+          "l_v04",
+          "l_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\nfrom itertools import permutations\n\n# l_v02\npeople = ['Ravi','Sofia','Tara']\nmodes = ['bicycle','bus','car']\nsols=[]\nfor p in permutations(modes):\n    R,S,T = p\n    if R!='car' and R!='bus': pass\n    else: continue\n    if S!='bus': pass\n    else: continue\n    if T!='bicycle': pass\n    else: continue\n    sols.append(p)\nv02 = sols[0]\nans_v02 = f\"Ravi: {v02[0]}, Sofia: {v02[1]}, Tara: {v02[2]}\"\n\n# l_v04\npeople=['Yara','Zane','Alba']\nanimals=['rabbit','hamster','canary']\nsols=[]\nfor p in permutations(animals):\n    Y,Z,A = p\n    if Z!='rabbit' and Z!='hamster': pass\n    else: continue\n    if Y!='canary': pass\n    else: continue\n    if A!='rabbit': pass\n    else: continue\n    sols.append(p)\nv04=sols[0]\nans_v04 = f\"Yara: {v04[0]}, Zane: {v04[1]}, Alba: {v04[2]}\"\n\n# l_a01\nnames=['Ana','Bram','Cleo','Dev','Esme']\nsols=[]\nfor p in permutations(names):\n    if p[0]!='Ana': continue\n    if p[4]!='Esme': continue\n    ci = p.index('Cleo'); di = p.index('Dev')\n    if ci+1!=di: continue\n    bi = p.index('Bram'); ei = p.index('Esme')\n    if abs(bi-ei)==1: continue\n    sols.append(p)\na01=sols[0]\nans_a01 = \", \".join(a01)\n\nsubmit(answers=[{\"task_id\":\"l_v02\",\"answer\":ans_v02},{\"task_id\":\"l_v04\",\"answer\":ans_v04},{\"task_id\":\"l_a01\",\"answer\":ans_a01}])\n",
+            "json": "[{\"task_id\": \"l_v02\", \"answer\": \"Ravi: bicycle, Sofia: car, Tara: bus\"}, {\"task_id\": \"l_v04\", \"answer\": \"Yara: rabbit, Zane: canary, Alba: hamster\"}, {\"task_id\": \"l_a01\", \"answer\": \"Ana, Bram, Cleo, Dev, Esme\"}]"
+          }
+        ]
+      }
+    ]
+  },
+  "overall_pass": 39,
+  "overall_total": 43
+}
