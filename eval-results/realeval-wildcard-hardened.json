@@ -1,0 +1,112 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 2,
+    "prompt_tokens": 2594,
+    "output_tokens": 821,
+    "total_tokens": 3415,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 1,
+    "local_answers": 3,
+    "batch_count": 2,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "m_w03",
+          "l_w02",
+          "m_w01",
+          "l_w01"
+        ],
+        "size": 4,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      },
+      {
+        "index": 1,
+        "task_ids": [
+          "su_w02",
+          "n_w02",
+          "cd_w02",
+          "f_w01",
+          "s_w01",
+          "n_w01",
+          "cg_w01",
+          "f_w02",
+          "f_w03",
+          "s_w02",
+          "cg_w02"
+        ],
+        "size": 11,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T19:00:09.176281+01:00",
+        "latency_ms": 4613,
+        "prompt_tokens": 1200,
+        "completion_tokens": 593,
+        "total_tokens": 1793,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 11,
+        "output_chars": 2286,
+        "task_ids": [
+          "su_w02",
+          "n_w02",
+          "cd_w02",
+          "f_w01",
+          "s_w01",
+          "n_w01",
+          "cg_w01",
+          "f_w02",
+          "f_w03",
+          "s_w02",
+          "cg_w02"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3020,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"su_w02\",\"answer\":\"Pandemic-driven demand has ballooned allotment waiting lists, prompting councils to split plots and lease railway land, though gardeners warn half-plots frustrate experienced growers needing crop rotation space.\"},{\"task_id\":\"n_w02\",\"answer\":\"Priya Narayanan (PERSON); Two Sigma (COMPANY); Glassbird Labs (COMPANY); Sequoia (COMPANY).\"},{\"task_id\":\"cd_w02\",\"answer\":\"Cause: the check is case-sensitive, so any word starting with an uppercase vowel (A, E, I, O, U) is missed. Fix: def count_vowel_words(words): return sum(1 for w in words if w[0].lower() in 'aeiou')\"},{\"task_id\":\"f_w01\",\"answer\":\"The capital of Australia is Canberra, and it is situated near Lake Burley Griffin, an artificial reservoir in the Australian Capital Territory.\"},{\"task_id\":\"s_w01\",\"answer\":\"Neutral — the writer praises battery life but criticizes screen durability, balancing positive and negative points.\"},{\"task_id\":\"n_w01\",\"answer\":\"Maria Sanchez (PERSON); Fireworks AI (ORGANIZATION); Berlin (LOCATION); last March (DATE).\"},{\"task_id\":\"cg_w01\",\"answer\":\"def second_largest(nums):\\n    \\\"\\\"\\\"Return the second-largest number in nums, handling duplicates.\\\"\\\"\\\"\\n    if len(nums) \u003c 2:\\n        raise ValueError(\\\"need at least two values\\\")\\n    uniq = set(nums)\\n    if len(uniq) \u003c 2:\\n        raise ValueError(\\\"need at least two distinct values\\\")\\n    uniq.remove(max(uniq))\\n    return max(uniq)\"},{\"task_id\":\"f_w02\",\"answer\":\"Chopping onions releases sulfur compounds that react with the moisture in your eyes to form a mild sulfuric acid, which irritates the tear glands and triggers crying.\"},{\"task_id\":\"f_w03\",\"answer\":\"Latitude measures a location's distance north or south of the equator, expressed in degrees from 0° to 90°. Longitude measures a location's distance east or west of the prime meridian, expressed in degrees from 0° to 180°.\"},{\"task_id\":\"s_w02\",\"answer\":\"Negative — despite admiring the prose, the reviewer ultimately rejects the book as bloated and unfinished, so the overall verdict is unfavorable.\"},{\"task_id\":\"cg_w02\",\"answer\":\"def celsius_table(celsius_list):\\n    \\\"\\\"\\\"Return formatted 'C = F' strings for each Celsius value.\\\"\\\"\\\"\\n    return [f\\\"{c:.1f}°C = {c * 9 / 5 + 32:.1f}°F\\\" for c in celsius_list]\"}]}"
+      },
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T19:00:13.789997+01:00",
+        "latency_ms": 1597,
+        "prompt_tokens": 1394,
+        "completion_tokens": 228,
+        "total_tokens": 1622,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 4,
+        "output_chars": 0,
+        "task_ids": [
+          "m_w03",
+          "l_w02",
+          "m_w01",
+          "l_w01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\ntotal = 2760\nparts = [5,4,3]\nunit = total/sum(parts)\nshares = [unit*p for p in parts]\nm1 = 240\nafter_mon = m1 - m1*0.15\nafter_tue = after_mon - 60\n# logic\n# l_w02: Ben didn't win, Cal beat Ana =\u003e Cal first\n# l_w01: Sam not bird, Jo=dog =\u003e Sam cat or bird, but Sam not bird =\u003e Sam cat\nanswers = [\n {\"task_id\":\"m_w03\",\"answer\":\"£\"+str(round(shares[0]))+\", £\"+str(round(shares[1]))+\", £\"+str(round(shares[2]))},\n {\"task_id\":\"l_w02\",\"answer\":\"Cal\"},\n {\"task_id\":\"m_w01\",\"answer\":str(int(after_tue))+\" items\"},\n {\"task_id\":\"l_w01\",\"answer\":\"Sam\"}\n]\nsubmit(answers=answers)\n",
+            "json": "[{\"task_id\": \"m_w03\", \"answer\": \"\\u00a31150, \\u00a3920, \\u00a3690\"}, {\"task_id\": \"l_w02\", \"answer\": \"Cal\"}, {\"task_id\": \"m_w01\", \"answer\": \"144 items\"}, {\"task_id\": \"l_w01\", \"answer\": \"Sam\"}]"
+          }
+        ]
+      }
+    ]
+  },
+  "overall_pass": 15,
+  "overall_total": 18
+}

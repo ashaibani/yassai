@@ -630,16 +630,16 @@ func gateCodeGen(ctx context.Context, prompt, answer string) string {
 func exampleCheck(ctx context.Context, prompt, code string) string {
 	m := calledRe.FindStringSubmatch(prompt)
 	if m == nil {
-		return ""
+		return "code_gen: no named function in prompt - remote handles free-form specs"
 	}
 	fname := m[1]
 	callStart := strings.Index(prompt, fname+"(")
 	if callStart < 0 {
-		return ""
+		return "code_gen: prompt has no worked example call - parse-only gates pass wrong code, stay remote"
 	}
 	call, rest := balancedPrefix(prompt[callStart:])
 	if call == "" || !strings.HasPrefix(rest, " should return ") {
-		return ""
+		return "code_gen: prompt example is not executable (no 'should return') - stay remote"
 	}
 	expected := literalPrefix(strings.TrimPrefix(rest, " should return "))
 	if expected == "" {

@@ -1,0 +1,64 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 1,
+    "prompt_tokens": 970,
+    "output_tokens": 370,
+    "total_tokens": 1340,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 11,
+    "batch_count": 1,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "s_w01",
+          "n_w01",
+          "s_w02",
+          "cg_w02",
+          "cd_w02",
+          "m_w01",
+          "l_w01"
+        ],
+        "size": 7,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T18:56:53.464094+01:00",
+        "latency_ms": 3943,
+        "prompt_tokens": 970,
+        "completion_tokens": 370,
+        "total_tokens": 1340,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 7,
+        "output_chars": 1274,
+        "task_ids": [
+          "s_w01",
+          "n_w01",
+          "s_w02",
+          "cg_w02",
+          "cd_w02",
+          "m_w01",
+          "l_w01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2140,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"s_w01\",\"answer\":\"Neutral. The review contains one positive point (battery life) and one negative point (screen scratches), balancing each other out.\"},{\"task_id\":\"n_w01\",\"answer\":\"PERSON: Maria Sanchez; ORGANIZATION: Fireworks AI; LOCATION: Berlin; DATE: last March.\"},{\"task_id\":\"s_w02\",\"answer\":\"Negative. Despite praising the prose, the reviewer ultimately found the book too slow and could not finish it, indicating an overall negative verdict.\"},{\"task_id\":\"cg_w02\",\"answer\":\"def celsius_table(celsius_list):\\n    \\\"\\\"\\\"Convert a list of Celsius temperatures to formatted 'C = F' strings.\\\"\\\"\\\"\\n    return [f'{c:.1f}°C = {c * 9 / 5 + 32:.1f}°F' for c in celsius_list]\"},{\"task_id\":\"cd_w02\",\"answer\":\"Cause: the check only tests the first character of each word, so any word starting with an uppercase vowel (e.g., 'Apple') is missed because 'A' is not in 'aeiou'.\\nFix: def count_vowel_words(words): return sum(1 for w in words if w[0].lower() in 'aeiou')\"},{\"task_id\":\"m_w01\",\"answer\":\"Monday sales: 15% of 240 = 36. Tuesday sales: 60. Total sold: 36 + 60 = 96. Remaining: 240 - 96 = 144 items.\"},{\"task_id\":\"l_w01\",\"answer\":\"Sam owns the cat. Jo has the dog, Lee has the bird (since Sam does not own the bird), leaving Sam with the cat.\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 8,
+  "overall_total": 18
+}

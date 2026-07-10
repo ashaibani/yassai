@@ -147,7 +147,7 @@ jobs:
           build-args: |
             LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
             LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-assist-e3-r32-v6-Q4_K_M.gguf' }}
-            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'factual_knowledge,text_summarisation,code_fix' }}
+            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'text_summarisation,code_fix' }}
             AGENT_NO_REMOTE=${{ vars.AGENT_NO_REMOTE || '' }}
             AGENT_ALLOW_SEMANTIC_CLUES=${{ vars.AGENT_ALLOW_SEMANTIC_CLUES || '' }}
           secrets: |

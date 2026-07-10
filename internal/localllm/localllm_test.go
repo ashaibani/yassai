@@ -180,9 +180,11 @@ func TestExampleCheckGate(t *testing.T) {
 	if reason := exampleCheck(context.Background(), prompt, bad); reason == "" {
 		t.Error("logic-bug code must fail the example gate")
 	}
-	// prompts without a worked example skip the check
-	if reason := exampleCheck(context.Background(), "Write a Python function called flatten that flattens.", good); reason != "" {
-		t.Errorf("no-example prompt must skip, got %q", reason)
+	// Prompts without an executable worked example must REJECT to remote:
+	// parse-only gates pass wrong code (observed: a second-largest function
+	// returning the minimum), so free-form specs are not local-safe.
+	if reason := exampleCheck(context.Background(), "Write a Python function called flatten that flattens.", good); reason == "" {
+		t.Error("no-example prompt must reject to remote")
 	}
 }
 

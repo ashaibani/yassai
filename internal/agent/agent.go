@@ -362,6 +362,16 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 	remaining := make([]Task, 0, len(pending))
 	for _, t := range pending {
 		fam := heuristicCategory(t.Prompt)
+		// Off-distribution phrasings are where the keyword heuristic misroutes
+		// ("Split £2,760 in the ratio 5:4:3" has no maths keyword and landed in
+		// the factual lane - wrong by a mile). The classifier reads semantics;
+		// a local lane only engages when BOTH agree. Disagreement is exactly
+		// the uncertainty signal the remote insurance call exists for.
+		if cats := a.categories[t.TaskID]; len(cats) > 0 && cats[0] != fam {
+			fmt.Fprintf(os.Stderr, "local skip %s: classifier says %s, heuristic says %s\n", t.TaskID, cats[0], fam)
+			remaining = append(remaining, t)
+			continue
+		}
 		switch {
 		case baseCfgd && (fam == localllm.FamilyCodeGen || fam == localllm.FamilyNER):
 			assistJobs = append(assistJobs, assistJob{t, fam})

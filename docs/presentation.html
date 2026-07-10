@@ -145,78 +145,75 @@ tr:last-child td { border-bottom: 0; }
   <div class="eyebrow">AMD Developer Hackathon Act 2 / Track 1</div>
   <div class="content">
     <h1>yassai<span class="accent">.</span></h1>
-    <p class="subtitle">Yet Another Stupid Simple AI agent.<br>Correct first, then ruthlessly token-efficient.</p>
+    <p class="subtitle">Yet Another Stupid Simple AI agent.<br>Local-first, evidence-gated, and ruthlessly token-efficient.</p>
     <div class="metrics">
-      <div class="metric"><div class="value green">19/19</div><div class="label">Matched real-task judge accuracy</div></div>
-      <div class="metric"><div class="value">4,826</div><div class="label">Total Fireworks tokens</div></div>
-      <div class="metric"><div class="value orange">2</div><div class="label">Model calls for all tasks</div></div>
-      <div class="metric"><div class="value green">0</div><div class="label">Reasoning tokens and fallbacks</div></div>
+      <div class="metric"><div class="value green">#1</div><div class="label">Live Track-1 leaderboard rank</div></div>
+      <div class="metric"><div class="value">1,292</div><div class="label">Fireworks tokens (2nd place: 1,797)</div></div>
+      <div class="metric"><div class="value green">0.947</div><div class="label">Judge accuracy (18/19)</div></div>
+      <div class="metric"><div class="value orange">13/19</div><div class="label">Tasks answered locally, zero tokens</div></div>
     </div>
     <div class="chips">
-      <span class="chip primary">Go 1.26</span><span class="chip primary">MiniMax-M3</span><span class="chip success">Python 3 tool execution</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">linux/amd64</span><span class="chip">Git LFS</span>
+      <span class="chip primary">Go 1.26</span><span class="chip primary">2x fine-tuned MiniCPM5-1B</span><span class="chip success">llama.cpp in-container</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">MiniMax-M3 insurance call</span><span class="chip">4 GB / 2 vCPU fit</span>
     </div>
-    <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate.</p>
+    <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate. Local model inference counts as zero.</p>
   </div>
   <div class="page">01 / 06</div>
 </section>
 
 <section class="slide">
-  <div class="eyebrow">Final architecture</div>
+  <div class="eyebrow">Architecture</div>
   <div class="content">
-    <h2>Two calls. One deterministic escape hatch.</h2>
-    <p class="subtitle">The classifier decides execution mode locally; it does not spend Fireworks tokens.</p>
+    <h2>Local first. Verified always. One insurance call.</h2>
+    <p class="subtitle">Phases peak sequentially, never together: classify, free the classifier, run one model lane at a time.</p>
     <div class="flow">
-      <div class="node"><strong>tasks.json</strong><span>19 independent tasks<br>8 capability types</span></div>
+      <div class="node"><strong>tasks.json</strong><span>19 tasks<br>8 capability types</span></div>
       <div class="arrow">-&gt;</div>
-      <div class="node hot"><strong>ONNX classifier</strong><span>Granite ModernBERT<br>in-process CPU</span></div>
+      <div class="node hot"><strong>Classify once, then free</strong><span>fp32 ONNX up front;<br>arena released before any<br>llama-server spawns</span></div>
       <div class="arrow">-&gt;</div>
       <div class="node hot">
-        <strong>Execution-mode planner</strong>
+        <strong>Two local lanes (sequential)</strong>
         <div class="split">
-          <div class="mini"><b>DIRECT</b><small>facts, sentiment, summaries, NER, code</small></div>
-          <div class="mini"><b>PYTHON</b><small>maths and logic only</small></div>
+          <div class="mini"><b>TOOL LANE</b><small>maths + logic via fine-tuned run_python contract; executed, never trusted</small></div>
+          <div class="mini"><b>ASSIST LANE</b><small>codegen, NER, summaries, bug fixes - direct answers, gate-checked</small></div>
         </div>
       </div>
       <div class="arrow">-&gt;</div>
-      <div class="node"><strong>results.json</strong><span>validated ids<br>complete answers</span></div>
+      <div class="node"><strong>Fold rejects</strong><span>one Fireworks call,<br>reasoning_effort=none,<br>lean retry on gaps</span></div>
     </div>
     <div class="grid3">
-      <div class="card"><h3>reasoning_effort=none</h3><p>Paid reasoning was the largest controllable cost. Exact computation replaces it where correctness needs work.</p></div>
-      <div class="card"><h3>Native run_python tool</h3><p>Full Python standard library, required first tool call, bounded subprocess, and structured observations.</p></div>
-      <div class="card"><h3>Authoritative submit()</h3><p>Numbers and names are interpolated from computed variables, eliminating correct-code / wrong-copy failures.</p></div>
+      <div class="card"><h3>Agreement routing</h3><p>A lane engages only when the semantic classifier and the keyword heuristic agree on the category. Disagreement is uncertainty - those tasks take the insurance call.</p></div>
+      <div class="card"><h3>Deadline from process start</h3><p>Model loading counts against the 10-minute cap. Local solving always reserves the remote call's slot - no more timeout roulette.</p></div>
+      <div class="card"><h3>Fits the judge VM</h3><p>q8_0 KV cache, flash attention, 256 microbatch, quota-aware threads. Weights are mmap-shared; anonymous memory stays far under 4 GB.</p></div>
     </div>
   </div>
   <div class="page">02 / 06</div>
 </section>
 
 <section class="slide">
-  <div class="eyebrow">Classifier v4</div>
+  <div class="eyebrow">Local specialists</div>
   <div class="content">
-    <h2>Semantic routing that survives messy prompts.</h2>
+    <h2>Two 1B fine-tunes, each owning what it can prove.</h2>
     <div class="grid2">
       <div class="card">
-        <h3>Model and runtime</h3>
+        <h3>Tool lane - MiniCPM5-yassai-v2e3b</h3>
         <ul>
-          <li>IBM Granite Embedding R2 backbone, ~47M parameters</li>
-          <li>8-way multi-label classification head</li>
-          <li>ModernBERT, 1,024 tokens, head+tail truncation</li>
-          <li>int8 ONNX, ~48 MB, in-process Go inference</li>
-          <li>Native amd64 verified; large models stored with Git LFS</li>
+          <li>Maths and logic through a trained run_python contract</li>
+          <li>Code executes in a real subprocess; answers interpolate computed values</li>
+          <li>Training data is parameterised and execution-verified at build time</li>
+          <li>10/11 unseen maths variants, 6/6 logic with gates</li>
         </ul>
-        <div class="chips"><span class="chip success">misspelling augmentation</span><span class="chip success">semantic categories</span><span class="chip">AMD ROCm training</span></div>
       </div>
       <div class="card">
-        <h3>Held-out hard benchmark</h3>
-        <table>
-          <tr><th>Metric</th><th class="num">v4</th></tr>
-          <tr><td>micro-F1</td><td class="num green">0.977</td></tr>
-          <tr><td>macro-F1</td><td class="num">0.967</td></tr>
-          <tr><td>subset accuracy</td><td class="num">0.930</td></tr>
-          <tr><td>previous MiniLM v1 micro-F1</td><td class="num">0.889</td></tr>
-        </table>
-        <div class="callout">Labels cost roughly 10 tokens per task but previously measured about 12% lower total Fireworks use by focusing answer recipes and execution mode.</div>
+        <h3>Assist lane - MiniCPM5-yassai-assist-v6</h3>
+        <ul>
+          <li>Judge-filtered teacher distillation (203/210 kept)</li>
+          <li>Claude-authored adversarial data: sarcasm, idioms, word caps, verified bug-fix pairs</li>
+          <li>Parametric NER/codegen with derived ground truth</li>
+          <li>Held-out behaviour gate before every export - including code functions never trained on</li>
+        </ul>
       </div>
     </div>
+    <div class="callout">Six fine-tune iterations in one day: train (~2 min on Modal H100), gate, export GGUF, verify against 43 adversarial variants. The pipeline is the moat, not any single checkpoint.</div>
     <div class="chips">
       <span class="chip">factual</span><span class="chip">maths</span><span class="chip">sentiment</span><span class="chip">summarisation</span><span class="chip">NER</span><span class="chip">debugging</span><span class="chip">logic</span><span class="chip">code generation</span>
     </div>
@@ -225,68 +222,73 @@ tr:last-child td { border-bottom: 0; }
 </section>
 
 <section class="slide">
-  <div class="eyebrow">Token optimisation</div>
+  <div class="eyebrow">Evidence gates</div>
   <div class="content">
-    <h2>The path from unstable to 19/19.</h2>
-    <div class="grid2">
+    <h2>Never trust a free answer. Verify it.</h2>
+    <p class="subtitle">Local answers are free - and worthless unless something deterministic vouches for them.</p>
+    <div class="grid3">
       <div class="card">
-        <h3>Measured run history</h3>
-        <div class="bars">
-          <div class="bar-row"><span class="bar-label">broken base</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,var(--red),var(--orange));"></div></div><span class="bar-value">10,659</span></div>
-          <div class="bar-row"><span class="bar-label">lean effort</span><div class="bar-track"><div class="bar-fill" style="width:56.7%"></div></div><span class="bar-value">6,046</span></div>
-          <div class="bar-row"><span class="bar-label">prompt trim</span><div class="bar-track"><div class="bar-fill" style="width:54.2%"></div></div><span class="bar-value">5,773</span></div>
-          <div class="bar-row"><span class="bar-label">two batches</span><div class="bar-track"><div class="bar-fill" style="width:46.9%"></div></div><span class="bar-value">4,999</span></div>
-          <div class="bar-row"><span class="bar-label">final</span><div class="bar-track"><div class="bar-fill" style="width:45.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">4,826</span></div>
-        </div>
+        <h3>Grounding</h3>
+        <ul>
+          <li>Answer numbers must derive from executed stdout</li>
+          <li>Two-vehicle physics bounds, magnitude sanity</li>
+          <li>Generated code must pass the prompt's own worked example</li>
+          <li>Bug fixes must parse, keep the name, and differ from the buggy source</li>
+        </ul>
       </div>
       <div class="card">
-        <h3>What actually moved the score</h3>
+        <h3>Format and labels</h3>
         <ul>
-          <li>Disabled reasoning tokens in every category</li>
-          <li>Moved maths and logic into one real-Python batch</li>
-          <li>Forced computed-variable interpolation in submit()</li>
-          <li>Merged all other categories into one direct batch</li>
-          <li>Kept terse, category-specific answer recipes</li>
-          <li>Matched the organiser-style reference judge locally</li>
+          <li>Exact bullet/sentence counts, per-bullet word caps</li>
+          <li>Acronym spans are never LOCATIONs; non-dates never DATEs</li>
+          <li>Entity recall: years, names, acronyms must appear</li>
+          <li>Sentiment and NER must agree with themselves across two phrasings</li>
         </ul>
-        <div class="code">prompt  + output + reasoning = ranked tokens
-3,013  + 1,813  + 0         = 4,826</div>
+      </div>
+      <div class="card">
+        <h3>Recovery ladder</h3>
+        <ul>
+          <li>Gate reject -&gt; one gate-guided local retry (reason appended)</li>
+          <li>Still rejected -&gt; folded remote batch</li>
+          <li>Remote gap -&gt; one lean retry, missing ids only</li>
+          <li>Remote dead -&gt; best rejected local answer ships</li>
+        </ul>
       </div>
     </div>
-    <div class="callout">The leaderboard target was ~4,300. The current cloud-only result is 4,826 at 19/19; further reduction needs a reliable zero-token local offload, not weaker answers.</div>
+    <div class="callout">Measured, not assumed: with gates bypassed the same models score 12/19 - below the accuracy gate. The gates ARE the accuracy. A zero-token mode exists behind a flag for the day a local model clears the bar alone.</div>
   </div>
   <div class="page">04 / 06</div>
 </section>
 
 <section class="slide">
-  <div class="eyebrow">Text2img research</div>
+  <div class="eyebrow">Token journey</div>
   <div class="content">
-    <h2>Useful at 500+ tokens - gated by accuracy.</h2>
+    <h2>6,356 to 1,292 in one day of measured cuts.</h2>
     <div class="grid2">
       <div class="card">
-        <h3>Fireworks prompt-token measurements</h3>
-        <table>
-          <tr><th>Source</th><th class="num">Text</th><th class="num">Image</th><th class="num">Saved</th></tr>
-          <tr><td>500 chars</td><td class="num">262</td><td class="num">216</td><td class="num">18%</td></tr>
-          <tr><td>2,000 chars</td><td class="num">645</td><td class="num">312</td><td class="num green">52%</td></tr>
-          <tr><td>5,000 chars</td><td class="num">1,390</td><td class="num">528</td><td class="num green">62%</td></tr>
-          <tr><td>20,000 chars</td><td class="num">5,141</td><td class="num">1,632</td><td class="num green">68%</td></tr>
-          <tr><td>40,000 chars</td><td class="num">10,144</td><td class="num">3,096</td><td class="num green">69%</td></tr>
-        </table>
-        <p class="footnote">19,250-character probe: 4,312 -&gt; 1,421 prompt tokens, 2/2 answers preserved.</p>
+        <h3>Live and verified run history</h3>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-label">day start (live)</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,var(--red),var(--orange));"></div></div><span class="bar-value">6,356</span></div>
+          <div class="bar-row"><span class="bar-label">tokenizer fix</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div><span class="bar-value">3,834</span></div>
+          <div class="bar-row"><span class="bar-label">+ assist lane</span><div class="bar-track"><div class="bar-fill" style="width:43%"></div></div><span class="bar-value">2,761</span></div>
+          <div class="bar-row"><span class="bar-label">+ tools-off fold</span><div class="bar-track"><div class="bar-fill" style="width:26%"></div></div><span class="bar-value">1,661</span></div>
+          <div class="bar-row"><span class="bar-label">live, rank 1</span><div class="bar-track"><div class="bar-fill" style="width:20.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">1,292</span></div>
+        </div>
       </div>
       <div class="card">
-        <h3>Production auto mode</h3>
+        <h3>What actually moved the score</h3>
         <ul>
-          <li>Keep ids, questions, constraints, code, maths, and logic as text</li>
-          <li>Render only quoted sources >=2,000 characters (~500 tokens)</li>
-          <li>Label every image immediately before its image_url wire part</li>
-          <li>Fall back to text on threshold, render, or mode mismatch</li>
-          <li>Keep aggressive tasks/dense/full modes for research</li>
+          <li>Fixed GGUF tokenisation: manual training render + EOG exceptions</li>
+          <li>Both lanes run before batching - no more stranded solo calls</li>
+          <li>Tools only for dedicated code batches (the coin-flip tool loop cost ~2,600)</li>
+          <li>Factual, summaries, bug fixes moved local behind gates</li>
+          <li>Recipes tuned per batch kind; recovery retries stripped lean</li>
         </ul>
-        <div class="callout">Rejected experiment: two ~450-character images saved only 13 prompt tokens and scored 18/19. Auto now stays text on the real set, preserving 19/19.</div>
+        <div class="code">rehearsal (4 GB / 2 vCPU emulation): 1,297 tokens
+live judge run:                        1,292 tokens</div>
       </div>
     </div>
+    <div class="callout">The CI dress rehearsal predicted the live score within 5 tokens. Every submission is rehearsed on judge-shaped hardware before it spends a slot.</div>
   </div>
   <div class="page">05 / 06</div>
 </section>
@@ -299,36 +301,36 @@ tr:last-child td { border-bottom: 0; }
       <div class="card">
         <h3>Deterministic CI</h3>
         <ul>
-          <li>Go 1.26 matches go.mod and Docker</li>
-          <li>Native amd64 ONNX integration test</li>
-          <li>Network experiments isolated from required CI</li>
-          <li>content:null handled without panics</li>
+          <li>Native amd64 tests incl. real ONNX integration</li>
+          <li>Image build with versioned GGUF artefacts</li>
+          <li>Dress rehearsal: full task set, 4 GB / 2 vCPU</li>
+          <li>Hard-fails on any empty answer or fallback</li>
         </ul>
       </div>
       <div class="card">
         <h3>Portable image</h3>
         <ul>
-          <li>linux/amd64 multi-stage Docker build</li>
-          <li>Static libtokenizers + bundled ONNX Runtime</li>
-          <li>Python 3 runtime for deterministic tools</li>
-          <li>GHCR latest, main, and immutable SHA tags</li>
+          <li>linux/amd64 multi-stage build, immutable SHA tags</li>
+          <li>Two GGUFs + fp32 classifier + llama.cpp b9948</li>
+          <li>Env-only runtime config per the guide</li>
+          <li>Compressed size far under the 10 GB cap</li>
         </ul>
       </div>
       <div class="card">
         <h3>Telemetry loop</h3>
         <ul>
-          <li>Per-call prompt/output/reasoning tokens</li>
-          <li>Batch plans, classifications, and tool traces</li>
-          <li>KV-backed Cloudflare dashboard</li>
-          <li>Token history exposes regressions immediately</li>
+          <li>Every run reports tasks, answers, metrics, traces</li>
+          <li>Cloudflare Worker dashboard, live + rehearsal</li>
+          <li>Diagnosed the timeout roulette and tool-loop spikes</li>
+          <li>Robustness audit: off-distribution wildcard set</li>
         </ul>
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="value green">PASS</div><div class="label">Matched accuracy gate</div></div>
-      <div class="metric"><div class="value">amd64</div><div class="label">Judge-native target</div></div>
-      <div class="metric"><div class="value orange">manual</div><div class="label">Live text2img workflow</div></div>
-      <div class="metric"><div class="value green">ready</div><div class="label">Commit, image, and docs</div></div>
+      <div class="metric"><div class="value green">#1</div><div class="label">1,292 tokens @ 0.947</div></div>
+      <div class="metric"><div class="value">+505</div><div class="label">Token lead over 2nd place</div></div>
+      <div class="metric"><div class="value orange">0</div><div class="label">Fallbacks, empty answers, DQs</div></div>
+      <div class="metric"><div class="value green">ready</div><div class="label">Commit, image, docs, deck</div></div>
     </div>
   </div>
   <div class="page">06 / 06</div>
