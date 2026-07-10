@@ -7,9 +7,9 @@ import (
 
 func TestAnswerGroundedIn(t *testing.T) {
 	cases := []struct {
-		name    string
-		answer  string
-		stdout  string
+		name     string
+		answer   string
+		stdout   string
 		grounded bool
 	}{
 		{"exact int", "1672 units", "1672", true},
