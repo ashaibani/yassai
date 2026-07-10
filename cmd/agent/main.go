@@ -48,28 +48,29 @@ func run() error {
 	}
 
 	cfg := agent.Config{
-		APIKey:           os.Getenv("FIREWORKS_API_KEY"),
-		BaseURL:          normaliseBaseURL(getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")),
-		AllowedModels:    splitCSV(os.Getenv("ALLOWED_MODELS")),
-		PreferredModel:   os.Getenv("AGENT_MODEL"),
-		MaxBatchSize:     getenvInt("AGENT_BATCH_SIZE", 40),
-		MathBatchSize:    getenvInt("AGENT_MATH_BATCH_SIZE", 0),   // 0 = inherit MaxBatchSize
-		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "none"), // 2 batches (direct + code) = fewest system-prompt copies
-		MaxTurns:         getenvInt("AGENT_MAX_TURNS", 1),
-		MaxBatchTokens:   getenvInt("AGENT_BATCH_TOKENS", 50000),
-		MaxConcurrency:   getenvInt("AGENT_MAX_CONCURRENCY", 1),
-		ReasoningEffort:  getenv("AGENT_REASONING_EFFORT", "auto"), // adaptive lean tiers; override with none/low/etc if needed
-		MaxContextTokens: getenvInt("AGENT_CONTEXT_TOKENS", 200000),
-		MemoryRoot:       getenv("AGENT_MEMORY_ROOT", "."),
-		SkillRoots:       splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),
-		Timeout:          time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 120)) * time.Second,
-		ClassifierDir:    getenv("TASKCLF_DIR", "assets/taskclf"),
-		ClassifierLib:    os.Getenv("ONNXRUNTIME_LIB"),
-		DisableHints:     envBool("AGENT_DISABLE_HINTS", false),
-		TraceMessages:    envBool("AGENT_TRACE_MESSAGES", false),
-		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
-		LocalModelPath:   os.Getenv("LOCAL_MODEL_PATH"),
-		LocalLibPath:     getenv("YZMA_LIB", "/opt/llama"),
+		APIKey:             os.Getenv("FIREWORKS_API_KEY"),
+		BaseURL:            normaliseBaseURL(getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")),
+		AllowedModels:      splitCSV(os.Getenv("ALLOWED_MODELS")),
+		PreferredModel:     os.Getenv("AGENT_MODEL"),
+		MaxBatchSize:       getenvInt("AGENT_BATCH_SIZE", 40),
+		MathBatchSize:      getenvInt("AGENT_MATH_BATCH_SIZE", 0),   // 0 = inherit MaxBatchSize
+		BatchIsolation:     getenv("AGENT_BATCH_ISOLATION", "none"), // 2 batches (direct + code) = fewest system-prompt copies
+		MaxTurns:           getenvInt("AGENT_MAX_TURNS", 1),
+		MaxBatchTokens:     getenvInt("AGENT_BATCH_TOKENS", 50000),
+		MaxConcurrency:     getenvInt("AGENT_MAX_CONCURRENCY", 1),
+		ReasoningEffort:    getenv("AGENT_REASONING_EFFORT", "auto"), // adaptive lean tiers; override with none/low/etc if needed
+		MaxContextTokens:   getenvInt("AGENT_CONTEXT_TOKENS", 200000),
+		MemoryRoot:         getenv("AGENT_MEMORY_ROOT", "."),
+		SkillRoots:         splitCSV(os.Getenv("AGENT_SKILL_ROOTS")),
+		Timeout:            time.Duration(getenvInt("LLM_TIMEOUT_SECONDS", 120)) * time.Second,
+		ClassifierDir:      getenv("TASKCLF_DIR", "assets/taskclf"),
+		ClassifierLib:      os.Getenv("ONNXRUNTIME_LIB"),
+		DisableHints:       envBool("AGENT_DISABLE_HINTS", false),
+		TraceMessages:      envBool("AGENT_TRACE_MESSAGES", false),
+		TextImg:            getenv("AGENT_TEXTIMG", "auto"),
+		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
+		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
+		LocalLibPath:       getenv("YZMA_LIB", "/opt/llama"),
 	}
 
 	ag, err := agent.New(cfg)

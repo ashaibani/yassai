@@ -1,6 +1,8 @@
 package localllm
 
 import (
+	"context"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -153,5 +155,58 @@ func TestExtractToolCodeFence(t *testing.T) {
 	}
 	if _, e := extractToolCode("```python\nprint(1)"); e == "" {
 		t.Error("unterminated fence must error")
+	}
+}
+
+func TestExampleCheckGate(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
+	}
+	prompt := "Write a Python function called interval_intersection that takes two lists. " +
+		"For example, interval_intersection([[1,4],[7,10]], [[3,8]]) should return [[3,4],[7,8]]. " +
+		"Handle empty inputs and touching endpoints."
+	good := "def interval_intersection(a, b):\n" +
+		"    out, i, j = [], 0, 0\n" +
+		"    while i < len(a) and j < len(b):\n" +
+		"        lo, hi = max(a[i][0], b[j][0]), min(a[i][1], b[j][1])\n" +
+		"        if lo <= hi:\n            out.append([lo, hi])\n" +
+		"        if a[i][1] < b[j][1]:\n            i += 1\n" +
+		"        else:\n            j += 1\n" +
+		"    return out\n"
+	if reason := exampleCheck(context.Background(), prompt, good); reason != "" {
+		t.Errorf("correct code must pass the example gate, got %q", reason)
+	}
+	bad := strings.Replace(good, "out.append([lo, hi])", "out.append([lo, hi - 1])", 1)
+	if reason := exampleCheck(context.Background(), prompt, bad); reason == "" {
+		t.Error("logic-bug code must fail the example gate")
+	}
+	// prompts without a worked example skip the check
+	if reason := exampleCheck(context.Background(), "Write a Python function called flatten that flattens.", good); reason != "" {
+		t.Errorf("no-example prompt must skip, got %q", reason)
+	}
+}
+
+func TestGateNERSentenceStartTail(t *testing.T) {
+	prompt := "Extract all named entities. On March 15, 2025, Satya Nadella visited Seattle for Microsoft."
+	full := "PERSON: Satya Nadella; LOCATION: Seattle; ORGANIZATION: Microsoft; DATE: March 15, 2025"
+	if reason := gateNER(prompt, full); reason != "" {
+		t.Errorf("complete answer must pass, got %q", reason)
+	}
+	if reason := gateNER(prompt, strings.ReplaceAll(full, "Seattle", "")); reason == "" {
+		t.Error("omitted mid-sentence entity must be rejected")
+	}
+	if reason := gateNER(prompt, strings.ReplaceAll(full, "2025", "2024")); reason == "" {
+		t.Error("omitted year must be rejected")
+	}
+}
+
+func TestGateNERAcronyms(t *testing.T) {
+	prompt := "Extract entities and label each as PERSON, ORGANIZATION, LOCATION, or DATE. " +
+		"Dr Chen joined ETH Zurich after leaving NASA."
+	if reason := gateNER(prompt, "PERSON: Dr Chen; ORGANIZATION: ETH Zurich, NASA"); reason != "" {
+		t.Errorf("complete answer must pass, got %q", reason)
+	}
+	if reason := gateNER(prompt, "PERSON: Dr Chen; ORGANIZATION: NASA; LOCATION: Zurich"); reason == "" {
+		t.Error("omitted all-caps acronym (ETH) must be rejected")
 	}
 }

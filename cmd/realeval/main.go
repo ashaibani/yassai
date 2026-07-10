@@ -136,18 +136,19 @@ func main() {
 	tmpMem, _ := os.MkdirTemp("", "realeval-mem-")
 	defer os.RemoveAll(tmpMem)
 	baseCfg := agent.Config{
-		APIKey:           apiKey,
-		BaseURL:          getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1"),
-		DisableHints:     getenv("SKILLS", "on") == "off",
-		MaxBatchSize:     20,
-		MaxBatchTokens:   12000,
-		MaxContextTokens: 200000,
-		MemoryRoot:       tmpMem,
-		Timeout:          180 * time.Second,
-		TextImg:          getenv("AGENT_TEXTIMG", "auto"),
-		BatchIsolation:   getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
-		LocalModelPath:   os.Getenv("LOCAL_MODEL_PATH"),
-		LocalLibPath:     getenv("YZMA_LIB", "/opt/homebrew/lib"),
+		APIKey:             apiKey,
+		BaseURL:            getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1"),
+		DisableHints:       getenv("SKILLS", "on") == "off",
+		MaxBatchSize:       20,
+		MaxBatchTokens:     12000,
+		MaxContextTokens:   200000,
+		MemoryRoot:         tmpMem,
+		Timeout:            180 * time.Second,
+		TextImg:            getenv("AGENT_TEXTIMG", "auto"),
+		BatchIsolation:     getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
+		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
+		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
+		LocalLibPath:       getenv("YZMA_LIB", "/opt/homebrew/lib"),
 	}
 	mode := getenv("EFFORT_MODE", "") // "adaptive" = per-category tier; else uniform AGENT_REASONING_EFFORT
 	ansByID := map[string]string{}

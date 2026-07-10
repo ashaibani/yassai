@@ -4,6 +4,12 @@
 // accuracy, NOT the token score), so every task answered here is free.
 // A validation gate rejects anything doubtful - rejected tasks fall back to
 // the normal Fireworks batch, so accuracy can never drop below that baseline.
+//
+// Engine: a spawned llama-server driven over localhost HTTP. The previous
+// in-process yzma (purego) bindings decoded GARBAGE on Linux (both amd64 and
+// arm64 - backtick/quote spam) while llama.cpp's own C++ binaries decoded the
+// same GGUF coherently on the same hosts, so the C++ server owns inference and
+// Go owns orchestration.
 package localllm
 
 import (
@@ -13,6 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
+	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -21,7 +30,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hybridgroup/yzma/pkg/llama"
 	"github.com/hybridgroup/yzma/pkg/message"
 )
 
@@ -42,23 +50,21 @@ The Python must compute from named variables and print concise final values.
 After receiving a run_python result, return only the final answer requested by the user.`
 
 type Config struct {
-	ModelPath string // fine-tuned GGUF
-	LibPath   string // directory containing llama.cpp shared libraries
-	Threads   int
-	CtxSize   uint32
-	MaxGen    int32         // max generated tokens per turn
-	Timeout   time.Duration // per-task wall clock budget
+	ModelPath  string // fine-tuned GGUF
+	LibPath    string // directory containing llama-server and its shared libraries
+	ServerPath string // llama-server binary; default LibPath/llama-server
+	Threads    int
+	CtxSize    uint32
+	MaxGen     int32         // max generated tokens per turn
+	Timeout    time.Duration // per-task wall clock budget
 }
 
 type Solver struct {
-	cfg       Config
-	model     llama.Model
-	lctx      llama.Context
-	vocab     llama.Vocab
-	tmpl      string
-	toolOpen  llama.Token // <tool_call> - reserved id the vocab may mark EOG
-	toolClose llama.Token // </tool_call> - ditto; never break generation on these
-	mu        sync.Mutex  // llama context is not concurrency-safe
+	cfg     Config
+	proc    *exec.Cmd
+	baseURL string
+	client  *http.Client
+	mu      sync.Mutex // one request at a time (-np 1 server)
 }
 
 // Result is one task attempt. OK=false means the caller must fall back to the
@@ -70,9 +76,6 @@ type Result struct {
 	OK     bool
 	Reason string
 }
-
-var initOnce sync.Once
-var initErr error
 
 func New(cfg Config) (*Solver, error) {
 	if strings.TrimSpace(cfg.ModelPath) == "" {
@@ -92,85 +95,111 @@ func New(cfg Config) (*Solver, error) {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 75 * time.Second
 	}
-	initOnce.Do(func() {
-		if err := llama.Load(cfg.LibPath); err != nil {
-			initErr = err
-			return
-		}
-		llama.LogSet(llama.LogSilent())
-		llama.Init()
-	})
-	if initErr != nil {
-		return nil, fmt.Errorf("localllm: load llama libs from %q: %w", cfg.LibPath, initErr)
-	}
 	abs, err := filepath.Abs(cfg.ModelPath)
 	if err != nil {
 		return nil, err
 	}
-	params := llama.ModelDefaultParams()
-	params.NGpuLayers = 0
-	params.Devices = 0
-	model, err := llama.ModelLoadFromFile(abs, params)
+	if _, err := os.Stat(abs); err != nil {
+		return nil, fmt.Errorf("localllm: model file: %w", err)
+	}
+	server := strings.TrimSpace(cfg.ServerPath)
+	if server == "" {
+		server = filepath.Join(cfg.LibPath, "llama-server")
+	}
+	if _, err := os.Stat(server); err != nil {
+		return nil, fmt.Errorf("localllm: llama-server binary: %w", err)
+	}
+	port, err := freePort()
 	if err != nil {
-		return nil, fmt.Errorf("localllm: load model: %w", err)
+		return nil, fmt.Errorf("localllm: no free port: %w", err)
 	}
-	ctxParams := llama.ContextDefaultParams()
-	ctxParams.NCtx = cfg.CtxSize
-	ctxParams.NBatch = 1024
-	ctxParams.NUbatch = 512
-	ctxParams.NThreads = int32(cfg.Threads)
-	ctxParams.NThreadsBatch = int32(cfg.Threads)
-	ctxParams.Offload_kqv = 0
-	ctxParams.OpOffload = 0
-	lctx, err := llama.InitFromModel(model, ctxParams)
-	if err != nil {
-		_ = llama.ModelFree(model)
-		return nil, fmt.Errorf("localllm: init context: %w", err)
+	cmd := exec.Command(server,
+		"-m", abs,
+		"--host", "127.0.0.1",
+		"--port", strconv.Itoa(port),
+		"-t", strconv.Itoa(cfg.Threads),
+		"-c", strconv.Itoa(int(cfg.CtxSize)),
+		"-np", "1",
+		"--no-webui",
+	)
+	cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+cfg.LibPath)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("localllm: start llama-server: %w", err)
 	}
-	tmpl := llama.ModelChatTemplate(model, "")
-	if strings.TrimSpace(tmpl) == "" {
-		_ = llama.Free(lctx)
-		_ = llama.ModelFree(model)
-		return nil, errors.New("localllm: model has no embedded chat template")
+	s := &Solver{
+		cfg:     cfg,
+		proc:    cmd,
+		baseURL: "http://127.0.0.1:" + strconv.Itoa(port),
+		client:  &http.Client{Timeout: 3 * time.Minute},
 	}
-	s := &Solver{cfg: cfg, model: model, lctx: lctx, vocab: llama.ModelGetVocab(model), tmpl: tmpl}
-	// MiniCPM5 maps <tool_call>/</tool_call> to reserved ids (2/3) that the
-	// vocab can flag as end-of-generation; resolve them so the decode loop
-	// never mistakes a tool-call boundary for the end of the turn.
-	if ids := llama.Tokenize(s.vocab, "<tool_call>", false, true); len(ids) == 1 {
-		s.toolOpen = ids[0]
+	if err := s.waitHealthy(90 * time.Second); err != nil {
+		s.Close()
+		return nil, fmt.Errorf("localllm: server never became healthy: %w", err)
 	}
-	if ids := llama.Tokenize(s.vocab, "</tool_call>", false, true); len(ids) == 1 {
-		s.toolClose = ids[0]
-	}
-	// Boot canary: some lib/arch combinations load fine yet decode garbage
-	// (seen: ubuntu-arm64 llama libs under Docker's VM emit backtick spam).
-	// One tiny generation proves the stack computes; a degenerate result
-	// disables local solving for the run - the Fireworks baseline takes over
-	// rather than burning the 10-minute budget on 18 doomed generations.
-	cctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	// Boot canary: a stack that loads fine can still decode garbage (seen with
+	// the in-process yzma path on Linux: backtick/quote spam). One in-family
+	// generation proves the engine computes coherently; a degenerate result
+	// disables local solving for the run so the Fireworks baseline takes over
+	// instead of burning the 10-minute budget on 18 doomed generations. The
+	// check targets DEGENERACY, not correctness - the per-task gates own that.
+	cctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	canary, cerr := s.generate(cctx, "What is 6 * 7? Return only the number.")
-	if cerr != nil || !strings.Contains(canary, "run_python") || strings.Contains(canary, "``````") {
+	canary, cerr := s.generate(cctx, "A depot starts with 500 units. It ships 20% of stock, then receives 50 units. How many units remain?")
+	degenerate := cerr != nil || strings.TrimSpace(canary) == "" || len(canary) > 1600 ||
+		strings.Contains(canary, "``````") || strings.Contains(canary, "\"\n\"\n\"") ||
+		strings.Count(canary, "```python") > 2
+	if degenerate {
 		s.Close()
 		return nil, fmt.Errorf("localllm: boot canary failed (degenerate or erroring decode): err=%v out=%.80q", cerr, canary)
 	}
 	return s, nil
 }
 
+func freePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func (s *Solver) waitHealthy(budget time.Duration) error {
+	deadline := time.Now().Add(budget)
+	for time.Now().Before(deadline) {
+		resp, err := s.client.Get(s.baseURL + "/health")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return nil
+			}
+		}
+		if s.proc.ProcessState != nil {
+			return errors.New("llama-server exited during startup")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return errors.New("health check timed out")
+}
+
 func (s *Solver) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_ = llama.Free(s.lctx)
-	_ = llama.ModelFree(s.model)
+	if s.proc != nil && s.proc.Process != nil {
+		_ = s.proc.Process.Kill()
+		_, _ = s.proc.Process.Wait()
+	}
 }
 
 // semanticClueMarkers flag logic clues that need world knowledge to encode.
 // Families not yet covered by the SFT data get skipped locally - encoding
 // them wrong yields unique-looking wrong solutions that grounding cannot
-// catch. 'allergic' was pruned once fam_assignment taught fur-allergy
-// exclusions (v2-e5 weights); prune the rest as coverage lands.
-var semanticClueMarkers = []string{"vegetarian", "afraid of"}
+// catch. 'allergic' stays listed: the v2e3b weights still mis-encode the
+// fur-allergy exclusion sometimes (seen on amd64 validation); prune only
+// after a weights release passes allergy variants through the gates.
+var semanticClueMarkers = []string{"allergic", "vegetarian", "afraid of"}
 
 // SolveTask runs the two-turn tool contract for a single task prompt, with
 // one gate-guided retry: greedy decoding is deterministic, so appending the
@@ -544,57 +573,41 @@ func answerGroundedIn(answer, stdout string) string {
 func (s *Solver) generate(ctx context.Context, userPrompt string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mem, err := llama.GetMemory(s.lctx)
-	if err != nil {
-		return "", err
-	}
-	if err := llama.MemoryClear(mem, true); err != nil {
-		return "", err
-	}
 	// Build the prompt in the EXACT training render (verified by
-	// assert_minicpm5_template_contract in finetune/minicpm5/train_trl.py)
-	// instead of trusting the GGUF-embedded template engine: the official
-	// MiniCPM5 no-think format, <s> BOS included, thinking block empty.
+	// assert_minicpm5_template_contract in finetune/minicpm5/train_trl.py):
+	// the official MiniCPM5 no-think format, <s> BOS included, thinking block
+	// empty. llama-server tokenises string prompts with special-token parsing,
+	// so the ChatML markers become their reserved ids exactly as in training.
 	prompt := "<s><|im_start|>system\n" + systemPrompt + "<|im_end|>\n" +
 		"<|im_start|>user\n" + strings.TrimSpace(userPrompt) + "<|im_end|>\n" +
 		"<|im_start|>assistant\n<think>\n\n</think>\n\n"
-	// parseSpecial=true: the ChatML markers and <s> must become their special
-	// ids exactly as the HF tokenizer produced them in training.
-	// addSpecial=false: the render carries its own BOS.
-	tokens := llama.Tokenize(s.vocab, prompt, false, true)
-	if len(tokens) == 0 {
-		return "", errors.New("empty tokenization")
+	body, _ := json.Marshal(map[string]any{
+		"prompt":       prompt,
+		"n_predict":    s.cfg.MaxGen,
+		"temperature":  0,
+		"cache_prompt": false,
+		"stop":         []string{"<|im_end|>"},
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+"/completion", bytes.NewReader(body))
+	if err != nil {
+		return "", err
 	}
-	batch := llama.BatchGetOne(tokens)
-	sampler := llama.SamplerChainInit(llama.SamplerChainDefaultParams())
-	defer llama.SamplerFree(sampler)
-	llama.SamplerChainAdd(sampler, llama.SamplerInitGreedy())
-
-	var out strings.Builder
-	for pos := int32(0); pos < s.cfg.MaxGen; pos += batch.NTokens {
-		if err := ctx.Err(); err != nil {
-			return out.String(), err
-		}
-		if code, err := llama.Decode(s.lctx, batch); err != nil || code != 0 {
-			if err != nil {
-				return out.String(), err
-			}
-			return out.String(), fmt.Errorf("llama_decode returned %d", code)
-		}
-		token := llama.SamplerSample(sampler, s.lctx, -1)
-		// The vocab flags the reserved tool-call ids as EOG; they are real
-		// output tokens for this model, so only genuine end markers stop us.
-		if llama.VocabIsEOG(s.vocab, token) && token != s.toolOpen && token != s.toolClose {
-			break
-		}
-		buf := make([]byte, 256)
-		if n := llama.TokenToPiece(s.vocab, token, buf, 0, true); n > 0 {
-			out.Write(buf[:n])
-		}
-		llama.SamplerAccept(sampler, token)
-		batch = llama.BatchGetOne([]llama.Token{token})
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSpace(out.String()), nil
+	defer resp.Body.Close()
+	var out struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", fmt.Errorf("decode /completion response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("/completion status %d", resp.StatusCode)
+	}
+	return strings.TrimSpace(out.Content), nil
 }
 
 func runPython(ctx context.Context, code string) (string, error) {
@@ -615,3 +628,10 @@ func runPython(ctx context.Context, code string) (string, error) {
 }
 
 func jsonUnmarshal(s string, v any) error { return json.Unmarshal([]byte(s), v) }
+
+// MeetingTimeBound exposes the two-vehicle physics check for remote answers
+// too: the Fireworks path occasionally ships impossible meeting times
+// (03:04.5 for a 09:30 departure), and the bound is engine-agnostic.
+func MeetingTimeBound(prompt, answer string) string {
+	return meetingTimeBound(prompt, answer)
+}

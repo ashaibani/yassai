@@ -11,12 +11,17 @@ ARG TOK_VERSION=1.27.0
 # them; purego, no cgo). yzma v1.18 needs >= b9946 (llama_model_n_layer_nextn);
 # b9620 libs load-fail and silently disable the local model (seen in the
 # sha-118fcd3 leaderboard image: GGUF baked, load failed, local_answers=0).
-ARG LLAMA_VERSION=b9946
+# b9948 = version verified locally (macOS arm64 + this Dockerfile's x64 dist):
+# the base lane's `--reasoning off` flag and the yzma v1.18 symbols both present.
+ARG LLAMA_VERSION=b9948
 # Optional: URL of the fine-tuned GGUF. Left empty the image builds without a
 # local model and the agent silently runs Fireworks-only. Private Hugging Face
 # URLs authenticate via the BuildKit secret `hf_token` (never an ARG - ARGs
 # persist in image history).
 ARG LOCAL_MODEL_URL=""
+# Optional: URL of the UN-tuned MiniCPM5 base GGUF (second local lane:
+# code_generation + gated NER). Same auth rules as LOCAL_MODEL_URL.
+ARG LOCAL_BASE_MODEL_URL=""
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL -o /tmp/ort.tgz \
@@ -28,16 +33,22 @@ RUN curl -fsSL -o /tmp/tok.tgz \
 RUN curl -fsSL -o /tmp/llama.tgz \
       "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_VERSION}/llama-${LLAMA_VERSION}-bin-ubuntu-x64.tar.gz" \
     && mkdir -p /llama-dist /llama && tar xzf /tmp/llama.tgz -C /llama-dist --strip-components=1 \
-    && find /llama-dist -name '*.so*' -exec cp -a {} /llama/ \;
+    && find /llama-dist -name '*.so*' -exec cp -a {} /llama/ \; \
+    && find /llama-dist -name 'llama-server' -exec cp -a {} /llama/ \;
 RUN --mount=type=secret,id=hf_token \
     mkdir -p /localmodel \
-    && if [ -n "${LOCAL_MODEL_URL}" ]; then \
+    && fetch() { \
          if [ -s /run/secrets/hf_token ]; then \
-           curl -fsSL -H "Authorization: Bearer $(cat /run/secrets/hf_token)" \
-                -o /localmodel/minicpm5-yassai.gguf "${LOCAL_MODEL_URL}"; \
+           curl -fsSL -H "Authorization: Bearer $(cat /run/secrets/hf_token)" -o "$1" "$2"; \
          else \
-           curl -fsSL -o /localmodel/minicpm5-yassai.gguf "${LOCAL_MODEL_URL}"; \
+           curl -fsSL -o "$1" "$2"; \
          fi; \
+       } \
+    && if [ -n "${LOCAL_MODEL_URL}" ]; then \
+         fetch /localmodel/minicpm5-yassai.gguf "${LOCAL_MODEL_URL}"; \
+       fi \
+    && if [ -n "${LOCAL_BASE_MODEL_URL}" ]; then \
+         fetch /localmodel/minicpm5-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
        fi
 
 # --- build the agent (cgo ON: both bindings are cgo; build on the target platform) ---
@@ -68,5 +79,6 @@ COPY assets/taskclf/ /assets/taskclf/
 ENV ONNXRUNTIME_LIB=/opt/ort/libonnxruntime.so \
     TASKCLF_DIR=/assets/taskclf \
     YZMA_LIB=/opt/llama \
-    LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf
+    LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf \
+    LOCAL_BASE_MODEL_PATH=/assets/localmodel/minicpm5-base.gguf
 ENTRYPOINT ["/yassai"]

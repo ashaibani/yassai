@@ -29,6 +29,7 @@ type Agent struct {
 	skills     *skills.Loader
 	clf        *taskclf.Classifier
 	local      *localllm.Solver
+	localBase  *localllm.DirectSolver
 	categories map[string][]string
 	metrics    Metrics
 	mu         sync.Mutex
@@ -78,6 +79,13 @@ func New(cfg Config) (*Agent, error) {
 			fmt.Fprintln(os.Stderr, "local model disabled:", lerr)
 		} else {
 			ag.local = solver
+		}
+	}
+	if mp := strings.TrimSpace(cfg.LocalBaseModelPath); mp != "" {
+		if solver, lerr := localllm.NewDirect(localllm.Config{ModelPath: mp, LibPath: cfg.LocalLibPath}); lerr != nil {
+			fmt.Fprintln(os.Stderr, "local base model disabled:", lerr)
+		} else {
+			ag.localBase = solver
 		}
 	}
 	return ag, nil
@@ -284,15 +292,40 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 		run.Error = ctx.Err().Error()
 		return map[string]string{}, run
 	}
-	// Local-first: the in-container model answers maths/logic tasks for zero
-	// Fireworks tokens; only tasks its validation gate rejects stay in the
-	// remote batch. Fully-local batches skip Fireworks entirely.
+	// Local-first: the in-container models answer tasks for zero Fireworks
+	// tokens; only tasks their validation gates reject stay in the remote
+	// batch. Fully-local batches skip Fireworks entirely.
 	localAnswers := map[string]string{}
+	localBudget := time.Now().Add(4 * time.Minute) // shared local wall clock, protects the 10-min container cap
+	if a.localBase != nil {
+		var remaining []Task
+		for _, t := range batch {
+			fam := heuristicCategory(t.Prompt)
+			if ctx.Err() != nil || time.Now().After(localBudget) ||
+				(fam != localllm.FamilyCodeGen && fam != localllm.FamilyNER) {
+				remaining = append(remaining, t)
+				continue
+			}
+			res := a.localBase.SolveTask(ctx, t.Prompt, fam)
+			if res.OK {
+				localAnswers[t.TaskID] = res.Answer
+				a.mu.Lock()
+				a.metrics.LocalAnswers++
+				a.mu.Unlock()
+			} else {
+				fmt.Fprintf(os.Stderr, "local reject %s: %s\n", t.TaskID, res.Reason)
+				remaining = append(remaining, t)
+			}
+		}
+		if len(remaining) == 0 {
+			return localAnswers, run
+		}
+		batch = remaining
+	}
 	if a.local != nil && a.batchAllowsCode(batch) {
 		var remaining []Task
-		localBudget := time.Now().Add(4 * time.Minute) // protect the 10-min container cap
 		for _, t := range batch {
-			if ctx.Err() != nil || time.Now().After(localBudget) || !a.taskUsesCode(t) {
+			if ctx.Err() != nil || time.Now().After(localBudget) || !localTrainedFamily(t.Prompt) || !a.taskUsesCode(t) {
 				remaining = append(remaining, t)
 				continue
 			}
@@ -313,6 +346,19 @@ func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executo
 		batch = remaining
 	}
 	answers, calls, tools, err := a.solveBatch(ctx, exec, batch)
+	// Physics screen on remote answers: an impossible two-vehicle meeting time
+	// (03:04.5 for a 09:30 departure - observed from Fireworks) is dropped so
+	// the standard missing-ids recovery earns one retry at it. Applied only to
+	// this first pass - a retry that still fails the bound ships as-is rather
+	// than looping.
+	for _, t := range batch {
+		if ans, ok := answers[t.TaskID]; ok {
+			if reason := localllm.MeetingTimeBound(t.Prompt, ans); reason != "" {
+				fmt.Fprintf(os.Stderr, "remote answer rejected %s: %s\n", t.TaskID, reason)
+				delete(answers, t.TaskID)
+			}
+		}
+	}
 	answers = mergeAnswers(cloneAnswerMap(localAnswers), answers)
 	run.Calls = calls
 	run.Tools = tools
@@ -936,6 +982,20 @@ func (a *Agent) taskUsesCode(t Task) bool {
 	// so it routes to code-exec on its own; a rare false positive just means
 	// one extra task solved in the code batch, which the recipes handle.
 	return usesCodeExec(heuristicCategory(t.Prompt))
+}
+
+// localTrainedFamily reports whether the prompt sits inside the local model's
+// SFT coverage (maths/logic word problems). Code tasks pass the grounding gate
+// whenever their snippet executes, but the weights were never tuned on that
+// family and unseen-variant code_debugging answers judge at ~1/3 - those stay
+// on the API. heuristicCategory checks code_debugging before maths/logic, so
+// code-shaped prompts cannot leak in via a stray '%' or 'how many'.
+func localTrainedFamily(prompt string) bool {
+	switch heuristicCategory(prompt) {
+	case "mathematical_reasoning", "logical_deductive_reasoning":
+		return true
+	}
+	return false
 }
 
 func (a *Agent) batchAllowsCode(batch []Task) bool {

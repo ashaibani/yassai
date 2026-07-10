@@ -1,0 +1,299 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 6,
+    "prompt_tokens": 16511,
+    "output_tokens": 5217,
+    "total_tokens": 21728,
+    "cached_tokens": 5118,
+    "reasoning_tokens": 0,
+    "tool_runs": 4,
+    "local_answers": 14,
+    "batch_count": 3,
+    "fallbacks": 0,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0,
+    "batch_plan": [
+      {
+        "index": 0,
+        "task_ids": [
+          "m_v01",
+          "m_v02",
+          "m_v03",
+          "m_v04",
+          "m_v05",
+          "m_v06",
+          "m_v07",
+          "m_v08",
+          "l_v01",
+          "l_v02",
+          "l_v03",
+          "l_v04",
+          "m_a01",
+          "m_a02",
+          "m_a03",
+          "l_a01",
+          "l_a02"
+        ],
+        "size": 17,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      },
+      {
+        "index": 1,
+        "task_ids": [
+          "n_v01",
+          "n_v02",
+          "n_v03",
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "cg_v03",
+          "f_v01",
+          "f_v02",
+          "f_v03",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v01",
+          "su_v02",
+          "cd_a01",
+          "cd_a02"
+        ],
+        "size": 20,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      },
+      {
+        "index": 2,
+        "task_ids": [
+          "cd_a03",
+          "cg_a01",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "size": 6,
+        "effort": "none",
+        "model": "accounts/fireworks/models/minimax-m3"
+      }
+    ],
+    "call_records": [
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T11:25:30.61651+01:00",
+        "latency_ms": 1283,
+        "prompt_tokens": 1428,
+        "completion_tokens": 116,
+        "total_tokens": 1544,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 6,
+        "output_chars": 0,
+        "task_ids": [
+          "cd_a03",
+          "cg_a01",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\n# cd_a03: evaluate total1 and total2\nnums = [1, 2, 3, 4, 5, 6]\nevens = (n for n in nums if n % 2 == 0)\ntotal1 = sum(evens)\ntotal2 = sum(evens)\nprint(\"total1:\", total1)\nprint(\"total2:\", total2)\nprint(\"reason: generator is exhausted after first sum\")\n",
+            "stdout": "total1: 12\ntotal2: 0\nreason: generator is exhausted after first sum"
+          }
+        ]
+      },
+      {
+        "turn": 1,
+        "timestamp": "2026-07-10T11:25:31.952295+01:00",
+        "latency_ms": 2774,
+        "prompt_tokens": 1300,
+        "completion_tokens": 537,
+        "total_tokens": 1837,
+        "cached_tokens": 583,
+        "reasoning_tokens": 0,
+        "batch_size": 6,
+        "output_chars": 1964,
+        "task_ids": [
+          "cd_a03",
+          "cg_a01",
+          "cg_a02",
+          "s_a01",
+          "s_a02",
+          "su_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 2400,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"cd_a03\",\"answer\":\"total1 evaluates to 12 and total2 evaluates to 0, because evens is a generator that is exhausted after the first sum() call, leaving nothing left to sum the second time.\"},{\"task_id\":\"cg_a01\",\"answer\":\"def edit_distance(a, b):\\n    \\\"\\\"\\\"Return the Levenshtein distance between strings a and b.\\\"\\\"\\\"\\n    if a == b:\\n        return 0\\n    if not a:\\n        return len(b)\\n    if not b:\\n        return len(a)\\n    prev = list(range(len(b) + 1))\\n    for i, ca in enumerate(a, 1):\\n        curr = [i] + [0] * len(b)\\n        for j, cb in enumerate(b, 1):\\n            curr[j] = min(\\n                prev[j] + 1,        # deletion\\n                curr[j - 1] + 1,    # insertion\\n                prev[j - 1] + (ca != cb),  # substitution\\n            )\\n        prev = curr\\n    return prev[-1]\"},{\"task_id\":\"cg_a02\",\"answer\":\"def lis_length(nums):\\n    \\\"\\\"\\\"Return the length of the longest strictly increasing subsequence.\\\"\\\"\\\"\\n    if not nums:\\n        return 0\\n    tails = []\\n    for n in nums:\\n        lo, hi = 0, len(tails)\\n        while lo \u003c hi:\\n            mid = (lo + hi) // 2\\n            if tails[mid] \u003c n:\\n                lo = mid + 1\\n            else:\\n                hi = mid\\n        if lo == len(tails):\\n            tails.append(n)\\n        else:\\n            tails[lo] = n\\n    return len(tails)\"},{\"task_id\":\"s_a01\",\"answer\":\"Negative. The reviewer is being sarcastic: the update broke their settings and hid a feature, so the 'five stars' praise is the opposite of genuine approval.\"},{\"task_id\":\"s_a02\",\"answer\":\"Positive. Despite the modest setting, the reviewer praises the food as the best noodles they have had all year.\"},{\"task_id\":\"su_a01\",\"answer\":\"- Global smartphone shipments fell for an eighth straight quarter.\\n- 61% of the decline is attributed to longer device replacement cycles.\\n- Makers are shifting budgets to trade-ins, on-device AI, and longer software support.\"}]}"
+      },
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T11:25:55.741053+01:00",
+        "latency_ms": 2357,
+        "prompt_tokens": 1320,
+        "completion_tokens": 462,
+        "total_tokens": 1782,
+        "cached_tokens": 1319,
+        "reasoning_tokens": 0,
+        "batch_size": 3,
+        "output_chars": 0,
+        "task_ids": [
+          "l_v02",
+          "l_v04",
+          "l_a01"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 3072,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\nfrom itertools import permutations\n\n# l_v02\npeople = ['Ravi','Sofia','Tara']\nmodes = ['bicycle','bus','car']\nsols=[]\nfor p in permutations(modes):\n    r,s,t = p\n    if r in ('bus','car'): continue\n    if s == 'bus': continue\n    if t == 'bicycle': continue\n    sols.append(p)\nv02 = sols[0]\nans_v02 = f\"Ravi: {v02[0]}, Sofia: {v02[1]}, Tara: {v02[2]}\"\n\n# l_v04\npeople2 = ['Yara','Zane','Alba']\nanimals = ['rabbit','hamster','canary']\nsols2=[]\nfor p in permutations(animals):\n    y,z,a = p\n    if z == 'rabbit' or z == 'hamster': continue\n    if y == 'canary': continue\n    if a == 'rabbit': continue\n    sols2.append(p)\nv04 = sols2[0]\nans_v04 = f\"Yara: {v04[0]}, Zane: {v04[1]}, Alba: {v04[2]}\"\n\n# l_a01\npeople3 = ['Ana','Bram','Cleo','Dev','Esme']\nsols3=[]\nfor p in permutations(people3):\n    if p[0]!='Ana' or p[4]!='Esme': continue\n    ci = p.index('Cleo'); di = p.index('Dev')\n    if di - ci != 1: continue\n    if abs(p.index('Bram')-p.index('Esme'))==1: continue\n    sols3.append(p)\nv_a01 = sols3[0]\nans_a01 = \", \".join(v_a01)\n\nsubmit(answers=[\n    {\"task_id\":\"l_v02\",\"answer\":ans_v02},\n    {\"task_id\":\"l_v04\",\"answer\":ans_v04},\n    {\"task_id\":\"l_a01\",\"answer\":ans_a01},\n])\n",
+            "json": "[{\"task_id\": \"l_v02\", \"answer\": \"Ravi: bicycle, Sofia: car, Tara: bus\"}, {\"task_id\": \"l_v04\", \"answer\": \"Yara: rabbit, Zane: canary, Alba: hamster\"}, {\"task_id\": \"l_a01\", \"answer\": \"Ana, Bram, Cleo, Dev, Esme\"}]"
+          }
+        ]
+      },
+      {
+        "turn": 0,
+        "timestamp": "2026-07-10T11:25:58.118596+01:00",
+        "latency_ms": 10271,
+        "prompt_tokens": 2539,
+        "completion_tokens": 2070,
+        "total_tokens": 4609,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "batch_size": 20,
+        "output_chars": 0,
+        "task_ids": [
+          "n_v01",
+          "n_v02",
+          "n_v03",
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "cg_v03",
+          "f_v01",
+          "f_v02",
+          "f_v03",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v01",
+          "su_v02",
+          "cd_a01",
+          "cd_a02"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 5000,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\n# n_v01\nn_v01 = \"PERSON: Lisa Su | ORGANIZATION: AMD, University of Texas | LOCATION: Austin | DATE: 4 February 2024\"\n\n# n_v02\nn_v02 = \"PERSON: Satya Nadella | ORGANIZATION: OpenAI, Microsoft | LOCATION: Seattle | DATE: 12 June 2025\"\n\n# n_v03\nn_v03 = \"PERSON: Margrethe Vestager | ORGANIZATION: European Commission, Amazon | LOCATION: Europe | DATE: October 2019\"\n\n# cd_v01 - bug: condition checks odd instead of even\ncd_v01 = \"Bug: the condition `n % 2 == 1` selects odd numbers instead of even ones. Corrected function:\\ndef sum_evens(nums):\\n    total = 0\\n    for n in nums:\\n        if n % 2 == 0:\\n            total += n\\n    return total\"\n\n# cd_v02 - bug: range starts at 1, skips index 0\ncd_v02 = \"Bug: `range(1, len(nums))` skips the first element. Corrected function:\\ndef count_target(nums, target):\\n    count = 0\\n    for i in range(len(nums)):\\n        if nums[i] == target:\\n            count += 1\\n    return count\"\n\n# cd_v03 - bug: divides by len-1 instead of len\ncd_v03 = \"Bug: dividing by `len(nums) - 1` instead of `len(nums)` (and would crash on empty list). Corrected function:\\ndef average(nums):\\n    if not nums:\\n        return 0\\n    total = 0\\n    for n in nums:\\n        total += n\\n    return total / len(nums)\"\n\n# cg_v01\ncg_v01 = \"def run_length_encode(s):\\n    if not s:\\n        return []\\n    result = []\\n    count = 1\\n    for i in range(1, len(s)):\\n        if s[i] == s[i-1]:\\n            count += 1\\n        else:\\n            result.append((s[i-1], count))\\n            count = 1\\n    result.append((s[-1], count))\\n    return result\"\n\n# cg_v02\ncg_v02 = \"def interval_intersection(a, b):\\n    result = []\\n    i = j = 0\\n    while i \u003c len(a) and j \u003c len(b):\\n        start = max(a[i][0], b[j][0])\\n        end = min(a[i][1], b[j][1])\\n        if start \u003c= end:\\n            result.append([start, end])\\n        if a[i][1] \u003c b[j][1]:\\n            i += 1\\n        else:\\n            j += 1\\n    return result\"\n\n# cg_v03\ncg_v03 = \"def top_k_frequent(strings, k):\\n    counts = {}\\n    for s in strings:\\n        counts[s] = counts.get(s, 0) + 1\\n    items = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\\n    return [s for s, _ in items[:k]]\"\n\n# f_v01\nf_v01 = \"The three primary colours in the CMY subtractive model are Cyan, Magenta, and Yellow. Printers use CMY (plus black, K) because subtractive mixing on paper reflects light: combining CMY inks absorbs (subtracts) red, green, and blue from white light, producing a wider printable gamut and denser blacks than RGB additive light can achieve on a reflective surface.\"\n\n# f_v02\nf_v02 = \"HTTP (Hypertext Transfer Protocol) and HTTPS are the same application protocol, but HTTPS adds a TLS/SSL encryption layer on top. That extra layer encrypts the data in transit, authenticates the server (and optionally the client) via certificates, and protects against eavesdropping and tampering.\"\n\n# f_v03\nf_v03 = \"A compiler translates the entire source program into an executable machine-code file before it runs, while an interpreter reads and executes the program line-by-line (or statement-by-statement) at runtime. Typical example: C is typically compiled; Python is typically interpreted.\"\n\n# s_v01\ns_v01 = \"Positive | Despite setup hiccups, the reviewer praises flawless syncing and fast support, indicating overall satisfaction.\"\n\n# s_v02\ns_v02 = \"Negative | The product failed within a week and the refund has been delayed a month, outweighing the positive packaging and delivery.\"\n\n# s_v03\ns_v03 = \"Neutral | The reviewer notes both a pro (battery) and a con (scratches) and explicitly says they are undecided.\"\n\n# s_v04\ns_v04 = \"Positive | The reviewer expresses pleasant surprise at sound quality, comfort, and build, all framed positively.\"\n\n# su_v01 - exactly 2 sentences\nsu_v01 = \"Electric vehicles are becoming mainstream as battery costs fall and charging networks expand, offering fleet operators lower running costs and cities cleaner air. Manufacturers are responding to remaining challenges—raw-material concentration, grid capacity, and rural coverage gaps—with cheaper chemistries, faster charging, and utility partnerships.\"\n\n# su_v02 - exactly 3 bullets, each \u003c=15 words\nsu_v02 = \"- Open-source software now underpins most commercial tech stacks, from OSes to ML frameworks.\\n- Maintainer burnout, unfunded projects, and supply-chain attacks expose ecosystem fragility.\\n- Firms, security teams, and governments are funding, scanning, and protecting open-source as critical infrastructure.\"\n\n# cd_a01\ncd_a01 = \"results evaluates to [13, 13, 13]. Reason: classic late-binding closure bug — each lambda captures the variable `i` by reference, not its current value, so by the time the lambdas run `i` has already reached its final value 3, so every adder adds 3 to 10.\"\n\n# cd_a02\ncd_a02 = \"first evaluates to [1] and second evaluates to [1, 2]. Reason: the default argument `bucket=[]` is created once at function-definition time and is shared (mutated) across calls, so the second call appends to the same list the first call returned.\"\n\n# Verify su_v02 word counts\nbullets = [\n    \"Open-source software now underpins most commercial tech stacks, from OSes to ML frameworks.\",\n    \"Maintainer burnout, unfunded projects, and supply-chain attacks expose ecosystem fragility.\",\n    \"Firms, security teams, and governments are funding, scanning, and protecting open-source as critical infrastructure.\"\n]\nfor i, b in enumerate(bullets, 1):\n    print(i, len(b.split()), \"words\")\n\nanswers = [\n    {\"task_id\":\"n_v01\",\"answer\":n_v01},\n    {\"task_id\":\"n_v02\",\"answer\":n_v02},\n    {\"task_id\":\"n_v03\",\"answer\":n_v03},\n    {\"task_id\":\"cd_v01\",\"answer\":cd_v01},\n    {\"task_id\":\"cd_v02\",\"answer\":cd_v02},\n    {\"task_id\":\"cd_v03\",\"answer\":cd_v03},\n    {\"task_id\":\"cg_v01\",\"answer\":cg_v01},\n    {\"task_id\":\"cg_v02\",\"answer\":cg_v02},\n    {\"task_id\":\"cg_v03\",\"answer\":cg_v03},\n    {\"task_id\":\"f_v01\",\"answer\":f_v01},\n    {\"task_id\":\"f_v02\",\"answer\":f_v02},\n    {\"task_id\":\"f_v03\",\"answer\":f_v03},\n    {\"task_id\":\"s_v01\",\"answer\":s_v01},\n    {\"task_id\":\"s_v02\",\"answer\":s_v02},\n    {\"task_id\":\"s_v03\",\"answer\":s_v03},\n    {\"task_id\":\"s_v04\",\"answer\":s_v04},\n    {\"task_id\":\"su_v01\",\"answer\":su_v01},\n    {\"task_id\":\"su_v02\",\"answer\":su_v02},\n    {\"task_id\":\"cd_a01\",\"answer\":cd_a01},\n    {\"task_id\":\"cd_a02\",\"answer\":cd_a02},\n]\n\n# Verify code functions\nprint(\"---cg_v01---\")\nprint(run_length_encode('aaabbc'))\nprint(run_length_encode(''))\nprint(run_length_encode('abc'))\nprint(\"---cg_v02---\")\nprint(interval_intersection([[1,4],[7,10]], [[3,8]]))\nprint(interval_intersection([[1,3]], [[3,5]]))\nprint(interval_intersection([], [[1,2]]))\nprint(\"---cg_v03---\")\nprint(top_k_frequent(['b','a','b','c','a','b'], 2))\nprint(top_k_frequent(['a','b','c'], 5))\nprint(top_k_frequent(['a','a','b','b'], 2))\n\n# Verify cd fixes\nprint(\"---cd_v01---\")\nprint(sum_evens([1,2,3,4,5,6]))\nprint(\"---cd_v02---\")\nprint(count_target([1,2,2,3,2], 2))\nprint(\"---cd_v03---\")\nprint(average([2,4,6]))\n\n# Verify cd_a01 and cd_a02\nadders = make_adders()\nresults = [a(10) for a in adders]\nprint(\"results:\", results)\nfirst = append_item(1)\nsecond = append_item(2)\nprint(\"first:\", first, \"second:\", second)\n",
+            "stdout": "1 13 words\n2 10 words\n3 14 words\n---cg_v01---",
+            "error": "python3: NameError: name 'run_length_encode' is not defined"
+          }
+        ]
+      },
+      {
+        "turn": 1,
+        "timestamp": "2026-07-10T11:26:08.461159+01:00",
+        "latency_ms": 3025,
+        "prompt_tokens": 4670,
+        "completion_tokens": 694,
+        "total_tokens": 5364,
+        "cached_tokens": 2538,
+        "reasoning_tokens": 0,
+        "batch_size": 20,
+        "output_chars": 0,
+        "task_ids": [
+          "n_v01",
+          "n_v02",
+          "n_v03",
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "cg_v03",
+          "f_v01",
+          "f_v02",
+          "f_v03",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v01",
+          "su_v02",
+          "cd_a01",
+          "cd_a02"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 6000,
+        "tool_traces": [
+          {
+            "index": 0,
+            "code": "\n# Define functions inline and test\ndef run_length_encode(s):\n    if not s:\n        return []\n    result = []\n    count = 1\n    for i in range(1, len(s)):\n        if s[i] == s[i-1]:\n            count += 1\n        else:\n            result.append((s[i-1], count))\n            count = 1\n    result.append((s[-1], count))\n    return result\n\ndef interval_intersection(a, b):\n    result = []\n    i = j = 0\n    while i \u003c len(a) and j \u003c len(b):\n        start = max(a[i][0], b[j][0])\n        end = min(a[i][1], b[j][1])\n        if start \u003c= end:\n            result.append([start, end])\n        if a[i][1] \u003c b[j][1]:\n            i += 1\n        else:\n            j += 1\n    return result\n\ndef top_k_frequent(strings, k):\n    counts = {}\n    for s in strings:\n        counts[s] = counts.get(s, 0) + 1\n    items = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\n    return [s for s, _ in items[:k]]\n\ndef sum_evens(nums):\n    total = 0\n    for n in nums:\n        if n % 2 == 0:\n            total += n\n    return total\n\ndef count_target(nums, target):\n    count = 0\n    for i in range(len(nums)):\n        if nums[i] == target:\n            count += 1\n    return count\n\ndef average(nums):\n    if not nums:\n        return 0\n    total = 0\n    for n in nums:\n        total += n\n    return total / len(nums)\n\ndef make_adders():\n    return [lambda x: x + i for i in range(1, 4)]\n\ndef append_item(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n\nprint(\"cg_v01:\", run_length_encode('aaabbc'), run_length_encode(''), run_length_encode('abc'))\nprint(\"cg_v02:\", interval_intersection([[1,4],[7,10]], [[3,8]]), interval_intersection([[1,3]], [[3,5]]), interval_intersection([], [[1,2]]))\nprint(\"cg_v03:\", top_k_frequent(['b','a','b','c','a','b'], 2), top_k_frequent(['a','b','c'], 5), top_k_frequent(['a','a','b','b'], 2))\nprint(\"cd_v01:\", sum_evens([1,2,3,4,5,6]))\nprint(\"cd_v02:\", count_target([1,2,2,3,2], 2))\nprint(\"cd_v03:\", average([2,4,6]))\nadders = make_adders()\nresults = [a(10) for a in adders]\nprint(\"cd_a01 results:\", results)\nfirst = append_item(1)\nsecond = append_item(2)\nprint(\"cd_a02 first:\", first, \"second:\", second)\n",
+            "stdout": "cg_v01: [('a', 3), ('b', 2), ('c', 1)] [] [('a', 1), ('b', 1), ('c', 1)]\ncg_v02: [[3, 4], [7, 8]] [[3, 3]] []\ncg_v03: ['b', 'a'] ['a', 'b', 'c'] ['a', 'b']\ncd_v01: 12\ncd_v02: 3\ncd_v03: 4.0\ncd_a01 results: [13, 13, 13]\ncd_a02 first: [1, 2] second: [1, 2]"
+          }
+        ]
+      },
+      {
+        "turn": 2,
+        "timestamp": "2026-07-10T11:26:11.511083+01:00",
+        "latency_ms": 5329,
+        "prompt_tokens": 5254,
+        "completion_tokens": 1338,
+        "total_tokens": 6592,
+        "cached_tokens": 678,
+        "reasoning_tokens": 0,
+        "batch_size": 20,
+        "output_chars": 5174,
+        "task_ids": [
+          "n_v01",
+          "n_v02",
+          "n_v03",
+          "cd_v01",
+          "cd_v02",
+          "cd_v03",
+          "cg_v01",
+          "cg_v02",
+          "cg_v03",
+          "f_v01",
+          "f_v02",
+          "f_v03",
+          "s_v01",
+          "s_v02",
+          "s_v03",
+          "s_v04",
+          "su_v01",
+          "su_v02",
+          "cd_a01",
+          "cd_a02"
+        ],
+        "model": "accounts/fireworks/models/minimax-m3",
+        "effort": "none",
+        "max_tokens": 6000,
+        "assistant_message": "{\"answers\":[{\"task_id\":\"n_v01\",\"answer\":\"PERSON: Lisa Su | ORGANIZATION: AMD, University of Texas | LOCATION: Austin | DATE: 4 February 2024\"},{\"task_id\":\"n_v02\",\"answer\":\"PERSON: Satya Nadella | ORGANIZATION: OpenAI, Microsoft | LOCATION: Seattle | DATE: 12 June 2025\"},{\"task_id\":\"n_v03\",\"answer\":\"PERSON: Margrethe Vestager | ORGANIZATION: European Commission, Amazon | LOCATION: Europe | DATE: October 2019\"},{\"task_id\":\"cd_v01\",\"answer\":\"Bug: the condition `n % 2 == 1` selects odd numbers instead of even ones. Corrected function:\\ndef sum_evens(nums):\\n    total = 0\\n    for n in nums:\\n        if n % 2 == 0:\\n            total += n\\n    return total\"},{\"task_id\":\"cd_v02\",\"answer\":\"Bug: `range(1, len(nums))` skips the first element (index 0). Corrected function:\\ndef count_target(nums, target):\\n    count = 0\\n    for i in range(len(nums)):\\n        if nums[i] == target:\\n            count += 1\\n    return count\"},{\"task_id\":\"cd_v03\",\"answer\":\"Bug: divides by `len(nums) - 1` instead of `len(nums)` (and would crash on an empty list). Corrected function:\\ndef average(nums):\\n    if not nums:\\n        return 0\\n    total = 0\\n    for n in nums:\\n        total += n\\n    return total / len(nums)\"},{\"task_id\":\"cg_v01\",\"answer\":\"def run_length_encode(s):\\n    if not s:\\n        return []\\n    result = []\\n    count = 1\\n    for i in range(1, len(s)):\\n        if s[i] == s[i-1]:\\n            count += 1\\n        else:\\n            result.append((s[i-1], count))\\n            count = 1\\n    result.append((s[-1], count))\\n    return result\"},{\"task_id\":\"cg_v02\",\"answer\":\"def interval_intersection(a, b):\\n    result = []\\n    i = j = 0\\n    while i \u003c len(a) and j \u003c len(b):\\n        start = max(a[i][0], b[j][0])\\n        end = min(a[i][1], b[j][1])\\n        if start \u003c= end:\\n            result.append([start, end])\\n        if a[i][1] \u003c b[j][1]:\\n            i += 1\\n        else:\\n            j += 1\\n    return result\"},{\"task_id\":\"cg_v03\",\"answer\":\"def top_k_frequent(strings, k):\\n    counts = {}\\n    for s in strings:\\n        counts[s] = counts.get(s, 0) + 1\\n    items = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\\n    return [s for s, _ in items[:k]]\"},{\"task_id\":\"f_v01\",\"answer\":\"The three primary colours in the CMY subtractive model are Cyan, Magenta, and Yellow. Printers use CMY (plus black, K) because subtractive mixing on paper reflects light: combining CMY inks absorbs (subtracts) red, green, and blue from white light, producing a wider printable gamut and denser blacks than RGB additive light can achieve on a reflective surface.\"},{\"task_id\":\"f_v02\",\"answer\":\"HTTP (Hypertext Transfer Protocol) and HTTPS are the same application protocol, but HTTPS adds a TLS/SSL encryption layer on top. That extra layer encrypts the data in transit, authenticates the server (and optionally the client) via certificates, and protects against eavesdropping and tampering.\"},{\"task_id\":\"f_v03\",\"answer\":\"A compiler translates the entire source program into an executable machine-code file before it runs, while an interpreter reads and executes the program line-by-line (or statement-by-statement) at runtime. Typical example: C is typically compiled; Python is typically interpreted.\"},{\"task_id\":\"s_v01\",\"answer\":\"Positive | Despite setup hiccups, the reviewer praises flawless syncing and fast support, indicating overall satisfaction.\"},{\"task_id\":\"s_v02\",\"answer\":\"Negative | The product failed within a week and the refund has been delayed a month, outweighing the positive packaging and delivery.\"},{\"task_id\":\"s_v03\",\"answer\":\"Neutral | The reviewer notes both a pro (battery) and a con (scratches) and explicitly says they are undecided.\"},{\"task_id\":\"s_v04\",\"answer\":\"Positive | The reviewer expresses pleasant surprise at sound quality, comfort, and build, all framed positively.\"},{\"task_id\":\"su_v01\",\"answer\":\"Electric vehicles are becoming mainstream as battery costs fall and charging networks expand, offering fleet operators lower running costs and cities cleaner air. Manufacturers are responding to remaining challenges—raw-material concentration, grid capacity, and rural coverage gaps—with cheaper chemistries, faster charging, and utility partnerships.\"},{\"task_id\":\"su_v02\",\"answer\":\"- Open-source software now underpins most commercial tech stacks, from OSes to ML frameworks.\\n- Maintainer burnout, unfunded projects, and supply-chain attacks expose ecosystem fragility.\\n- Firms, security teams, and governments are funding, scanning, and protecting open-source as critical infrastructure.\"},{\"task_id\":\"cd_a01\",\"answer\":\"results evaluates to [13, 13, 13]. Reason: classic late-binding closure bug — each lambda captures the variable `i` by reference, not its current value, so by the time the lambdas run `i` has already reached its final value 3, so every adder adds 3 to 10.\"},{\"task_id\":\"cd_a02\",\"answer\":\"first evaluates to [1, 2] and second evaluates to [1, 2]. Reason: the default argument `bucket=[]` is created once at function-definition time and is shared (mutated) across calls, so the second call appends to the same list the first call returned, leaving both variables pointing to [1, 2].\"}]}"
+      }
+    ]
+  },
+  "overall_pass": 40,
+  "overall_total": 43
+}

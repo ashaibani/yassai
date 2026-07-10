@@ -34,6 +34,7 @@ image = (
         ),
         "tar xzf /tmp/llama.tgz -C /llama-dist --strip-components=1",
         "find /llama-dist -name '*.so*' -exec cp -a {} /opt/llama/ \\;",
+        "find /llama-dist -name 'llama-server' -exec cp -a {} /opt/llama/ \\;",
     )
     .add_local_file("finetune/minicpm5/localmodeleval-linux-amd64", "/localmodeleval", copy=True)
     .run_commands("chmod +x /localmodeleval")
@@ -57,17 +58,14 @@ def validate(gguf_url: str = DEFAULT_GGUF_URL) -> str:
         check=True,
     )
     proc = subprocess.run(
-        ["/localmodeleval", "-lib", "/opt/llama", "-base", "", "-ft", "/model.gguf",
-         "-max-tokens", "400", "-threads", "8"],
+        ["/localmodeleval", "-lib", "/opt/llama", "-ft", "/model.gguf", "-threads", "8"],
         capture_output=True, text=True, timeout=25 * 60,
     )
     out = proc.stdout + proc.stderr
     print(out)
-    # The stack is healthy when the model emits parseable run_python tool calls
-    # that execute - content-level slips are fine, framing failures are not.
-    framing_ok = "tool call executed" in out or "run_python" in out
-    degenerate = "``````" in out or "no fenced python block" in out
-    verdict = "HEALTHY" if framing_ok and not degenerate else "BROKEN"
+    # Healthy = the boot canary decoded coherently and at least one task was
+    # accepted end-to-end (the binary exits non-zero when nothing passes).
+    verdict = "HEALTHY" if proc.returncode == 0 and "boot canary passed" in out else "BROKEN"
     print(f"AMD64_STACK_VERDICT: {verdict}")
     return verdict
 

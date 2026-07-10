@@ -1,0 +1,192 @@
+[
+  {
+    "ID": "T01",
+    "Cat": "factual",
+    "Answer": "The three primary colors in the **RGB color model** are **Red**, **Green**, and **Blue**.\n\n**Why displays use RGB instead of RYB:**\n\n1.  **Directly Matches Human Vision:** The human eye perceives color by detecting the presence of three primary wavelengths of light: red, green, and blue. The additive color model (RGB) is designed to combine these three colors to create a wide range of colors, just as the human eye combines red, green, and blue light to perceive colors.\n\n2.  **Standard for Screens:** The standard color model for screens (like monitors, TVs, and smartphones) is the **RGB** model. This is because it is the most efficient and common way to represent colors on a display. The screen's pixel matrix is built from red, green, and blue light combinations.\n\n3.  **Historical Context:** The RGB model was developed in the 1970s as a way to describe how light is made. It was the first color model to be created, and it became the standard for computing and display technology.\n\n**Important Note:** The **RYB** model is a traditional color model used in painting, graphic design, and some other fields. It is not used in standard digital displays.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the primary colors and the additive nature of RGB, but includes a factual error by claiming RGB was developed in the 1970s and was the first color model created. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 449,
+    "GenMS": 3004
+  },
+  {
+    "ID": "T01b",
+    "Cat": "factual",
+    "Answer": "**Machine Learning (ML)** is a broad field of artificial intelligence that focuses on building systems that can learn from data to make predictions or decisions. The core idea is that an ML algorithm learns patterns in data and improves its performance over time.\n\n**Deep Learning (DL)** is a specialized subset of machine learning that uses **deep neural networks**—multiple layers of interconnected nodes—to model complex patterns in data. DL is particularly effective for tasks involving unstructured data like images, sound, and text.\n\n**Key Differences:**\n\n| Aspect | Machine Learning | Deep Learning |\n| :--- | :--- | :--- |\n| **Core Idea** | Learning from data to find patterns. | Using deep neural networks to learn from data. |\n| **Data Type** | Can work with structured data (e.g., CSV files). | Primarily works with unstructured data (e.g., images, audio). |\n| **Key Component** | Algorithms (like decision trees, linear regression). | Deep neural networks with many layers. |\n| **Example** | Predicting house prices based on features. | Recognizing a cat in a photo. |\n\n**In summary:** Machine learning is the overarching goal of learning from data. **Deep learning** is a powerful technique that uses deep neural networks to achieve very high accuracy on complex tasks, often surpassing traditional machine learning methods.",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes ML as learning patterns from data and DL as using multi-layer neural networks, matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 471,
+    "GenMS": 2957
+  },
+  {
+    "ID": "T01c",
+    "Cat": "factual",
+    "Answer": "Excellent question! The difference between **RAM (Random Access Memory)** and **ROM (Read-Only Memory)** is fundamental to understanding how your computer stores and processes data.\n\nHere’s a breakdown of the key differences, what each type is used for, and a comparison table.\n\n### 1. **RAM (Random Access Memory)**\n*   **What it is:** A type of **volatile, or \"temporary\"** memory that is **stored in the computer's main memory (RAM)**. It is a **temporary workspace** where the CPU can read from and write to.\n*   **Key Characteristics:**\n    *   **Volatile:** Its contents change (and are lost) when the power is turned off. This is why you need RAM to run programs.\n    *   **Temporary:** It holds data that is currently being used by the CPU.\n    *   **Read-Only:** It is **not** programmed to store data permanently. It is used for **active, running programs**.\n*   **Primary Use:** **Short-term, active data storage.** When you open a program, you are essentially reading from RAM.\n\n### 2. **ROM (Read-Only Memory)**\n*   **What it is:** A type of **non-volatile, or \"permanent\"** memory that is **stored in the computer's main memory (RAM)**. It is a **temporary storage** that is **read-only** by the computer's firmware.\n*   **Key Characteristics:**\n    *   **Non-Volatile:** Its contents **do not change** when the power is off. This is why you can't erase or change a ROM chip.\n    *   **Temporary Storage:** It is used for **stored data that will be used permanently** (like the system bootloader, the operating system, and the saved programs).\n    *   **Read-Only:** It is programmed to store data permanently, not for active use.\n*   **Primary Use:** **Long-term, permanent storage.** It holds the system's operating system, critical drivers, and saved software.\n\n---\n\n### **Summary Table**\n\n| Feature | **RAM** | **ROM** |\n| :--- | :--- | :--- |\n| **Type** | Temporary, volatile | Permanent, non-volatile |\n| **Storage** | In the **RAM** (active) | In the **RAM** (temporary) |\n| **Data Change** | **Yes** (changes with power) | **No** (changes only with power) |\n| **Programmable** | **No** (usually) | **Yes** (usually) |\n| **Primary Use** | **Active programs** | **System boot \u0026 permanent data** |\n\n---\n\n### **How They Work Together**\nThink of your computer as a **library**:\n*   **RAM** is like the **active books** you're currently reading. You can't",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes RAM as volatile working memory for active programs and ROM as non-volatile memory for boot/permanent data, matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 768,
+    "GenMS": 4704
+  },
+  {
+    "ID": "T02",
+    "Cat": "maths",
+    "Answer": "",
+    "Via": "check",
+    "Reason": "no number found in answer: \"\"",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4648
+  },
+  {
+    "ID": "T02b",
+    "Cat": "maths",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4702
+  },
+  {
+    "ID": "T03",
+    "Cat": "sentiment",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer at all. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4895
+  },
+  {
+    "ID": "T03b",
+    "Cat": "sentiment",
+    "Answer": "The sentiment",
+    "Via": "judge",
+    "Reason": "The candidate's response is incomplete and fails to classify the sentiment or provide a reason. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4772
+  },
+  {
+    "ID": "T04",
+    "Cat": "summarisation",
+    "Answer": "Machine learning is increasingly deployed in healthcare for diagnosis, treatment planning, and monitoring. However, concerns remain about model interpretability, data privacy, liability, and algorithmic bias.",
+    "Via": "judge",
+    "Reason": "The candidate provides a faithful two-sentence summary covering the main uses and concerns of ML in healthcare. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 150,
+    "GenMS": 929
+  },
+  {
+    "ID": "T04b",
+    "Cat": "summarisation",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no response, failing to meet the rubric requirements. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4682
+  },
+  {
+    "ID": "T05",
+    "Cat": "ner",
+    "Answer": "PERSON: Sundar Pichai  \nORGANIZATION: Google  \nORGANIZATION: ETH Zurich  \nLOCATION: Zurich  \nDATE: March 15 2023",
+    "Via": "judge",
+    "Reason": "The candidate correctly extracted and labeled all named entities matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 574,
+    "GenMS": 3660
+  },
+  {
+    "ID": "T05b",
+    "Cat": "ner",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4750
+  },
+  {
+    "ID": "T06",
+    "Cat": "code_debugging",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 4548
+  },
+  {
+    "ID": "T06b",
+    "Cat": "code_debugging",
+    "Answer": "The bug in the function is that `s.reverse()` is not a valid method for strings in Python. The correct way to reverse a string is to use slicing: `s[::-1]`.\n\nThe corrected function is:\n\n```python\ndef is_palindrome(s):\n    return s == s[::-1]\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the bug and provides the proper fix using slicing. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 480,
+    "GenMS": 3011
+  },
+  {
+    "ID": "T07",
+    "Cat": "logical",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 5195
+  },
+  {
+    "ID": "T07b",
+    "Cat": "logical",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 5181
+  },
+  {
+    "ID": "T08",
+    "Cat": "maths",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 5153
+  },
+  {
+    "ID": "T09",
+    "Cat": "code_generation",
+    "Answer": "Here's a Python function that merges overlapping intervals:\n\n```python\ndef merge_intervals(intervals):\n    \"\"\"\n    Merge overlapping intervals in a list.\n\n    Args:\n        intervals: List of intervals, each interval is a list of two integers [start, end].\n\n    Returns:\n        List of merged intervals.\n    \"\"\"\n    if not intervals:\n        return []\n\n    # Sort intervals by start time\n    intervals.sort(key=lambda x: x[0])\n\n    merged = []\n    for interval in intervals:\n        # If merged is empty or current interval does not overlap with the last merged interval\n        if not merged or merged[-1][1] \u003c interval[0]:\n            merged.append(interval)\n        else:\n            # Overlap exists, merge by updating the end time\n            merged[-1][1] = max(merged[-1][1], interval[1])\n\n    return merged\n```\n\n**Explanation:**\n\n1. **Empty input**: Returns an empty list if the input is empty.\n2. **Sorting**: Sorts intervals by their start time to process them in order.\n3. **Merging**: Iterates through sorted intervals, merging overlapping ones by extending the end time when necessary.\n4. **Docstring**: Includes a brief description of the function's purpose, parameters, and return value.\n\n**Example usage:**\n\n```python\nprint(merge_intervals([[1,3],[2,6],[8,10],[15,18]]))  # Output: [[1,6],[8,10],[15,18]]\nprint(merge_intervals([]))  # Output: []\nprint(merge_intervals([[1,3]]))  # Output: [[1,3]]\n```",
+    "Via": "judge",
+    "Reason": "Correct implementation that handles all required cases and includes a docstring. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 617,
+    "GenMS": 3899
+  },
+  {
+    "ID": "T09b",
+    "Cat": "code_generation",
+    "Answer": "Here's a Python function that flattens arbitrarily deep nested lists:\n\n```python\ndef flatten(lst):\n    \"\"\"\n    Recursively flatten a nested list into a single flat list.\n    \n    Args:\n        lst: A nested list (arbitrarily deep)\n    \n    Returns:\n        A flat list containing all elements from the nested structure\n    \"\"\"\n    result = []\n    for item in lst:\n        if isinstance(item, list):\n            result.extend(flatten(item))\n        else:\n            result.append(item)\n    return result\n```\n\n**How it works:**\n- The function iterates through each element in the input list\n- If an element is a list, it recursively flattens that sublist\n- If an element is not a list, it adds it directly to the result\n- The recursion continues until all nested lists are processed\n\n**Example usage:**\n```python\nprint(flatten([1, [2, [3, 4], 5], 6]))  # Output: [1, 2, 3, 4, 5, 6]\nprint(flatten([]))                     # Output: []\nprint(flatten([[1, [2, [3, 4]], 5], 6]))  # Output: [1, 2, 3, 4, 5, 6]\n```",
+    "Via": "judge",
+    "Reason": "Correct recursive implementation with docstring that handles all required cases. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 678,
+    "GenMS": 4652
+  },
+  {
+    "ID": "T10",
+    "Cat": "maths",
+    "Answer": "",
+    "Via": "judge",
+    "Reason": "The candidate provided no answer to the question. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 5336
+  }
+]

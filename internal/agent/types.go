@@ -61,6 +61,11 @@ type Config struct {
 	// Empty disables. LocalLibPath is the llama.cpp shared-library directory.
 	LocalModelPath string
 	LocalLibPath   string
+
+	// LocalBaseModelPath enables the UN-tuned MiniCPM5 base GGUF as a second
+	// local lane for code_generation and gated NER - families the fine-tune
+	// lost to tool-contract specialisation. Empty disables.
+	LocalBaseModelPath string
 }
 
 type BatchPlanRecord struct {

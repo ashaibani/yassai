@@ -138,8 +138,12 @@ jobs:
           # in for the token-free local offload. The repo variable overrides
           # the default (set it empty to build Fireworks-only). Private HF
           # downloads authenticate via the hf_token BuildKit secret.
+          # LOCAL_BASE_MODEL_URL: the UN-tuned MiniCPM5 base GGUF (official
+          # openbmb artefact) for the second local lane (code_generation +
+          # gated NER).
           build-args: |
             LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf' }}
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
           # Single-arch image -> keep a plain manifest (no provenance index), which

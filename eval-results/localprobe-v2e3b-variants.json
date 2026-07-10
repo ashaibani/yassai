@@ -1,0 +1,432 @@
+[
+  {
+    "ID": "m_v01",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step calculation to determine the number of units remaining:\n\n1.  **Start**: The distribution centre begins with **3,200** units.\n2.  **Q1**: It ships 45% of the current stock.\n    *   Amount shipped: $3,200 \\times 0.45 = 1,440$\n    *   Remaining: $3,200 - 1,440 = 1,760$\n3.  **Q2**: It receives 650 new units.\n    *   Current total: $1,760 + 650 = 2,410$\n4.  **Q3**: It ships 940 units.\n    *   Final total: $2,410 - 940 = 1,470$\n\n**Answer:** There are **1,470** units remaining at the end of Q3.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates each step and arrives at 1,470 units remaining. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 180,
+    "GenMS": 1334
+  },
+  {
+    "ID": "m_v02",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step calculation to determine the number of units remaining at the end of Q3:\n\n1.  **Initial Stock**: Start with 5,400 units.\n2.  **In Q1**: Ship 35% of the stock.\n    *   Amount shipped: $5,400 \\times 0.35 = 1,914$\n    *   Remaining: $5,400 - 1,914 = 3,486$\n3.  **In Q2**: Receive 1,200 new units.\n    *   Current total: $3,486 + 1,200 = 4,686$\n4.  **In Q3**: Ship 2,115 units.\n    *   Final total: $4,686 - 2,115 = 2,571$\n\n**Answer:** There are **2,571** units remaining at the end of Q3.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly calculated 35% of 5,400 as 1,914 instead of 1,890, leading to a wrong final answer of 2,571. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 191,
+    "GenMS": 1478
+  },
+  {
+    "ID": "m_v03",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step solution:\n\n### Step 1: Determine the amount of flour needed for one muffin\nThe recipe states that $\\frac{3}{5}$ cup of flour is needed for 6 muffins. To find the amount for a single muffin, we divide the total flour by the number of muffins:\n$$ \\text{Flour per muffin} = \\frac{\\frac{3}{5} \\text{ cup}}{6} $$\n$$ \\text{Flour per muffin} = \\frac{3}{5} \\times \\frac{1}{6} = \\frac{3}{30} = \\frac{1}{10} \\text{ cup} $$\n\n### Step 2: Calculate the total flour needed for 21 muffins\nNow, multiply the flour needed for one muffin by the number of muffins (21):\n$$ \\text{Total flour} = \\frac{1}{10} \\text{ cup} \\times 21 $$\n$$ \\text{Total flour} = \\frac{21}{10} = 2.1 \\text{ cups} $$\n\n### Step 3: Calculate the total cost\nThe flour costs $\\$1.50$ per cup. Multiply the total amount of flour by the cost per cup:\n$$ \\text{Cost} = 2.1 \\text{ cups} \\times \\$1.50/\\text{cup} $$\n$$ \\text{Cost} = 2.1 \\times 1.5 = 3.15 $$\n\n### Final Answer\n*   **Flour needed:** 2.1 cups\n*   **Total cost:** $3.15",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates 2.1 cups of flour and $3.15 total cost. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 338,
+    "GenMS": 2622
+  },
+  {
+    "ID": "m_v04",
+    "Cat": "maths",
+    "Answer": "Here is the step-by-step solution to the problem:\n\n### Step 1: Determine the amount of cocoa needed for one brownie\nThe recipe states that $5/8$ cup of cocoa is needed for $10$ brownies. To find the amount of cocoa for a single brownie, divide the total required by the number of brownies:\n$$ \\text{Cocoa per brownie} = \\frac{5}{8} \\text{ cup} \\times \\frac{10 \\text{ brownies}}{5 \\text{ brownies}} $$\n$$ \\text{Cocoa per brownie} = \\frac{5}{8} \\times \\frac{10}{5} $$\n$$ \\text{Cocoa per brownie} = \\frac{5}{8} \\times \\frac{2}{1} = \\frac{10}{8} = \\frac{5}{4} \\text{ cup} $$\n\n### Step 2: Calculate the total cocoa needed for 26 brownies\nNow, multiply the amount of cocoa needed for one brownie by the number of brownies (26):\n$$ \\text{Total cocoa} = \\frac{5}{4} \\text{ cup} \\times 26 \\text{ brownies} $$\n$$ \\text{Total cocoa} = \\frac{5}{4} \\times \\frac{26}{1} = \\frac{5 \\times 26}{4} = \\frac{130}{4} = \\frac{65}{2} = 32.5 \\text{ cups} $$\n\n### Step 3: Calculate the total cost\nThe cost of cocoa is $3.20 per cup. Multiply the total cups needed by the price per cup:\n$$ \\text{Total cost} = 32.5 \\text{ cups} \\times \\$3.20/\\text{cup} $$\n$$ \\text{Total cost} = \\frac{65}{2} \\times \\frac{32}{1} \\text{ dollars} $$\n$$ \\text{Total cost} = \\frac{65 \\times 32}{2} = 65 \\times 16 = 1040 \\text{ dollars} $$\n\n### Final Answer\n*   **Total cocoa needed:** 32.5 cups\n*   **Total cost:** $1,040.00",
+    "Via": "judge",
+    "Reason": "The candidate made a fundamental arithmetic error in calculating cocoa per brownie, leading to completely wrong final answers. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 484,
+    "GenMS": 3899
+  },
+  {
+    "ID": "m_v05",
+    "Cat": "maths",
+    "Answer": "The first train leaves Station A at 07:30 at 80 km/h, and the second train leaves Station B at 09:00 at 100 km/h. The distance between the stations is 390 km. Their relative speed is \\(100 - 80 = 20\\) km/h, so the distance covered by both trains together is \\(390 / 20 = 19.5\\) km. Starting from 7:30, they meet at 7:30 + 19.5/20 hours = 7:30 + 9.75 hours = 8:15. At the meeting point, the first train has covered \\(80 \\times (8.25/20) = 33\\) km, so the distance from Station A is 33 km.\n\n\\boxed{8:15}\\text{ hours}, \\boxed{33\\ \\text{km}}",
+    "Via": "judge",
+    "Reason": "Incorrect; the candidate used the wrong relative speed (subtracting instead of adding) and arrived at the wrong meeting time and distance. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 182,
+    "GenMS": 1400
+  },
+  {
+    "ID": "m_v06",
+    "Cat": "maths",
+    "Answer": "The first train leaves Station A at 06:45 at 75 km/h, and the second train leaves Station B at 08:15 at 105 km/h. The distance between the stations is 510 km. Their relative speed is \\(75 + 105 = 180\\) km/h. The time to meet is  \n\\[\n\\frac{510}{180} = \\frac{51}{18} = \\frac{17}{6} \\text{ hours} = 2\\frac{5}{6} \\text{ hours}.\n\\]  \nFrom the first train's departure time, 2 hours and 50 minutes add to \\(6:45 + 2\\frac{5}{6} \\text{ h} = 9:45 + \\frac{5}{6} \\text{ h} = 10:60 \\text{ and } \\frac{5}{6} \\text{ h} = 10:50 \\text{ and } 50 \\text{ minutes}.\\)  \nThe remaining distance after meeting is  \n\\[\n510 \\times \\left(1 - \\frac{17}{6} \\times \\frac{5}{6}\\right) = 510 \\times \\left(1 - \\frac{85}{36}\\right) = 510 \\times \\frac{1}{36} = \\frac{510}{36} = \\frac{85}{6} \\text{ km}.\n\\]  \nThus, the trains meet at 10:50 and 85 km from Station A.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly computes the meeting time and distance, failing to account for the 1.5-hour head start of the first train. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 316,
+    "GenMS": 2496
+  },
+  {
+    "ID": "m_v07",
+    "Cat": "maths",
+    "Answer": "Here are the calculated figures based on the monthly revenue figures provided:\n\n1. **Average monthly revenue**: $(96,000 + 104,000 + 99,500 + 112,400 + 108,900 + 121,600) / 6 = 640,000 / 6 \\approx \\boxed{106,666.67}$\n\n2. **Month-over-month growth rates (Feb onwards, %)**:  \n   - Feb: $(104,000 - 96,000) / 96,000 \\times 100 = 33.33\\%$  \n   - Mar: $(99,500 - 104,000) / 104,000 \\times 100 = -6.66\\%$  \n   - Apr: $(112,400 - 99,500) / 99,500 \\times 100 = 7.33\\%$  \n   - May: $(108,900 - 112,400) / 112,400 \\times 100 = -4.44\\%$  \n   - Jun: $(121,600 - 108,900) / 108,900 \\times 100 = 7.33\\%$  \n\n3. **Months with revenue decline**: Feb, Mar, Apr, May, Jun (5 months).  \n   - Note: Feb and Mar show negative growth, but the question asks for \"declines,\" so all of these months are included.",
+    "Via": "judge",
+    "Reason": "The candidate made multiple calculation errors (wrong average, wrong growth rates, incorrect decline months, and omitted the July projection) and is INCORRECT. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 292,
+    "GenMS": 2740
+  },
+  {
+    "ID": "m_v08",
+    "Cat": "maths",
+    "Answer": "Here are the calculated figures based on the monthly revenue figures provided:\n\n1. **Average monthly revenue**: $(204,000 + 197,800 + 215,600 + 224,100 + 209,300 + 231,800) / 6 = 1,589,200 / 6 = \\boxed{264,866.67}$\n\n2. **Month-over-month growth rates (Aug - Sep)**:\n   - Aug 2019: $(197,800 - 204,000) / 204,000 \\times 100 = -8.13\\%$\n   - Sep 2020: $(215,600 - 197,800) / 197,800 \\times 100 = 11.89\\%$\n   - Oct 2021: $(224,100 - 215,600) / 215,600 \\times 100 = 7.89\\%$\n   - Nov 2022: $(209,300 - 224,100) / 224,100 \\times 100 = -8.13\\%$\n   - Dec 2023: $(231,800 - 209,300) / 209,300 \\times 100 = 11.89\\%$\n\n3. **Months with revenue decline**: Aug, Sep, Oct, Nov, Dec (5 months)\n\n4. **Projected Jan revenue**: $\\text{Average of last 3 growth rates} \\times 204,000 = (11.89\\% + 7.89\\% + 11.89\\%) / 100 \\times 204,000 = 14.77\\% \\times 204,000 = \\boxed{3,020,880}$",
+    "Via": "judge",
+    "Reason": "The candidate's calculations are incorrect across all four parts, including a wildly wrong average, wrong growth rates, wrong decline months, and nonsensical projection. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 348,
+    "GenMS": 3134
+  },
+  {
+    "ID": "l_v01",
+    "Cat": "logical",
+    "Answer": "1. Nina: guitar\n2. Omar: piano\n3. Petra: violin\n4. Quinn: drums",
+    "Via": "judge",
+    "Reason": "The candidate's answer is entirely incorrect and contradicts every clue. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 24,
+    "GenMS": 230
+  },
+  {
+    "ID": "l_v02",
+    "Cat": "logical",
+    "Answer": "1. Ravi: car\n2. Sofia: bus\n3. Tara: bike",
+    "Via": "judge",
+    "Reason": "The candidate's assignments are all incorrect and contradict the clues. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 18,
+    "GenMS": 180
+  },
+  {
+    "ID": "l_v03",
+    "Cat": "logical",
+    "Answer": "Here is the step-by-step logical deduction to determine the assignment of sectors to the four analysts (Uma, Viktor, Wren, Xia):\n\n1.  **Analyze the constraints:**\n    *   There are 4 people: Uma, Viktor, Wren, Xia.\n    *   There are 4 sectors: energy, retail, tech, healthcare.\n    *   Constraint 1: Uma $\\neq$ energy, Uma $\\neq$ retail.\n    *   Constraint 2: Viktor $\\neq$ tech, Viktor $\\neq$ healthcare.\n    *   Constraint 3: Wren = healthcare.\n    *   Constraint 4: Xia $\\neq$ energy.\n\n2.  **Place the fixed item:**\n    From Clue 3, we know **Wren** covers **healthcare**.\n\n3.  **Determine Uma's sector:**\n    From Clue 1, Uma cannot cover energy or retail. Since healthcare is already taken by Wren, the remaining options for Uma are tech or healthcare (but healthcare is taken), so the remaining option is **tech**.\n    *   Current Assignment: Wren = healthcare; Uma = tech.\n\n4.  **Determine Viktor's sector:**\n    From Clue 2, Viktor cannot cover tech or healthcare. We already know he doesn't cover healthcare (taken by Wren). So, Viktor must cover either energy or retail.\n    *   Remaining sectors: energy, retail, tech, healthcare.\n    *   Assigned: healthcare (Wren), tech (Uma).\n    *   Open: energy, retail.\n    *   Clue 4 says Xia does not cover energy. This doesn't directly restrict Viktor yet, but let's look at the remaining people: Uma, Viktor, Wren, Xia. Remaining sectors: energy, retail.\n    *   Wait, we have 4 people and 4 sectors. Let's list the knowns:\n        1. Uma = tech\n        2. Wren = healthcare\n    *   Remaining people: Viktor, Xia.\n    *   Remaining sectors: energy, retail.\n    *   Clue 2: Viktor $\\neq$ tech (satisfied) and Viktor $\\neq$ healthcare (satisfied).\n    *   Clue 4: Xia $\\neq$ energy.\n    *   Clue 1: Uma $\\neq$ energy (satisfied, she is tech).\n\n    Is there a conflict? Let's re-read carefully.\n    People: Uma, Viktor, Wren, Xia.\n    Sectors: energy, retail, tech, healthcare.\n    Clues:\n    1. Uma $\\neq$ energy, Uma $\\neq$ retail.\n    2. Viktor $\\neq$ tech, Viktor $\\neq$ healthcare.\n    3. Wren = healthcare.\n    4. Xia $\\neq$ energy.\n\n    Assigned:\n    - Uma: tech\n    - Wren: healthcare\n    - Remaining: Viktor and Xia.\n    - Remaining sectors: energy, retail.\n\n    Let's test Viktor's options against the remaining sectors.\n    If Viktor = energy: Does this violate anything?\n    - Clue 2: Viktor $\\neq$ tech (OK). Viktor $\\neq$ healthcare (OK).\n    - Clue 4: Xia $\\neq$ energy. If Viktor = energy, then Xia must be retail.\n    - Clue 1: Uma $\\neq$ energy (OK, she is tech).\n    - Clue 3: Wren = healthcare (OK).\n\n    If Viktor = retail: Then Xia = energy.\n    - Clue 4: Xia $\\neq$ energy. **Violation!** If Xia = energy, she violates Clue 4.\n    - So, if Viktor = retail, then Xia = energy, which violates Clue",
+    "Via": "judge",
+    "Reason": "The candidate correctly deduces all assignments (Uma: tech, Wren: healthcare, Viktor: energy, Xia: retail) though the response is cut off mid-sentence. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 768,
+    "GenMS": 6186
+  },
+  {
+    "ID": "l_v04",
+    "Cat": "logical",
+    "Answer": "1. Yara: hamster\n2. Zane: rabbit\n3. Alba: canary",
+    "Via": "judge",
+    "Reason": "The candidate's assignments are entirely incorrect. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 20,
+    "GenMS": 177
+  },
+  {
+    "ID": "n_v01",
+    "Cat": "ner",
+    "Answer": "On 4 February 2024, Lisa Su announced that AMD would open a research campus in Austin in partnership with the University of Texas.",
+    "Via": "judge",
+    "Reason": "The candidate did not extract or label any named entities, only restated the original text. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 29,
+    "GenMS": 246
+  },
+  {
+    "ID": "n_v02",
+    "Cat": "ner",
+    "Answer": "PERSON: Satya Nadella\nORGANIZATION: OpenAI\nLOCATION: Seattle\nDATE: 12 June 2025",
+    "Via": "judge",
+    "Reason": "The candidate omitted Microsoft as an ORGANIZATION. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 26,
+    "GenMS": 211
+  },
+  {
+    "ID": "n_v03",
+    "Cat": "ner",
+    "Answer": "In October 2019, Margrethe Vestager warned that the European Commission would examine Amazon's marketplace practices across Europe.",
+    "Via": "judge",
+    "Reason": "The candidate did not extract or label any named entities, only restated the original text. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 26,
+    "GenMS": 214
+  },
+  {
+    "ID": "cd_v01",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that the condition `if n % 2 == 1:` checks for odd numbers, but the function is supposed to sum even numbers. In Python, `n % 2` can be 0 (even) or 1 (odd), so this condition will never be true, and the function will never add anything to `total`, even if the list contains only even numbers.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the inverted parity test but makes a factual error claiming the condition \"will never be true\" (it is true for odd numbers) and fails to provide the corrected function. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 82,
+    "GenMS": 653
+  },
+  {
+    "ID": "cd_v02",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that the loop starts at `range(1, len(nums))`, so the first element of the list (at index 0) is never checked. Therefore, the first element is never compared to the target, and the count is incorrect.\n\nCorrected function:\n\n```python\ndef count_target(nums, target):\n    count = 0\n    for i in range(1, len(nums)):\n        if nums[i] == target:\n            count += 1\n    return count\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the bug but fails to fix it, leaving the same erroneous loop in the \"corrected\" function. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 108,
+    "GenMS": 898
+  },
+  {
+    "ID": "cd_v03",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that the function does not check if the list is empty. If `len(nums) - 1` is zero or negative, dividing by zero will raise a `ZeroDivisionError`. Also, if the list is empty, `len(nums) - 1` is 1, so the denominator is 1, which is fine, but the loop won't run and `total` will be 0, and then 0/1 = 0, which might be unexpected if the intention is to handle empty lists gracefully.\n\nHere's the corrected version:\n\n```python\ndef average(nums):\n    total = 0\n    for n in nums:\n        total += n\n    if len(nums) - 1 == 0:\n        return 0  # or raise an exception, depending on desired behavior for empty lists\n    return total / (len(nums) - 1)\n```",
+    "Via": "judge",
+    "Reason": "The candidate fails to identify the actual bug (off-by-one in the denominator) and their \"corrected\" function still contains the original bug. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 192,
+    "GenMS": 1468
+  },
+  {
+    "ID": "cg_v01",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef run_length_encode(s: str) -\u003e list[tuple[char, int]]:\n    \"\"\"Encode a string into a list of (char, count) tuples for consecutive runs.\"\"\"\n    if not s:\n        return []\n\n    result = []\n    current_char = s[0]\n    count = 1\n\n    for i in range(1, len(s)):\n        if s[i] == current_char:\n            count += 1\n        else:\n            result.append((current_char, count))\n            current_char = s[i]\n            count = 1\n\n    # append the last run\n    result.append((current_char, count))\n\n    return result\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly implements run-length encoding with proper handling of empty strings and consecutive runs. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 142,
+    "GenMS": 1129
+  },
+  {
+    "ID": "cg_v02",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef interval_intersection(interval1, interval2):\n    \"\"\"\n    Compute the list of intersections between two lists of closed intervals.\n    \n    Each interval is a [start, end] pair, and each list is sorted and non-overlapping.\n    - Empty input lists are handled gracefully.\n    - Touching endpoints (e.g., [1,3] and [3,5]) intersect at [3,3] by default.\n    \"\"\"\n    if not interval1 or not interval2:\n        return []\n\n    res = []\n    i, j = 0, 0\n\n    while i \u003c len(interval1):\n        a = interval1[i]\n        # If no more intervals in list1, break (optional, depending on requirements)\n        if j \u003e= len(interval2):\n            i += 1\n            continue\n\n        b = interval2[j]\n\n        # Check for overlap\n        if a[1] \u003e= b[0] and b[1] \u003e= a[1]:\n            # Intersection\n            start = max(a[0], b[0])\n            end = min(a[1], b[1])\n            res.append([start, end])\n\n        # Move the pointer that is \"behind\" the other\n        if a[1] \u003c b[1]:\n            i += 1\n        else:\n            j += 1\n\n    return res\n```",
+    "Via": "judge",
+    "Reason": "The candidate's overlap condition `b[1] \u003e= a[1]` is incorrect and misses cases where one interval fully contains the other (e.g., [1,10] and [3,5]). -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 291,
+    "GenMS": 2285
+  },
+  {
+    "ID": "cg_v03",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef top_k_frequent(strings, k):\n    \"\"\"\n    Return the k most frequent strings from the list.\n    \n    - Frequency is counted only for distinct strings.\n    - If k \u003e number of distinct strings, all distinct strings are returned.\n    - Ties are broken alphabetically.\n    \"\"\"\n    freq = {}\n    for s in strings:\n        freq[s] = freq.get(s, 0) + 1\n\n    distinct = list(freq.keys())\n    result = []\n    for i in range(k):\n        if i \u003e= len(distinct):\n            break\n        s = distinct[i]\n        result.append(s)\n    return result\n```",
+    "Via": "judge",
+    "Reason": "The candidate's implementation does not sort by frequency or break ties alphabetically, simply returning the first k distinct strings in insertion order. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 137,
+    "GenMS": 1101
+  },
+  {
+    "ID": "f_v01",
+    "Cat": "factual",
+    "Answer": "The three primary colours in the CMY subtractive colour model are **cyan**, **magenta**, and **yellow**.\n\nPrinters use CMY (plus black) instead of RGB primarily for the following reasons:\n1.  **Limited gamut**: CMY inks are designed to reproduce a very small, monochromatic range of light (about 10% of the visible spectrum). RGB inks cover a much larger gamut, making it difficult to print the full spectrum of colors that RGB can handle.\n2.  **Color accuracy**: CMY inks are optimized for specific, high-contrast areas (like the edges of a printed page) rather than the smooth, blended transitions of RGB. This allows for better control over the final color appearance.\n3.  **Print quality**: Because CMY inks are less saturated and less vibrant than RGB inks, they often look less saturated and less vibrant than RGB inks, which can be a disadvantage for some applications.",
+    "Via": "judge",
+    "Reason": "The candidate correctly names the three colours but provides a factually incorrect and nonsensical explanation for why printers use CMYK instead of RGB. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 189,
+    "GenMS": 1460
+  },
+  {
+    "ID": "f_v02",
+    "Cat": "factual",
+    "Answer": "The main difference between **HTTP** (Hypertext Transfer Protocol) and **HTTPS** (Hypertext Transfer Protocol Secure) is that HTTPS adds a **secure connection** between the client and the server.\n\n*   **HTTP**: Unencrypts data during transmission, so anyone can see the contents of the message. It is the foundation of data transfer but is not secure by default.\n*   **HTTPS**: Encrypts the entire message (both headers and body) using a cryptographic algorithm (like SSL/TLS). This ensures that even if the data is intercepted, it cannot be read or tampered with.\n\nIn short: **HTTP is the transport layer; HTTPS is the secure transport layer.**",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies that HTTP is unencrypted while HTTPS uses SSL/TLS encryption to provide confidentiality and integrity. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 147,
+    "GenMS": 1340
+  },
+  {
+    "ID": "f_v03",
+    "Cat": "factual",
+    "Answer": "A compiler and an interpreter are both tools that translate source code into machine code, but they differ in how and when the translation happens. The key distinction lies in **translation timing**: a compiler translates the entire program at once, while an interpreter translates and executes the code line by line (or statement by statement) during runtime.\n\n**Typical examples:**\n- **Compiler**: C++ (compiles source code to machine code before execution)\n- **Interpreter**: Python (translates and executes source code line by line)",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes compilation from interpretation and gives valid examples. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 106,
+    "GenMS": 1021
+  },
+  {
+    "ID": "s_v01",
+    "Cat": "sentiment",
+    "Answer": "Positive: The app crashed twice and the tutorial skipped steps, but it synced data flawlessly and support replied within minutes.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as Positive and accurately summarizes the review's balance. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 26,
+    "GenMS": 250
+  },
+  {
+    "ID": "s_v02",
+    "Cat": "sentiment",
+    "Answer": "Negative: The blender's motor burned out, and the refund process was slow, despite the positive packaging and delivery.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 223
+  },
+  {
+    "ID": "s_v03",
+    "Cat": "sentiment",
+    "Answer": "Positive: The tweet expresses satisfaction with the new phone, but also complains about its durability and screen damage.",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classifies the sentiment as Positive instead of Neutral despite acknowledging the mixed features. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 22,
+    "GenMS": 173
+  },
+  {
+    "ID": "s_v04",
+    "Cat": "sentiment",
+    "Answer": "Positive; the reviewer is happy with the headphones despite not expecting much at the price.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives an adequate reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 18,
+    "GenMS": 161
+  },
+  {
+    "ID": "su_v01",
+    "Cat": "summarisation",
+    "Answer": "Electric vehicles are transitioning from niche models to mainstream transport as battery costs fall and charging networks expand. Fleet operators highlight lower running costs and simpler maintenance, while city governments see a route to cleaner air. However, challenges remain in raw material supply chains, grid capacity, and sparse charging coverage in rural areas.",
+    "Via": "judge",
+    "Reason": "The candidate wrote three sentences instead of the required two, omitting the manufacturers' response. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 61,
+    "GenMS": 515
+  },
+  {
+    "ID": "su_v02",
+    "Cat": "summarisation",
+    "Answer": "* Open-source software underpins most commercial stacks.\n* Companies gain faster development and shared maintenance.\n* Fragility is exposed by maintainer burnout and supply chain attacks.",
+    "Via": "judge",
+    "Reason": "The candidate omits the third rubric point about responses (corporate funding, dependency scanning, critical infrastructure treatment). -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 34,
+    "GenMS": 308
+  },
+  {
+    "ID": "m_a01",
+    "Cat": "maths",
+    "Answer": "Step 1: Calculate the amount of water drained in the first 12 minutes.\nDrained = 9 litres/minute * 12 minutes = 108 litres\n\nStep 2: Calculate the remaining amount of water after the first 12 minutes.\nRemaining = 520 - 108 = 412 litres\n\nStep 3: Calculate the amount of water refilled after the first 12 minutes.\nRefilled = 14 litres/minute * 15 minutes = 210 litres\n\nStep 4: Calculate the total amount of water after the first 12 minutes and the refill.\nTotal = 412 + 210 = 622 litres\n\nStep 5: Calculate the amount of water drained in the next 20 minutes.\nDrained = 6 litres/minute * 20 minutes = 120 litres\n\nStep 6: Calculate the final amount of water in the reservoir.\nFinal = 622 - 120 = 502 litres\n\nThe final answer is 502.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the final amount as 502 litres with sound steps. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 199,
+    "GenMS": 1657
+  },
+  {
+    "ID": "m_a02",
+    "Cat": "maths",
+    "Answer": "Pump A's rate is \\( \\frac{1}{8} \\) tank per hour, and pump B's rate is \\( \\frac{1}{6} \\) tank per hour. Their combined rate is:\n\n\\[\n\\frac{1}{8} + \\frac{1}{6} = \\frac{3}{24} + \\frac{4}{24} = \\frac{7}{24} \\text{ tank per hour}.\n\\]\n\nThe time to fill the tank together is the reciprocal of the combined rate:\n\n\\[\n\\frac{1}{\\frac{7}{24}} = \\frac{24}{7} \\text{ hours}.\n\\]\n\nRounded to 2 decimal places, this is \\( 4.285714... \\), which rounds to \\( 4.29 \\).\n\n\\boxed{4.29}",
+    "Via": "judge",
+    "Reason": "The candidate made an arithmetic error converting 24/7 to a decimal, writing 4.285714 instead of 3.428571, leading to the wrong final answer of 4.29. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 176,
+    "GenMS": 1422
+  },
+  {
+    "ID": "m_a03",
+    "Cat": "maths",
+    "Answer": "Let the original price be P = $400.\n\nStep 1: The price is increased by 25%.\nIncrease = 25% of P = 25/100 * 400 = 25 * 4 = $100.\nNew price = P + Increase = 400 + 100 = $500.\n\nStep 2: The price is then decreased by 25%.\nDecrease = 25% of $500 = 25/100 * 500 = 25 * 5 = $125.\nFinal price = New price - Decrease = 500 - 125 = $375.\n\nStep 3: The price is then increased by 8%.\nIncrease = 8% of $375 = 8/100 * 375 = 8 * 3.75 = $30.\nFinal price = Final price + Increase = 375 + 30 = $405.\n\nThe final price is $405.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the final price as $405 through the proper sequence of percentage changes. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 191,
+    "GenMS": 1512
+  },
+  {
+    "ID": "l_a01",
+    "Cat": "logical",
+    "Answer": "We are given five colleagues: Ana, Bram, Cleo, Dev, and Esme. They sit in seats 1 to 5 in a row, with seat 1 fixed for Ana and seat 5 fixed for Esme. The only remaining people are Bram and Cleo, so the set of people is {Ana, Bram, Cleo, Dev, Esme} with Ana and Esme fixed. The condition \"Cleo sits immediately to the left of Dev\" is ambiguous: if Cleo and Dev are adjacent, Cleo could be on the left of Dev if Cleo is to the right of any other person, but typically \"immediately to the left\" means no one else between them. However, since only two people are left, this condition is automatically satisfied. Thus, the only distinct arrangements of the remaining four people in seats 2–5 are:\n\n1. Ana, Bram, Cleo, Dev, Esme  \n2. Ana, Bram, Dev, Cleo, Esme  \n3. Ana, Cleo, Bram, Dev, Esme  \n4. Ana, Dev, Bram, Cleo, Esme  \n\nThe condition \"Bram does not sit next to Esme\" eliminates arrangements 2 and 4, leaving 1, 3, and 5. Without additional constraints, all three are valid. However, a common interpretation of \"immediately to the left\" is that Cleo is directly adjacent and to the left of Dev, which is true in all of them. Given the symmetry, the most compact arrangement is 1, 3, 5, where the middle person (Bram) is surrounded by the other two. Thus, the seating order is:\n\n\\boxed{Ana, Bram, Cleo, Dev, Esme}",
+    "Via": "judge",
+    "Reason": "The candidate reaches the correct final seating order despite flawed and confusing reasoning. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 370,
+    "GenMS": 2893
+  },
+  {
+    "ID": "l_a02",
+    "Cat": "logical",
+    "Answer": "Let the weights of boxes P, Q, R, S, and T be p, q, r, s, and t kg, respectively. We are given the following information:\n1. p + q + r + s + t = 2 + 4 + 6 + 8 + 10 = 30 kg.\n2. p + q = 6 kg.\n3. r \u003e s.\n4. t is the heaviest box.\n5. |s - q| = 2 kg.\n\nFrom (2), we can express p + q = 6, so p + q + r + s + t = (p + q) + (r + s + t) = 6 + (r + s + t) = 30. Therefore, r + s + t = 24 - 6 = 18 kg.\n\nFrom (5), we know that |s - q| = 2. This gives us two cases: s - q = 2 or s - q = -2.\n\nCase 1: s - q = 2.\nThen, s = q + 2.\nSubstitute s = q + 2 into r + s + t = 18:\nr + (q + 2) + t = 18\nr + q + t = 16.\n\nCase 2: s - q = -2.\nThen, s = q - 2.\nSubstitute s = q - 2 into r + s + t = 18:\nr + (q - 2) + t = 18\nr + q + t = 20.\n\nNow, we need to find p, q, r, s, and t such that p + q = 6, r \u003e s, and t is the heaviest box. Let's try Case 1 first:\nr + q + t = 16.\nWe can try different values of q and t to see if we can find a solution.\n\nIf q = 1, then p + q = 6 =\u003e p + 1 = 6 =\u003e p = 5.\nr + s + t = 18 =\u003e r + (1 + 2) + t = 18 =\u003e r + t + 3 = 18 =\u003e r + t = 15.\n\nNow we have p = 5, q = 1, and r + t = 15. We can try different values of r and t to see if we can find a solution.\n\nIf r = 7, then t = 15 - r = 15 - 7 = 8.\nSo, p = 5, q = 1, r = 7, s = q + 2 = 1 + 2 = 3, and t = 8.\n\nCheck the conditions:\n1. p + q + r + s + t = 5 + 1 + 7 + 3 + 8 = 30 kg. (OK)\n2. p + q = 5 + 1 = 6 kg. (OK)\n3. r \u003e s =\u003e 7 \u003e 3. (OK)\n4. t is the heaviest box =\u003e 8 \u003e 5, 8 \u003e 1, 8 \u003e 7, 8 \u003e 3. (OK)\n5. |s - q| = |3 - 1| = 2 kg. (OK)\n\nTherefore, the weights of the boxes are: P = 5 kg, Q = 1 kg, R = 7 kg, S = 3 kg, and T = 8 kg.",
+    "Via": "judge",
+    "Reason": "The candidate ignored the constraint that the weights must be 2, 4, 6, 8, and 10 kg, resulting in an incorrect answer. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 752,
+    "GenMS": 6543
+  },
+  {
+    "ID": "cd_a01",
+    "Cat": "code_debugging",
+    "Answer": "`results` evaluates to a list of lambdas, specifically the first argument of the lambdas.\n\n### What it evaluates to\n`results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda x: x + i for i in range(1, 4)]`  \n→ `results = [lambda",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly states that `results` is a list of lambdas rather than `[13, 13, 13]`, and fails to explain late binding. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 768,
+    "GenMS": 6678
+  },
+  {
+    "ID": "cd_a02",
+    "Cat": "code_debugging",
+    "Answer": "`first` and `second` evaluate to `[]` (an empty list), and the default argument `[]` is **not** used by the function.\n\n### Step-by-step behavior:\n\n```python\ndef append_item(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n\nfirst = append_item(1)\nsecond = append_item(2)\n```\n\n1. **Default argument argument**:  \n   - `bucket=[]` is a mutable object (a list) that is created once when the function is defined, and all calls to `append_item` without the second argument share the same list object.  \n   - So every call to `append_item(1)` and `append_item(2)` mutates the **single** list that was created once, not each new list.\n\n2. **First call**:  \n   - `append_item(1)` mutates the existing list once.  \n   - `first = append_item(1)` → `first = []` (the list is mutated once, so it becomes `[]`).\n\n3. **Second call**:  \n   - `append_item(2)` mutates the **same** list that was just mutated by the first call.  \n   - `second = append_item(2)` → `second = []` (the list is mutated once, so it becomes `[]`).\n\nSo both `first` and `second` end up with the **same** mutable list object: `[]`.",
+    "Via": "judge",
+    "Reason": "Incorrect: the candidate correctly identifies the shared mutable default but wrongly concludes both evaluate to `[]` instead of `[1, 2]`. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 307,
+    "GenMS": 2360
+  },
+  {
+    "ID": "cd_a03",
+    "Cat": "code_debugging",
+    "Answer": "`total1` and `total2` both evaluate to `0`.\n\nExplanation:  \nThe generator expression `(n for n in nums if n % 2 == 0)` produces an iterator of the even numbers from `nums`.  \n`sum()` expects an iterable (one or more elements), but an iterator is an iterable by itself.  \nSo the first `sum(evens)` calls the iterator once, collecting all even numbers into a list, and then closes the iterator.  \nThe second `sum(evens)` sees the same iterator, which is already closed, so it cannot collect any more numbers.  \nThus, both sums end up with just the first element: `2`, not the sum of all evens.",
+    "Via": "judge",
+    "Reason": "The candidate is incorrect because they state both evaluate to 0 and provide a flawed explanation. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 152,
+    "GenMS": 1140
+  },
+  {
+    "ID": "cg_a01",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef edit_distance(a: str, b: str) -\u003e int:\n    \"\"\"\n    Compute the Levenshtein distance between two strings.\n\n    Parameters:\n        a (str): First string.\n        b (str): Second string.\n\n    Returns:\n        int: Minimum number of single-character insertions, deletions, or substitutions\n              required to transform a into b.\n    \"\"\"\n    m, n = len(a), len(b)\n    # Create a 2D array of size (m+1) x (n+1)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n\n    for i in range(1, m + 1):\n        dp[i][0] = i - 1  # deletions\n    for j in range(1, n + 1):\n        dp[0][j] = j - 1  # insertions\n\n    for i in range(1, m + 1):\n        for j in range(1, n + 1):\n            if a[i - 1] == b[j - 1]:\n                dp[i][j] = dp[i - 1][j - 1]\n            else:\n                dp[i][j] = min(\n                    dp[i - 1][j - 1] + 1,  # substitution\n                    dp[i - 1][j] + 1,      # deletion\n                    dp[i][j - 1] + 1       # insertion\n                )\n\n    return dp[m][n]\n\n\n# Example\nprint(edit_distance('kitten', 'sitting'))  # Expected: 3\n```",
+    "Via": "judge",
+    "Reason": "The candidate's base cases for the DP array are incorrect, using `i - 1` and `j - 1` instead of `i` and `j`. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 350,
+    "GenMS": 2539
+  },
+  {
+    "ID": "cg_a02",
+    "Cat": "code_generation",
+    "Answer": "```python\ndef lis_length(nums):\n    \"\"\"Return the length of the longest strictly increasing subsequence.\"\"\"\n    if not nums:\n        return 0\n\n    lengths = [1] * len(nums)\n    for i in range(1, len(nums)):\n        if nums[i] \u003e nums[i - 1]:\n            lengths[i] = lengths[i - 1] + 1\n        else:\n            lengths[i] = 1\n\n    return max(lengths)",
+    "Via": "judge",
+    "Reason": "The candidate's code computes the longest increasing contiguous subarray, not subsequence, and would return 3 instead of 4 for the given example. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 100,
+    "GenMS": 768
+  },
+  {
+    "ID": "s_a01",
+    "Cat": "sentiment",
+    "Answer": "Positive; the review is positive because the user finds the update \"fantastic\" and calls it \"another update that resets all my settings and hides the export button,\" but the final rating is \"Five stars for consistency.\"",
+    "Via": "judge",
+    "Reason": "The candidate incorrectly classifies the sarcastic review as Positive instead of Negative. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 46,
+    "GenMS": 339
+  },
+  {
+    "ID": "s_a02",
+    "Cat": "sentiment",
+    "Answer": "Positive: The review is positive because the food was \"shockingly good,\" and the restaurant has plastic chairs and a handwritten menu.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and cites the key praise, though it oddly includes the decor details as part of the reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 27,
+    "GenMS": 203
+  },
+  {
+    "ID": "su_a01",
+    "Cat": "summarisation",
+    "Answer": "* Global shipments fell for the eighth quarter.\n* 61% of the decline is due to lengthening cycles.\n* Manufacturers are shifting budgets to trade-in and on-device AI.",
+    "Via": "judge",
+    "Reason": "The candidate omits key details from the first and third bullets, making the summary incomplete. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 37,
+    "GenMS": 278
+  }
+]

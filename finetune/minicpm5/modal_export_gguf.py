@@ -15,7 +15,11 @@ import modal
 
 APP_NAME = "yassai-minicpm5-gguf-export"
 CKPT_ROOT = Path("/checkpoints")
-LLAMA_CPP_VERSION = "b9620"
+# Converter, quantizer and the gguf python package must come from ONE llama.cpp
+# tree, matched to the runtime libs the agent ships (Dockerfile LLAMA_VERSION).
+# An unpinned PyPI `gguf` once drifted ahead of the b9620 converter and wrote
+# scrambled tokenizer metadata (models emitted <|fim_middle|>/stripped JSON).
+LLAMA_CPP_VERSION = "b9946"
 
 app = modal.App(APP_NAME)
 ckpt_volume = modal.Volume.from_name("yassai-minicpm5-checkpoints", create_if_missing=False)
@@ -25,7 +29,6 @@ image = (
     .apt_install("curl", "ca-certificates", "git")
     .pip_install(
         "torch==2.7.1",
-        "gguf",
         "transformers==4.57.3",
         "safetensors==0.6.2",
         "sentencepiece==0.2.1",
@@ -46,6 +49,8 @@ image = (
             f"https://github.com/ggml-org/llama.cpp/archive/refs/tags/{LLAMA_CPP_VERSION}.tar.gz"
         ),
         "tar xzf /tmp/llama-src.tgz -C /opt/llama.cpp --strip-components=1",
+        # the version-matched gguf writer from the SAME tree as the converter
+        "pip install /opt/llama.cpp/gguf-py",
     )
 )
 
