@@ -328,7 +328,13 @@ func meetingTimeBound(prompt, answer string) string {
 	}
 	ans := clockRe.FindStringSubmatch(answer)
 	if ans == nil {
-		return ""
+		// The prompt parsed as a two-vehicle meeting question, so a meeting
+		// answer without any parseable clock time is itself disqualifying -
+		// skipping here would wave nonsense times straight through.
+		return "meeting answer lacks a parseable clock time"
+	}
+	if atoiSafe(ans[1]) >= 24 || atoiSafe(ans[2]) >= 60 {
+		return fmt.Sprintf("malformed clock time %s", ans[0])
 	}
 	meet := atoiSafe(ans[1])*60 + atoiSafe(ans[2])
 	latestDep, bound := 0, 1<<30

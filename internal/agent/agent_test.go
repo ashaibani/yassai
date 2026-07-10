@@ -178,3 +178,29 @@ func TestNormaliseToolCallsWrapsMalformedArguments(t *testing.T) {
 		t.Fatalf("truncated JSON should normalise to empty code, got %q", payload["code"])
 	}
 }
+
+// TestHeuristicRoutingContract pins the keyword-heuristic mitigations for the
+// classifier v4 defects seen in production telemetry and CI: code_debugging
+// over-fires and can swallow NER/logic entirely (near-threshold int8 logits
+// also flip between arm64 and amd64). The agent must route correctly from the
+// prompt text alone, whatever the classifier says.
+func TestHeuristicRoutingContract(t *testing.T) {
+	cases := []struct{ prompt, want string }{
+		{`Extract named entities from: "Tim Cook announced Apple Inc. will open a London office in 2025."`, "named_entity_recognition"},
+		{"If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops definitely Lazzies?", "logical_deductive_reasoning"},
+		{"Premise one: does it follow that some Lazzies are Bloops?", "logical_deductive_reasoning"},
+	}
+	for _, c := range cases {
+		if got := heuristicCategory(c.prompt); got != c.want {
+			t.Errorf("heuristicCategory(%.50q) = %q, want %q", c.prompt, got, c.want)
+		}
+	}
+
+	// Even with the classifier reporting only noise labels, syllogism-shaped
+	// logic must reach the code-exec batch.
+	a := &Agent{categories: map[string][]string{"t1": {"code_debugging"}}}
+	task := Task{TaskID: "t1", Prompt: cases[1].prompt}
+	if !a.taskUsesCode(task) {
+		t.Error("syllogism prompt with noisy classifier labels must route to code-exec")
+	}
+}
