@@ -1,5 +1,5 @@
 {
-  "model_int8": "model.int8.onnx",
+  "model_int8": "",
   "model_fp32": "model.onnx",
   "inputs": [
     "input_ids",
@@ -24,15 +24,15 @@
     "code_generation"
   ],
   "thresholds": {
-    "factual_knowledge": 0.5,
+    "factual_knowledge": 0.65,
     "mathematical_reasoning": 0.5,
     "sentiment_classification": 0.5,
-    "text_summarisation": 0.5,
+    "text_summarisation": 0.7,
     "named_entity_recognition": 0.5,
     "code_debugging": 0.5,
     "logical_deductive_reasoning": 0.5,
-    "code_generation": 0.5
+    "code_generation": 0.75
   },
   "activation": "sigmoid",
-  "note": "multi-label sigmoid; deploy decode = argmax / uniform-0.5; head+tail truncation to max_len"
+  "note": "v5 (augv5-e3): +evaluate-style cbug and fix-style contrastive data; fp32 shipped (int8 dynamic quant diverges on amd64); thresholds raised only where real_val showed spurious fires"
 }

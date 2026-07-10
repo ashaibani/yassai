@@ -27,6 +27,12 @@ import (
 
 // systemPrompt is the exact contract the SFT data was trained on
 // (scripts/build_minicpm5_sft_data_v2.py) - do not drift.
+// The tool contract is the JSON tool call MiniCPM5 was pretrained on - the
+// fenced-Python alternative was tried and REGRESSED the 1B LoRA (syntax errors
+// + repeat-loop degeneration even at F16), so JSON stays. The GGUF-mangled
+// </tool_call> tag is handled downstream by extractToolCode's balanced-brace
+// parser, not by changing the contract. Must stay byte-identical to
+// scripts/build_minicpm5_sft_data_v2.py.
 const systemPrompt = `You are yassai-local, a small local specialist for math and logic tasks.
 Use run_python for arithmetic, percentages, schedules, projections, combinatorics, and constraint checks.
 Never do these calculations in your head.
@@ -137,6 +143,18 @@ func New(cfg Config) (*Solver, error) {
 	if ids := llama.Tokenize(s.vocab, "</tool_call>", false, true); len(ids) == 1 {
 		s.toolClose = ids[0]
 	}
+	// Boot canary: some lib/arch combinations load fine yet decode garbage
+	// (seen: ubuntu-arm64 llama libs under Docker's VM emit backtick spam).
+	// One tiny generation proves the stack computes; a degenerate result
+	// disables local solving for the run - the Fireworks baseline takes over
+	// rather than burning the 10-minute budget on 18 doomed generations.
+	cctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	canary, cerr := s.generate(cctx, "What is 6 * 7? Return only the number.")
+	if cerr != nil || !strings.Contains(canary, "run_python") || strings.Contains(canary, "``````") {
+		s.Close()
+		return nil, fmt.Errorf("localllm: boot canary failed (degenerate or erroring decode): err=%v out=%.80q", cerr, canary)
+	}
 	return s, nil
 }
 
@@ -206,7 +224,7 @@ func (s *Solver) solveOnce(ctx context.Context, prompt string) Result {
 		return Result{Code: code, Stdout: stdout, Reason: "generate final turn: " + err.Error()}
 	}
 	answer = strings.TrimSpace(answer)
-	if answer == "" || strings.Contains(answer, "<tool_call>") {
+	if answer == "" || strings.Contains(answer, "<tool_call>") || strings.Contains(answer, "```") {
 		return Result{Code: code, Stdout: stdout, Reason: "final turn not a plain answer"}
 	}
 	if reason := answerGroundedIn(answer, stdout); reason != "" {
@@ -381,12 +399,19 @@ func atoiSafe(s string) int {
 	return v
 }
 
-// extractToolCode pulls the run_python code out of a tool-call turn. Strict
-// yzma parsing first; falls back to balanced-brace JSON extraction because
-// GGUF conversion can mangle the </tool_call> special token, leaving a
-// well-formed JSON payload with no closing tag (the model jumps to
-// <|im_end|>, sometimes emitted as literal text).
+var fenceRe = regexp.MustCompile("(?s)```(?:python)?[ \t]*\n(.*?)\n?```")
+
+// extractToolCode pulls the Python out of a tool turn. The current contract is
+// a fenced block (raw code lines, nothing to escape); the legacy <tool_call>
+// JSON wrapper is still recognised - strictly, then via balanced-brace
+// extraction, because GGUF conversion mangled its </tool_call> special token.
 func extractToolCode(turn string) (string, string) {
+	if m := fenceRe.FindStringSubmatch(turn); m != nil {
+		if code := strings.TrimSpace(m[1]); code != "" {
+			return code, ""
+		}
+		return "", "empty fenced block"
+	}
 	if calls := message.ParseToolCalls(turn); len(calls) == 1 && calls[0].Function.Name == "run_python" {
 		if code := strings.TrimSpace(calls[0].Function.Arguments["code"]); code != "" {
 			return code, ""
@@ -395,7 +420,7 @@ func extractToolCode(turn string) (string, string) {
 	}
 	open := strings.Index(turn, "<tool_call>")
 	if open < 0 {
-		return "", "no tool call in turn"
+		return "", "no fenced block or tool call in turn"
 	}
 	rest := turn[open+len("<tool_call>"):]
 	start := strings.IndexByte(rest, '{')

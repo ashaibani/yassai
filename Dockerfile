@@ -8,8 +8,10 @@ FROM debian:bookworm-slim AS deps
 ARG ORT_VERSION=1.27.0
 ARG TOK_VERSION=1.27.0
 # llama.cpp shared libs for the in-container MiniCPM5 offload (yzma dlopens
-# them; purego, no cgo). Same pinned release the GGUF exporter uses.
-ARG LLAMA_VERSION=b9620
+# them; purego, no cgo). yzma v1.18 needs >= b9946 (llama_model_n_layer_nextn);
+# b9620 libs load-fail and silently disable the local model (seen in the
+# sha-118fcd3 leaderboard image: GGUF baked, load failed, local_answers=0).
+ARG LLAMA_VERSION=b9946
 # Optional: URL of the fine-tuned GGUF. Left empty the image builds without a
 # local model and the agent silently runs Fireworks-only. Private Hugging Face
 # URLs authenticate via the BuildKit secret `hf_token` (never an ARG - ARGs
@@ -51,7 +53,9 @@ RUN CGO_ENABLED=1 CGO_LDFLAGS="-L/libtok" go build -trimpath -ldflags='-s -w' -o
 # glibc + libstdc++ support the cgo binary and libonnxruntime; ca-certificates
 # cover Fireworks HTTPS. Stays far under the 10GB limit. ---
 FROM python:3.12-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 \
+# libgomp1: the llama.cpp CPU backend (libggml-cpu-*.so) links OpenMP; without
+# it the dlopen fails and the local model silently disables.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /
 COPY --from=build /out/yassai /yassai

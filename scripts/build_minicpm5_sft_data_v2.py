@@ -26,6 +26,10 @@ import random
 from fractions import Fraction
 from pathlib import Path
 
+# The tool turn is the JSON tool call MiniCPM5 was pretrained on. A fenced-code
+# alternative was tried to dodge GGUF's </tool_call> mangling but REGRESSED the
+# 1B LoRA (syntax errors, repeat-loop degeneration even at F16), so JSON stays;
+# the mangled closing tag is handled by the runtime's balanced-brace parser.
 SYSTEM = """You are yassai-local, a small local specialist for math and logic tasks.
 Use run_python for arithmetic, percentages, schedules, projections, combinatorics, and constraint checks.
 Never do these calculations in your head.

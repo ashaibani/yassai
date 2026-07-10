@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/hybridgroup/yzma/pkg/template"
 )
 
+// Must stay byte-identical to internal/localllm and the SFT data builder
+// (JSON tool-call contract; the fenced variant regressed the 1B LoRA).
 const systemPrompt = `You are yassai-local, a small local specialist for math and logic tasks.
 Use run_python for arithmetic, percentages, schedules, projections, combinatorics, and constraint checks.
 Never do these calculations in your head.
@@ -238,17 +241,16 @@ func scoreCase(c evalCase, response string) (bool, string) {
 		return false, fmt.Sprintf("final mismatch got=%q want=%q", strings.TrimSpace(response), c.ExpectedFinal)
 	}
 
-	calls := message.ParseToolCalls(response)
-	if len(calls) != 1 {
-		return false, fmt.Sprintf("expected one tool call, got %d", len(calls))
+	code := ""
+	if m := fenceRe.FindStringSubmatch(response); m != nil {
+		code = m[1]
+	} else if calls := message.ParseToolCalls(response); len(calls) == 1 && calls[0].Function.Name == "run_python" {
+		code = calls[0].Function.Arguments["code"] // legacy JSON contract
+	} else {
+		return false, "no fenced python block (or legacy tool call) in response"
 	}
-	call := calls[0]
-	if call.Function.Name != "run_python" {
-		return false, fmt.Sprintf("wrong tool %q", call.Function.Name)
-	}
-	code := call.Function.Arguments["code"]
 	if strings.TrimSpace(code) == "" {
-		return false, "missing code argument"
+		return false, "empty code"
 	}
 	got, err := runPython(code)
 	if err != nil {
@@ -302,3 +304,5 @@ func fail(err error) {
 	fmt.Fprintln(os.Stderr, "error:", err)
 	os.Exit(1)
 }
+
+var fenceRe = regexp.MustCompile("(?s)```(?:python)?[ \t]*\n(.*?)\n?```")

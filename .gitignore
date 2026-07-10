@@ -25,3 +25,4 @@ models/
 
 # Timestamped classifier backups created during deploys.
 assets/taskclf_backup_*/
+finetune/minicpm5/localmodeleval-linux-*

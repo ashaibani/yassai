@@ -136,3 +136,22 @@ func TestUpperMagnitudeAndListEcho(t *testing.T) {
 		t.Errorf("echoed list must pass: %s", r)
 	}
 }
+
+func TestExtractToolCodeFence(t *testing.T) {
+	fenced := "```python\nstart = 2400\nprint(start)\n```"
+	if c, e := extractToolCode(fenced); e != "" || !strings.Contains(c, "start = 2400") {
+		t.Errorf("fence parse failed: %q %q", c, e)
+	}
+	bare := "```\nprint(1)\n```"
+	if c, e := extractToolCode(bare); e != "" || c != "print(1)" {
+		t.Errorf("bare fence parse failed: %q %q", c, e)
+	}
+	// fenced code containing braces and quotes must survive untouched
+	tricky := "```python\nprint('; '.join(f'{p}: {d[p]}' for p in people))\n```"
+	if c, e := extractToolCode(tricky); e != "" || !strings.Contains(c, "{d[p]}") {
+		t.Errorf("tricky fence parse failed: %q %q", c, e)
+	}
+	if _, e := extractToolCode("```python\nprint(1)"); e == "" {
+		t.Error("unterminated fence must error")
+	}
+}

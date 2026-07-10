@@ -13,6 +13,9 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
+# Tool turns are fenced Python blocks (raw code, no JSON escaping to derail);
+# the legacy <tool_call> JSON wrapper is still recognised for old datasets.
+FENCE_RE = re.compile(r"```(?:python)?\s*\n(.*?)\n?```", re.S)
 TOOL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.S)
 
 
@@ -21,7 +24,8 @@ def load_rows(path: Path) -> list[dict]:
 
 
 def is_tool_target(row: dict) -> bool:
-    return "<tool_call>" in row["messages"][-1]["content"]
+    content = row["messages"][-1]["content"]
+    return "<tool_call>" in content or content.lstrip().startswith("```")
 
 
 def prompt_messages(row: dict) -> list[dict]:
@@ -58,23 +62,25 @@ def norm(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip())
 
 
-def extract_tool_json(got: str) -> tuple[dict | None, str]:
-    m = TOOL_RE.search(got)
-    raw = m.group(1) if m else got.strip()
-    try:
-        return json.loads(raw), "wrapped" if m else "raw"
-    except Exception as exc:
-        return None, f"bad tool JSON: {exc}"
+def extract_code(got: str) -> tuple[str | None, str]:
+    if m := FENCE_RE.search(got):
+        return m.group(1), "fenced"
+    if m := TOOL_RE.search(got):
+        try:
+            obj = json.loads(m.group(1))
+        except Exception as exc:  # noqa: BLE001
+            return None, f"bad tool JSON: {exc}"
+        if obj.get("name") != "run_python":
+            return None, f"wrong tool: {obj.get('name')}"
+        return obj.get("arguments", {}).get("code", ""), "legacy-json"
+    return None, "no fenced block or tool call"
 
 
 def score_tool(expected: str, got: str) -> tuple[bool, str]:
-    obj, source = extract_tool_json(got)
-    if obj is None:
+    code, source = extract_code(got)
+    if code is None:
         return False, source
-    if obj.get("name") != "run_python":
-        return False, f"wrong tool: {obj.get('name')}"
-    code = obj.get("arguments", {}).get("code", "")
-    if not isinstance(code, str) or not code.strip():
+    if not code.strip():
         return False, "missing code"
     if "print" not in code:
         return False, "code does not print"

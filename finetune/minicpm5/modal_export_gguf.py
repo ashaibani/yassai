@@ -101,9 +101,10 @@ def export(run_name: str = "exact-e14-r32", quant: str = "Q4_K_M", hf_repo: str 
 
         api = HfApi()
         api.create_repo(hf_repo, repo_type="model", private=True, exist_ok=True)
-        dest = f"MiniCPM5-yassai-{run_name}-{quant}.gguf"
-        api.upload_file(path_or_fileobj=str(qout), path_in_repo=dest, repo_id=hf_repo)
-        print(f"pushed to https://huggingface.co/{hf_repo}/resolve/main/{dest}")
+        for path, suffix in ((qout, quant), (f16, "F16")):
+            dest = f"MiniCPM5-yassai-{run_name}-{suffix}.gguf"
+            api.upload_file(path_or_fileobj=str(path), path_in_repo=dest, repo_id=hf_repo)
+            print(f"pushed to https://huggingface.co/{hf_repo}/resolve/main/{dest}")
 
     return str(qout)
 
