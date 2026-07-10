@@ -39,6 +39,11 @@ const (
 	// FamilyCodeFix is correction-style code_debugging ("supposed to X but
 	// contains a bug"); eval-style tracing is FamilyCodeTrace.
 	FamilyCodeFix = "code_fix"
+	// FamilyLogical exists ONLY as the zero-token fallback: logic belongs to
+	// the tool lane, but a no-remote run must ship an attempt when the tool
+	// lane rejects or skips (stock Qwen3.5-2B answers logic at 5/6 on the
+	// variant probe). Never list it in a remote-mode LOCAL_BASE_EXTENDED.
+	FamilyLogical = "logical_deductive_reasoning"
 )
 
 // directInstructions are terse per-family system prompts (the track-1 inspo
@@ -55,6 +60,7 @@ var directInstructions = map[string]string{
 	FamilySummarisation: "Obey the stated length and format limits exactly; cover every major theme; no preamble.",
 	FamilyFactual:       "Answer directly and concisely; explanations max 3 short sentences.",
 	FamilyCodeFix:       "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
+	FamilyLogical:       "Solve the logic puzzle step by step, then state the final answer or assignment for every person and item explicitly. Be decisive: one answer, no alternatives.",
 }
 
 var directMaxGen = map[string]int{
@@ -65,6 +71,7 @@ var directMaxGen = map[string]int{
 	FamilySummarisation: 260,
 	FamilyFactual:       200,
 	FamilyCodeFix:       420,
+	FamilyLogical:       600,
 }
 
 // extendedFamilies are served only by the assist fine-tune (Config.Extended).
@@ -73,6 +80,7 @@ var extendedFamilies = map[string]bool{
 	FamilySummarisation: true,
 	FamilyFactual:       true,
 	FamilyCodeFix:       true,
+	FamilyLogical:       true, // zero-token fallback only; unlocked via "all"
 }
 
 // DirectInstruction exposes the serving system prompt for a family ("" when
@@ -269,7 +277,51 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	}
 	// Keep the first attempt as the fallback candidate: it failed one check,
 	// the retry failed too, and the first is the less-prompted of the two.
+	// Word-cap violations get a mechanical trim: in zero-token mode the
+	// reject ships as-is, and a bullet cut at the cap beats a non-compliant
+	// one at the judge (T04b failed on exactly this in both zero runs).
+	if family == FamilySummarisation && strings.Contains(res.Reason, "prompt caps at") {
+		res.Answer = trimToWordCap(prompt, res.Answer)
+	}
 	return res
+}
+
+// trimToWordCap enforces the prompt's per-item word cap on bullet lines,
+// leaving compliant items and non-bullet lines untouched.
+func trimToWordCap(prompt, answer string) string {
+	m := wordCapRe.FindStringSubmatch(prompt)
+	if m == nil {
+		return answer
+	}
+	limit := wordNumExt[strings.ToLower(m[1])]
+	if limit == 0 {
+		if v, err := strconv.Atoi(m[1]); err == nil {
+			limit = v
+		}
+	}
+	if limit == 0 {
+		return answer
+	}
+	lines := strings.Split(answer, "\n")
+	for i, line := range lines {
+		t := strings.TrimSpace(line)
+		marker := ""
+		for _, p := range []string{"- ", "• ", "* "} {
+			if strings.HasPrefix(t, p) {
+				marker = p
+				break
+			}
+		}
+		if marker == "" {
+			continue
+		}
+		words := strings.Fields(strings.TrimPrefix(t, marker))
+		if len(words) <= limit {
+			continue
+		}
+		lines[i] = marker + strings.TrimRight(strings.Join(words[:limit], " "), ",;:")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // nerConsistent re-extracts with a second phrasing and demands the identical
@@ -357,6 +409,12 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 		reason = gateFactual(answer)
 	case FamilyCodeFix:
 		reason = gateCodeFix(tctx, prompt, answer)
+	case FamilyLogical:
+		// Fallback-of-last-resort lane: any substantive attempt beats the
+		// empty or reject answer it replaces in a zero-token run.
+		if len(strings.Fields(answer)) < 8 {
+			reason = "logical: answer too short to state an assignment"
+		}
 	}
 	if reason != "" {
 		return Result{Answer: answer, Reason: reason}

@@ -255,3 +255,24 @@ func TestGroundCodeFixCauseSkipsUnattributable(t *testing.T) {
 		t.Fatalf("both-raise must be left untouched, got %q", got)
 	}
 }
+
+func TestTrimToWordCap(t *testing.T) {
+	prompt := "Summarise in exactly three bullet points, each no longer than 15 words."
+	answer := "- one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen\n" +
+		"- short bullet stays exactly as written\n" +
+		"prose line is not a bullet and stays"
+	got := trimToWordCap(prompt, answer)
+	lines := strings.Split(got, "\n")
+	if n := len(strings.Fields(strings.TrimPrefix(lines[0], "- "))); n != 15 {
+		t.Fatalf("over-cap bullet must be trimmed to 15 words, got %d: %q", n, lines[0])
+	}
+	if lines[1] != "- short bullet stays exactly as written" {
+		t.Fatalf("under-cap bullet must be untouched: %q", lines[1])
+	}
+	if lines[2] != "prose line is not a bullet and stays" {
+		t.Fatalf("non-bullet line must be untouched: %q", lines[2])
+	}
+	if trimToWordCap("no cap stated here", answer) != answer {
+		t.Fatal("prompts without a word cap must pass through unchanged")
+	}
+}

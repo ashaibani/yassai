@@ -444,6 +444,54 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 			solver.Close()
 		}
 	}
+
+	// Zero-token logic fallback: with no remote insurance, a logical task the
+	// tool lane rejected or skipped ships its reject - or nothing at all (the
+	// semantic-clue skip produces no attempt). The assist model answers logic
+	// directly at 5/6 on the variant probe, so give those tasks one direct
+	// attempt before they ship. FamilyLogical unlocks only via
+	// LOCAL_BASE_EXTENDED=all; remote-mode builds never list it, so their
+	// routing is untouched.
+	if os.Getenv("AGENT_NO_REMOTE") == "1" && baseCfgd {
+		var logicRetry []Task
+		kept := remaining[:0]
+		for _, t := range remaining {
+			if heuristicCategory(t.Prompt) == localllm.FamilyLogical && answers[t.TaskID] == "" {
+				logicRetry = append(logicRetry, t)
+				continue
+			}
+			kept = append(kept, t)
+		}
+		remaining = kept
+		if len(logicRetry) > 0 {
+			solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "logic fallback disabled:", err)
+				remaining = append(remaining, logicRetry...)
+			} else {
+				for _, t := range logicRetry {
+					if ctx.Err() != nil || time.Now().After(localBudget) {
+						remaining = append(remaining, t)
+						continue
+					}
+					res := solver.SolveTask(ctx, t.Prompt, localllm.FamilyLogical)
+					if res.OK {
+						fmt.Fprintf(os.Stderr, "logic fallback %s: assist direct answer\n", t.TaskID)
+						answers[t.TaskID] = res.Answer
+						a.metrics.LocalAnswers++
+						continue
+					}
+					// Replace an EMPTY reject only: a rejected tool-lane attempt
+					// carries executed evidence and stays preferred.
+					if strings.TrimSpace(res.Answer) != "" && strings.TrimSpace(a.localRejects[t.TaskID]) == "" {
+						a.localRejects[t.TaskID] = res.Answer
+					}
+					remaining = append(remaining, t)
+				}
+				solver.Close()
+			}
+		}
+	}
 	return remaining
 }
 
