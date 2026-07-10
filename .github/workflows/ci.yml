@@ -233,3 +233,46 @@ jobs:
           cat /tmp/test-output/metrics.json || true
           echo ""
           echo "Docker image test PASSED"
+
+      - name: Dress rehearsal (19 sample tasks, real amd64 timing)
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        # A full-set run on genuine amd64 CPU - the runner is no faster than
+        # the judging VM, so a clean pass here (1 remote call, zero "Unable to
+        # answer", sane duration) is leaderboard-grade evidence WITHOUT
+        # spending a submission. The run reports to the callback worker under
+        # the ci-rehearsal label for token/local/fallback inspection.
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)"
+          mkdir -p /tmp/rehearsal-in /tmp/rehearsal-out
+          python3 -c "
+          import json
+          tasks = json.load(open('testdata/downloads_tasks_golden.json'))
+          tasks = tasks if isinstance(tasks, list) else tasks['tasks']
+          json.dump([{'task_id': t['task_id'], 'prompt': t['prompt']} for t in tasks], open('/tmp/rehearsal-in/tasks.json', 'w'))
+          "
+          START=$(date +%s)
+          docker run --rm --platform linux/amd64 \
+            -v /tmp/rehearsal-in:/input:ro \
+            -v /tmp/rehearsal-out:/output \
+            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e CALLBACK_LABEL="ci-rehearsal @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/rehearsal-stderr.txt || true
+          WALL=$(( $(date +%s) - START ))
+          echo "=== wall clock: ${WALL}s (judge cap 600s) ==="
+          grep -E 'local reject|fallback|disabled' /tmp/rehearsal-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/rehearsal-out/results.json'))
+          metrics = json.load(open('/tmp/rehearsal-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: missing or empty answers')
+          if metrics.get('fallbacks', 0) > 0:
+              print('WARNING: fallback answers shipped - inspect before resubmitting')
+          PYEOF
+          echo "Dress rehearsal PASSED"
