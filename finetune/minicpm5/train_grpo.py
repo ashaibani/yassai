@@ -40,6 +40,9 @@ def main() -> None:
     tok = AutoTokenizer.from_pretrained(base, trust_remote_code=True)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
+    # MiniCPM's remote-code generate() rejects token_type_ids, but its
+    # tokenizer emits them and TRL forwards every tokenizer output.
+    tok.model_input_names = ["input_ids", "attention_mask"]
 
     rows = [json.loads(l) for l in data_path.read_text(encoding="utf-8").splitlines() if l.strip()]
 
@@ -62,21 +65,25 @@ def main() -> None:
             "prompt": prompt,
             "family": r["family"],
             "user_prompt": r["prompt"],
+            # logic_tool rows carry the puzzle's derived solution as a JSON
+            # string; other families have no ground truth column.
+            "truth": r.get("truth", ""),
         }
 
     ds = Dataset.from_list([render(r) for r in rows])
     print(f"GRPO prompts: {len(ds)} from {data_path}; generations={num_gen}")
 
-    def reward_fn(completions, family, user_prompt, **kwargs):
+    def reward_fn(completions, family, user_prompt, truth, **kwargs):
         # TRL passes columns as lists aligned with completions.
         out = []
-        for comp, fam, up in zip(completions, family, user_prompt):
+        for comp, fam, up, tr in zip(completions, family, user_prompt, truth):
             # completions may be str or list[{role,content}]
             if isinstance(comp, list):
                 text = comp[-1].get("content", "") if comp else ""
             else:
                 text = str(comp)
-            out.append(float(reward_for(fam, up, text)))
+            truth_obj = json.loads(tr) if tr else None
+            out.append(float(reward_for(fam, up, text, truth=truth_obj)))
         return out
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -92,7 +99,9 @@ def main() -> None:
         num_train_epochs=epochs,
         learning_rate=lr,
         per_device_train_batch_size=1,
-        gradient_accumulation_steps=4,
+        # generation_batch_size (batch*accum) must be divisible by the group
+        # size, so tie accumulation to num_generations.
+        gradient_accumulation_steps=num_gen,
         num_generations=num_gen,
         max_completion_length=max_comp,
         logging_steps=5,

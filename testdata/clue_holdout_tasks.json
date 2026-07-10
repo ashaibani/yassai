@@ -1,0 +1,50 @@
+[
+ {
+  "task_id": "ch_01",
+  "prompt": "Four friends \u2014 Jonas, Stefan, Ines, and Dev \u2014 each have a different pet: rabbit, canary, dog, or parrot. Use the following clues to determine who has what:\n1. Stefan has the parrot.\n2. Jonas wants a pet that can fly.\n3. Ines has neither the parrot nor the dog.\n4. Dev does not have the parrot.\nState each person's pet.",
+  "expected": "Dev: dog; Ines: rabbit; Jonas: canary; Stefan: parrot. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_02",
+  "prompt": "Three friends \u2014 Amira, Oona, and Ines \u2014 each have a different sport: rowing, karate, or boxing. Use the following clues to determine who has what:\n1. Oona plays the karate.\n2. Amira only does non-contact sports.\n3. Ines does not have the rowing.\nState each person's sport.",
+  "expected": "Amira: rowing; Ines: boxing; Oona: karate. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_03",
+  "prompt": "Three friends \u2014 Chiara, Oona, and Katya \u2014 each have a different sport: tennis, boxing, or rowing. Use the following clues to determine who has what:\n1. Katya plays the boxing.\n2. Chiara only does non-contact sports.\n3. Oona does not have the rowing.\nState each person's sport.",
+  "expected": "Chiara: rowing; Katya: boxing; Oona: tennis. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_04",
+  "prompt": "Four friends \u2014 Bruno, Umar, Ines, and Vera \u2014 each have a different pet: canary, goldfish, cat, or dog. Use the following clues to determine who has what:\n1. Ines has the cat.\n2. Bruno is allergic to fur.\n3. Umar has neither the goldfish nor the canary.\n4. Vera has neither the canary nor the cat.\nState each person's pet.",
+  "expected": "Bruno: canary; Ines: cat; Umar: dog; Vera: goldfish. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_05",
+  "prompt": "Three friends \u2014 Pavel, Mona, and Quinn \u2014 each have a different instrument: drums, guitar, or trumpet. Use the following clues to determine who has what:\n1. Quinn plays the drums.\n2. Pavel can only carry a small instrument on the bus.\n3. Mona does not have the guitar.\nState each person's instrument.",
+  "expected": "Mona: trumpet; Pavel: guitar; Quinn: drums. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_06",
+  "prompt": "Four friends \u2014 Stefan, Liam, Elin, and Farid \u2014 each have a different pet: hamster, canary, parrot, or goldfish. Use the following clues to determine who has what:\n1. Liam has the canary.\n2. Stefan has neither the parrot nor the goldfish.\n3. Elin is allergic to fur.\n4. Farid does not have the goldfish.\nState each person's pet.",
+  "expected": "Elin: goldfish; Farid: parrot; Liam: canary; Stefan: hamster. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_07",
+  "prompt": "Three friends \u2014 Vera, Elin, and Yusuf \u2014 each have a different sport: boxing, rowing, or karate. Use the following clues to determine who has what:\n1. Elin plays the karate.\n2. Vera does not have the karate.\n3. Yusuf does not have the boxing.\nState each person's sport.",
+  "expected": "Elin: karate; Vera: boxing; Yusuf: rowing. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ },
+ {
+  "task_id": "ch_08",
+  "prompt": "Four friends \u2014 Ines, Yusuf, Umar, and Dev \u2014 sit in a row of four seats numbered 1 to 4 from left to right. Use the clues to work out the seating:\n1. Umar sits immediately to the left of Dev.\n2. Ines does not sit at either end.\n3. Yusuf sits in seat 4.\nState each person's seat number.",
+  "expected": "Dev: 2; Ines: 3; Umar: 1; Yusuf: 4. Any phrasing stating exactly these assignments is correct; a wrong or missing assignment is incorrect.",
+  "validate": "llm"
+ }
+]

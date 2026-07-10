@@ -276,3 +276,32 @@ func TestTrimToWordCap(t *testing.T) {
 		t.Fatal("prompts without a word cap must pass through unchanged")
 	}
 }
+
+func TestExampleCheckShapeStrict(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
+	}
+	prompt := "Write a Python function called merge_intervals that merges overlapping intervals. " +
+		"For example, merge_intervals([[1,3],[2,6],[8,10]]) should return [[1,6],[8,10]]."
+	tuples := "def merge_intervals(intervals):\n" +
+		"    intervals = sorted(intervals)\n" +
+		"    out = []\n" +
+		"    for s, e in intervals:\n" +
+		"        if out and s <= out[-1][1]:\n" +
+		"            out[-1] = (out[-1][0], max(out[-1][1], e))\n" +
+		"        else:\n" +
+		"            out.append((s, e))\n" +
+		"    return out\n"
+	reason := exampleCheck(context.Background(), prompt, tuples)
+	if reason == "" {
+		t.Fatal("tuples-for-lists must be rejected: the judge is shape-strict (T09)")
+	}
+	if !strings.Contains(reason, "got") || !strings.Contains(reason, "want") {
+		t.Fatalf("reject reason must show the shape mismatch for the retry hint, got %q", reason)
+	}
+	lists := strings.NewReplacer("(out[-1][0], max(out[-1][1], e))", "[out[-1][0], max(out[-1][1], e)]",
+		"out.append((s, e))", "out.append([s, e])").Replace(tuples)
+	if reason := exampleCheck(context.Background(), prompt, lists); reason != "" {
+		t.Fatalf("list-shaped correct code must pass, got %q", reason)
+	}
+}

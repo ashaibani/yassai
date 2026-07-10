@@ -718,16 +718,16 @@ func exampleCheck(ctx context.Context, prompt, code string) string {
 	if expected == "" {
 		return ""
 	}
+	// Shape-strict comparison: the original tuple->list normalisation let a
+	// tuples-for-lists answer through, and the judge fails exactly that
+	// ("stores merged intervals as tuples instead of lists" - T09, three
+	// verdicts). Plain equality mirrors the judge; the %r mismatch message
+	// shows the shape difference, which the gate-guided retry then fixes.
 	script := code + `
-
-def _norm(x):
-    if isinstance(x, (list, tuple)):
-        return [_norm(i) for i in x]
-    return x
 
 _r = ` + call + `
 _e = ` + expected + `
-assert _norm(_r) == _norm(_e), "example mismatch: got %r, want %r" % (_r, _e)
+assert _r == _e, "example mismatch: got %r, want %r" % (_r, _e)
 `
 	pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

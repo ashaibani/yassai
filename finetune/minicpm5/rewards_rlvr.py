@@ -170,8 +170,62 @@ REWARD_BY_FAMILY: dict[str, Callable[[str, str], float]] = {
 }
 
 
-def reward_for(family: str, prompt: str, answer: str, judge_bonus: float = 0.0) -> float:
+# --- tool-lane logic reward (clue encoding) ---
+# The zero-token gap: the tool lane mis-encodes semantic clues into its
+# enumeration code and ships a confident wrong assignment. Reward = execute
+# the model's emitted run_python code and check the printed assignment against
+# the puzzle's derived truth. Anti-hack: a person scores only if EVERY
+# "Name: item" occurrence in stdout names their true item, so printing all
+# candidate assignments scores zero for contradicted people.
+
+TOOLCALL_CODE_RE = re.compile(r'"code"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
+
+
+def _extract_tool_code(answer: str) -> str:
+    i = answer.find("<tool_call>")
+    seg = answer[i:] if i >= 0 else answer
+    m = TOOLCALL_CODE_RE.search(seg)
+    if not m:
+        return ""
+    try:
+        import json as _json
+        return _json.loads('"' + m.group(1) + '"')
+    except Exception:
+        return ""
+
+
+def reward_logic_tool(prompt: str, answer: str, truth: dict | None) -> float:
+    if not truth:
+        return 0.0
+    code = _extract_tool_code(answer)
+    if not code.strip():
+        return 0.0
+    score = 0.1  # parseable tool call in the trained contract
+    import subprocess
+    try:
+        proc = subprocess.run(["python3", "-"], input=code, capture_output=True,
+                              text=True, timeout=5)
+    except Exception:
+        return score
+    out = proc.stdout.strip()
+    if proc.returncode != 0 or not out:
+        return score
+    score += 0.15  # executes cleanly and prints something
+    correct = 0
+    for person, item in truth.items():
+        hits = re.findall(re.escape(person) + r"\s*[:\-]\s*([A-Za-z0-9 ]+)", out)
+        vals = {h.strip().strip('.').lower() for h in hits}
+        if vals and vals == {str(item).strip().lower()}:
+            correct += 1
+    score += 0.75 * (correct / max(1, len(truth)))
+    return score
+
+
+def reward_for(family: str, prompt: str, answer: str, judge_bonus: float = 0.0,
+               truth: dict | None = None) -> float:
     """Composite reward in [0, 1+]. judge_bonus is optional (0..0.4 recommended)."""
+    if family == "logic_tool":
+        return reward_logic_tool(prompt, answer, truth)
     fn = REWARD_BY_FAMILY.get(family)
     base = fn(prompt, answer) if fn else 0.0
     # Cap judge influence so format/content gates still dominate.

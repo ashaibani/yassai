@@ -45,6 +45,11 @@ image = (
     .add_local_file("scripts/build_minicpm5_assist_data.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"), copy=True)
     .add_local_file("finetune/minicpm5/data/assist_teacher_raw.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"), copy=True)
     .add_local_file("finetune/minicpm5/data/assist_claude_authored.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"), copy=True)
+    # Tool-lane clue-encoding RLVR: parametric puzzle pool with derived truths
+    # (scripts/build_logic_grpo_pool.py) + the v2 builder and behaviour gate.
+    .add_local_file("finetune/minicpm5/data/logic_grpo_pool.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/logic_grpo_pool.jsonl"), copy=True)
+    .add_local_file("scripts/build_minicpm5_sft_data_v2.py", remote_path=str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data_v2.py"), copy=True)
+    .add_local_file("finetune/minicpm5/eval_tool_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_tool_behavior.py"), copy=True)
 )
 
 
@@ -110,14 +115,20 @@ def build_grpo_prompt_pool(data_dir: Path, max_per_family: int = 40) -> Path:
     secrets=[modal.Secret.from_name("huggingface-secret")],
 )
 def grpo(base_run: str = "assist-e3-r32-v6", tag: str = "grpo1", epochs: float = 1.0,
-         lr: float = 5e-6, rank: int = 16, num_generations: int = 4) -> str:
+         lr: float = 5e-6, rank: int = 16, num_generations: int = 4,
+         lane: str = "assist") -> str:
     base = CKPT_ROOT / base_run / "merged_hf"
     if not base.exists():
         raise SystemExit(f"base merged model missing: {base}")
     data_dir = REMOTE_ROOT / "finetune/minicpm5/data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    pool = build_grpo_prompt_pool(data_dir)
-    out_dir = CKPT_ROOT / f"assist-grpo-{tag}"
+    if lane == "tool":
+        # Clue-encoding RLVR: the pool ships in the image (derived truths,
+        # overlap-asserted at build time by scripts/build_logic_grpo_pool.py).
+        pool = data_dir / "logic_grpo_pool.jsonl"
+    else:
+        pool = build_grpo_prompt_pool(data_dir)
+    out_dir = CKPT_ROOT / f"{lane}-grpo-{tag}"
 
     env = {
         "BASE_MODEL": str(base),
@@ -133,15 +144,26 @@ def grpo(base_run: str = "assist-e3-r32-v6", tag: str = "grpo1", epochs: float =
     }
     subprocess.run(["python", str(REMOTE_ROOT / "finetune/minicpm5/train_grpo.py")], check=True, env={**os.environ, **env})
 
-    # Behaviour gate on heldout - GRPO must not collapse formats.
-    heldout = data_dir / "minicpm5_yassai_assist_heldout.jsonl"
+    if lane == "tool":
+        # Behaviour gate on a fresh held-out v2 split: GRPO must not regress
+        # tool-call formats or the maths families (the toolv3 lesson).
+        heldout = data_dir / "minicpm5_yassai_v2_heldout.jsonl"
+        subprocess.run(
+            ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_sft_data_v2.py"),
+             "--out", str(heldout), "--seed", "20269999"],
+            check=True,
+        )
+        gate = "eval_tool_behavior.py"
+    else:
+        heldout = data_dir / "minicpm5_yassai_assist_heldout.jsonl"
+        gate = "eval_assist_behavior.py"
     eval_env = {
         **env,
         "BASE_MODEL": str(base),
         "ADAPTER": str(out_dir / "adapter_final"),
         "DATA": str(heldout),
     }
-    subprocess.run(["python", str(REMOTE_ROOT / "finetune/minicpm5/eval_assist_behavior.py")], check=True, env={**os.environ, **eval_env})
+    subprocess.run(["python", str(REMOTE_ROOT / "finetune/minicpm5" / gate)], check=True, env={**os.environ, **eval_env})
 
     ckpt_volume.commit()
     hf_cache.commit()
@@ -150,5 +172,6 @@ def grpo(base_run: str = "assist-e3-r32-v6", tag: str = "grpo1", epochs: float =
 
 @app.local_entrypoint()
 def main(base_run: str = "assist-e3-r32-v6", tag: str = "grpo1", epochs: float = 1.0,
-         lr: float = 5e-6, rank: int = 16, num_generations: int = 4):
-    print(grpo.remote(base_run=base_run, tag=tag, epochs=epochs, lr=lr, rank=rank, num_generations=num_generations))
+         lr: float = 5e-6, rank: int = 16, num_generations: int = 4, lane: str = "assist"):
+    print(grpo.remote(base_run=base_run, tag=tag, epochs=epochs, lr=lr, rank=rank,
+                      num_generations=num_generations, lane=lane))
