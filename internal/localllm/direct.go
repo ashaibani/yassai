@@ -62,7 +62,7 @@ var directInstructions = map[string]string{
 	FamilySummarisation: "Obey the stated length and format limits exactly; cover every major theme; no preamble.",
 	FamilyFactual:       "Answer directly and concisely; explanations max 3 short sentences.",
 	FamilyCodeFix:       "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
-	FamilyLogical:       "Solve the logic puzzle step by step, then state the final answer or assignment for every person and item explicitly. Be decisive: one answer, no alternatives.",
+	FamilyLogical:       "Solve the logic puzzle step by step, then state the final answer. Answer exactly what is asked - no claims about people or positions the question does not ask about. Be decisive: one answer, no alternatives.",
 	FamilyMaths:         "Work the problem step by step, compute each quantity carefully, then state the final answer with its unit or currency. Be decisive: one final answer.",
 }
 
@@ -264,6 +264,19 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		}
 		return res
 	}
+	if res.OK && family == FamilyLogical {
+		// Logic fallback answers have failed by contradicting their own
+		// stated clues ("Ben came first despite Ben did not win"). A
+		// verification pass over the answer catches self-contradiction;
+		// one re-solve with the violation named recovers or ships anyway.
+		if reason := s.logicConsistent(ctx, prompt, res.Answer); reason != "" {
+			retry := s.solveGated(ctx, prompt+"\n\nYour previous answer violated the clues ("+reason+"). Re-check every clue and answer again.", family)
+			if retry.OK && s.logicConsistent(ctx, prompt, retry.Answer) == "" {
+				return retry
+			}
+		}
+		return res
+	}
 	if res.OK && family == FamilyNER {
 		// NER assignments wobble across runs (ETH Zurich has been labelled
 		// LOCATION, DATE, and omitted outright). A second phrasing must agree
@@ -327,6 +340,31 @@ func trimToWordCap(prompt, answer string) string {
 		lines[i] = marker + strings.TrimRight(strings.Join(words[:limit], " "), ",;:")
 	}
 	return strings.Join(lines, "\n")
+}
+
+// logicConsistent asks the model to audit its own answer against every clue.
+// It cannot catch a consistent misread, but it reliably catches answers that
+// contradict a clue they themselves restate - the observed failure shape.
+func (s *DirectSolver) logicConsistent(ctx context.Context, prompt, answer string) string {
+	tctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	check, err := s.chat(tctx, prompt+"\n\nProposed answer: "+answer+
+		"\n\nCheck the proposed answer against EVERY clue above. If all clues are satisfied reply exactly VALID. Otherwise reply INVALID: followed by the violated clue.", FamilyLogical)
+	if err != nil {
+		return "" // verification unavailable: keep the answer
+	}
+	up := strings.ToUpper(check)
+	if i := strings.Index(up, "INVALID"); i >= 0 {
+		reason := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(check[i+len("INVALID"):]), ":"))
+		if len(reason) > 160 {
+			reason = reason[:160]
+		}
+		if reason == "" {
+			reason = "a clue is violated"
+		}
+		return reason
+	}
+	return ""
 }
 
 // nerConsistent re-extracts with a second phrasing and demands the identical

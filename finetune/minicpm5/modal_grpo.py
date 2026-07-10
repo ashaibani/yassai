@@ -30,10 +30,11 @@ image = (
     .pip_install(
         "torch==2.7.1",
         "torchvision==0.22.1",
-        # Qwen3.5 (model_type qwen3_5) needs transformers>=5; keep peft/trl
-        # aligned with the SFT image so tool-lane GRPO can load the SFT merge.
+        # Qwen3.5 needs transformers>=5 for model_type qwen3_5. Keep TRL at
+        # 0.20 (the version train_grpo.py was written for) - TRL 0.24 pulls
+        # mergekit via callbacks and that dep conflicts with transformers 5.
         "transformers==5.13.0",
-        "trl==0.24.0",
+        "trl==0.20.0",
         "peft==0.19.1",
         "datasets==3.6.0",
         "accelerate>=1.11.0",

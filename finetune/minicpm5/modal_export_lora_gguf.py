@@ -69,13 +69,18 @@ def export_lora(run_name: str = "assist-e3-r32-q35-2b", base_model: str = "Qwen/
     }
 
     # convert_lora_to_gguf expects a LOCAL base directory, not a Hub id.
-    from huggingface_hub import snapshot_download
+    # Volume paths (adapters trained on an in-volume SFT merge, e.g.
+    # /checkpoints/v2-e3-r32/merged_hf) pass straight through.
+    if base_model.startswith("/"):
+        base_dir = base_model
+    else:
+        from huggingface_hub import snapshot_download
 
-    base_dir = snapshot_download(
-        repo_id=base_model,
-        token=os.environ.get("HF_TOKEN") or None,
-        cache_dir="/cache/huggingface",
-    )
+        base_dir = snapshot_download(
+            repo_id=base_model,
+            token=os.environ.get("HF_TOKEN") or None,
+            cache_dir="/cache/huggingface",
+        )
     print("base_dir", base_dir)
 
     conv = Path("/opt/llama.cpp/convert_lora_to_gguf.py")
