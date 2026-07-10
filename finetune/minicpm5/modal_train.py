@@ -2,7 +2,7 @@
 
 Usage:
   uvx modal run finetune/minicpm5/modal_train.py
-  uvx modal run finetune/minicpm5/modal_train.py --dataset exact --epochs 14
+  uvx modal run finetune/minicpm5/modal_train.py --dataset assist --epochs 3 --tag v7
 """
 
 from __future__ import annotations
@@ -93,6 +93,11 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
             check=True,
         )
     else:
+        # The "exact" ablation trains on published sample-task COPIES. It is a
+        # research probe ONLY: the guide forbids hardcoding, so exact-trained
+        # weights must NEVER ship. Require an explicit acknowledgement.
+        if dataset == "exact" and os.environ.get("I_UNDERSTAND_EXACT_IS_ABLATION_ONLY") != "1":
+            raise SystemExit("dataset=exact trains on sample-task copies (ablation only, never shippable); set I_UNDERSTAND_EXACT_IS_ABLATION_ONLY=1 to proceed")
         data_path = data_dir / (
             "minicpm5_yassai_math_logic_exact_ablation.jsonl"
             if dataset == "exact"
@@ -138,5 +143,5 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
 
 
 @app.local_entrypoint()
-def main(dataset: str = "exact", epochs: float = 14.0, lr: float = 1.0e-4, rank: int = 32, tag: str = ""):
+def main(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: int = 32, tag: str = ""):
     print(train.remote(dataset=dataset, epochs=epochs, lr=lr, rank=rank, tag=tag))

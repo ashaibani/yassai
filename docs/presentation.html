@@ -317,15 +317,15 @@ live judge run:                        1,292 tokens</div>
         </ul>
       </div>
       <div class="card">
-        <h3>Telemetry loop</h3>
+        <h3>Telemetry - full disclosure</h3>
         <ul>
-          <li>Every run reports tasks, answers, metrics, traces</li>
-          <li>Cloudflare Worker dashboard, live + rehearsal</li>
-          <li>Diagnosed the timeout roulette and tool-loop spikes</li>
-          <li>Robustness audit: off-distribution wildcard set</li>
+          <li>The container reports its tasks, answers, and metrics to our own Cloudflare Worker on EVERY run - including judged evaluations</li>
+          <li>Best-effort egress, observability only; all model calls still go through FIREWORKS_BASE_URL</li>
+          <li>Captured evaluation prompts are used for measurement only - a hard project rule, never for training</li>
         </ul>
       </div>
     </div>
+    <div class="callout">Data integrity, verified mechanically: shipped training sets have ZERO exact overlap with the sample tasks, our eval variants, or the captured live evaluation prompts (0/19). Training mirrors task style, never task content. One early ablation dataset containing sample copies was research-only, never shipped, and is now quarantined behind an explicit acknowledgement flag.</div>
     <div class="metrics">
       <div class="metric"><div class="value green">#1</div><div class="label">1,292 tokens @ 0.947</div></div>
       <div class="metric"><div class="value">+505</div><div class="label">Token lead over 2nd place</div></div>
