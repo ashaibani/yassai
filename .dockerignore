@@ -26,7 +26,11 @@ scripts
 testdata
 tmp
 assets/taskclf_backup_*
-assets/taskclf/model.onnx
+# int8 quant is BROKEN (code_debugging over-fires ~0.6 on everything - a
+# syllogism scores as code; caught by TestClassifyIntegration the first time
+# CI actually loaded it). Ship the CI-validated fp32; image stays far under
+# the 10GB cap.
+assets/taskclf/model.int8.onnx
 # Never ship seeded/host-generated agent memory into the build context.
 MEMORY.md
 memories/
