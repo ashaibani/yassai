@@ -39,11 +39,13 @@ const (
 	// FamilyCodeFix is correction-style code_debugging ("supposed to X but
 	// contains a bug"); eval-style tracing is FamilyCodeTrace.
 	FamilyCodeFix = "code_fix"
-	// FamilyLogical exists ONLY as the zero-token fallback: logic belongs to
-	// the tool lane, but a no-remote run must ship an attempt when the tool
-	// lane rejects or skips (stock Qwen3.5-2B answers logic at 5/6 on the
-	// variant probe). Never list it in a remote-mode LOCAL_BASE_EXTENDED.
+	// FamilyLogical and FamilyMaths exist ONLY as zero-token fallbacks: both
+	// belong to the tool lane, but a no-remote run must ship an attempt when
+	// the tool lane rejects or skips (stock Qwen3.5-2B answers logic at 5/6
+	// and maths at 7/11 direct on the variant probe). Never list either in a
+	// remote-mode LOCAL_BASE_EXTENDED.
 	FamilyLogical = "logical_deductive_reasoning"
+	FamilyMaths   = "mathematical_reasoning"
 )
 
 // directInstructions are terse per-family system prompts (the track-1 inspo
@@ -61,6 +63,7 @@ var directInstructions = map[string]string{
 	FamilyFactual:       "Answer directly and concisely; explanations max 3 short sentences.",
 	FamilyCodeFix:       "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
 	FamilyLogical:       "Solve the logic puzzle step by step, then state the final answer or assignment for every person and item explicitly. Be decisive: one answer, no alternatives.",
+	FamilyMaths:         "Work the problem step by step, compute each quantity carefully, then state the final answer with its unit or currency. Be decisive: one final answer.",
 }
 
 var directMaxGen = map[string]int{
@@ -72,6 +75,7 @@ var directMaxGen = map[string]int{
 	FamilyFactual:       200,
 	FamilyCodeFix:       420,
 	FamilyLogical:       600,
+	FamilyMaths:         600,
 }
 
 // extendedFamilies are served only by the assist fine-tune (Config.Extended).
@@ -81,6 +85,7 @@ var extendedFamilies = map[string]bool{
 	FamilyFactual:       true,
 	FamilyCodeFix:       true,
 	FamilyLogical:       true, // zero-token fallback only; unlocked via "all"
+	FamilyMaths:         true, // zero-token fallback only; unlocked via "all"
 }
 
 // DirectInstruction exposes the serving system prompt for a family ("" when
@@ -414,6 +419,10 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 		// empty or reject answer it replaces in a zero-token run.
 		if len(strings.Fields(answer)) < 8 {
 			reason = "logical: answer too short to state an assignment"
+		}
+	case FamilyMaths:
+		if !strings.ContainsAny(answer, "0123456789") {
+			reason = "maths: answer contains no number"
 		}
 	}
 	if reason != "" {

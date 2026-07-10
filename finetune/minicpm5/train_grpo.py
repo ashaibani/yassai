@@ -92,7 +92,13 @@ def main() -> None:
     peft_config = LoraConfig(
         r=rank, lora_alpha=rank * 2, lora_dropout=0.05, bias="none",
         task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        # Classic LLaMA/Qwen MLP+attn + Qwen3.5 Gated DeltaNet projections
+        # (same set as train_trl.py).
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+            "in_proj_qkv", "in_proj_a", "in_proj_b", "in_proj_z", "out_proj",
+        ],
     )
     cfg = GRPOConfig(
         output_dir=str(out),

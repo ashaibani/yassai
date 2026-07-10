@@ -146,6 +146,7 @@ jobs:
           # list families the (base+LoRA) pair has been probed safe on.
           build-args: |
             LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
+            LOCAL_MODEL_LORA_URL=${{ vars.LOCAL_MODEL_LORA_URL || '' }}
             LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
             LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
             LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'text_summarisation,code_fix,sentiment_classification' }}
@@ -284,3 +285,42 @@ jobs:
               print('WARNING: fallback answers shipped - inspect before resubmitting')
           PYEOF
           echo "Dress rehearsal PASSED"
+
+      - name: Zero-token rehearsal (AGENT_NO_REMOTE=1, same image)
+        # The ZERO_API_CALLS candidate: identical image, env-flipped. Hard
+        # requirements here are structural (0 calls, 0 tokens, 19 non-empty
+        # answers); accuracy is judged offline from the callback upload
+        # (label ci-zero @ sha). This step never touches the shipping config.
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)"
+          mkdir -p /tmp/zero-in /tmp/zero-out
+          cp /tmp/rehearsal-in/tasks.json /tmp/zero-in/tasks.json
+          START=$(date +%s)
+          docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 2 \
+            -v /tmp/zero-in:/input:ro \
+            -v /tmp/zero-out:/output \
+            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e AGENT_NO_REMOTE=1 \
+            -e LOCAL_BASE_EXTENDED=all \
+            -e AGENT_ALLOW_SEMANTIC_CLUES=1 \
+            -e CALLBACK_LABEL="ci-zero @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/zero-stderr.txt || true
+          WALL=$(( $(date +%s) - START ))
+          echo "=== wall clock: ${WALL}s (judge cap 600s) ==="
+          grep -E 'local reject|fallback|sweeper|disabled' /tmp/zero-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/zero-out/results.json'))
+          metrics = json.load(open('/tmp/zero-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: zero-token run has missing or empty answers')
+          if metrics.get('calls', 0) != 0 or metrics.get('total_tokens', 0) != 0:
+              sys.exit('FAIL: zero-token run spent tokens')
+          PYEOF
+          echo "Zero-token rehearsal PASSED (structural)"

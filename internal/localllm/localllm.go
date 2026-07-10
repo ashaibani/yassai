@@ -127,7 +127,9 @@ func New(cfg Config) (*Solver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("localllm: no free port: %w", err)
 	}
-	cmd := exec.Command(server,
+	// Qwen3.5 is think-capable ChatML; --reasoning off matches the empty-think
+	// render the SFT template trains on (same as the assist DirectSolver).
+	args := []string{
 		"-m", abs,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
@@ -135,6 +137,7 @@ func New(cfg Config) (*Solver, error) {
 		"-c", strconv.Itoa(int(cfg.CtxSize)),
 		"-np", "1",
 		"--no-webui",
+		"--reasoning", "off",
 		// 4 GB judge VM: q8_0 KV halves cache memory (needs flash-attn for V),
 		// and a small microbatch shrinks compute buffers at negligible speed
 		// cost for our short prompts.
@@ -142,7 +145,17 @@ func New(cfg Config) (*Solver, error) {
 		"--cache-type-k", "q8_0",
 		"--cache-type-v", "q8_0",
 		"-ub", "256",
-	)
+	}
+	if lp := strings.TrimSpace(cfg.LoraPath); lp != "" {
+		// Missing adapter must degrade to the stock/merged GGUF, not kill the
+		// tool lane: llama-server exits on a bad --lora path.
+		if _, err := os.Stat(lp); err != nil {
+			fmt.Fprintln(os.Stderr, "localllm: tool lora missing - serving base without adapter:", err)
+		} else {
+			args = append(args, "--lora", lp)
+		}
+	}
+	cmd := exec.Command(server, args...)
 	cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH="+cfg.LibPath)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -322,6 +335,19 @@ func answerPlausible(prompt, answer string) string {
 	}
 	if reason := magnitudeBound(prompt, answer); reason != "" {
 		return reason
+	}
+	// Currency fidelity: an answer must not invent a currency the prompt
+	// never used (observed: a £ revenue question answered in $ - the code
+	// mis-parsed the symbol AND the arithmetic; the wrong unit is the cheap
+	// deterministic tell).
+	for _, cur := range []string{"£", "€", "$"} {
+		if strings.Contains(answer, cur) && !strings.Contains(prompt, cur) {
+			for _, other := range []string{"£", "€", "$"} {
+				if other != cur && strings.Contains(prompt, other) {
+					return "answer uses " + cur + " but the prompt uses " + other
+				}
+			}
+		}
 	}
 	return ""
 }

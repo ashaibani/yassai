@@ -368,6 +368,17 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		// a local lane only engages when BOTH agree. Disagreement is exactly
 		// the uncertainty signal the remote insurance call exists for.
 		if cats := a.categories[t.TaskID]; len(cats) > 0 && cats[0] != fam {
+			// Zero-token mode has no remote to defer to, and the classifier
+			// reads semantics the keyword heuristic misses (the ratio-split
+			// and race-inference wildcards were both classifier-right). Route
+			// disagreements by the classifier: maths/logic to the tool lane,
+			// everything else falls through to the sweeper's assist attempt.
+			if os.Getenv("AGENT_NO_REMOTE") == "1" && toolCfgd &&
+				(cats[0] == "mathematical_reasoning" || cats[0] == localllm.FamilyLogical) {
+				fmt.Fprintf(os.Stderr, "zero route %s: classifier %s overrides heuristic %s -> tool lane\n", t.TaskID, cats[0], fam)
+				toolTasks = append(toolTasks, t)
+				continue
+			}
 			fmt.Fprintf(os.Stderr, "local skip %s: classifier says %s, heuristic says %s\n", t.TaskID, cats[0], fam)
 			remaining = append(remaining, t)
 			continue
@@ -429,7 +440,7 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		}
 	}
 	if len(toolTasks) > 0 {
-		solver, err := localllm.New(localllm.Config{ModelPath: a.cfg.LocalModelPath, LibPath: a.cfg.LocalLibPath})
+		solver, err := localllm.New(localllm.Config{ModelPath: a.cfg.LocalModelPath, LoraPath: a.cfg.LocalModelLoraPath, LibPath: a.cfg.LocalLibPath})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "local model disabled:", err)
 			remaining = append(remaining, toolTasks...)
@@ -445,38 +456,43 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		}
 	}
 
-	// Zero-token logic fallback: with no remote insurance, a logical task the
-	// tool lane rejected or skipped ships its reject - or nothing at all (the
-	// semantic-clue skip produces no attempt). The assist model answers logic
-	// directly at 5/6 on the variant probe, so give those tasks one direct
-	// attempt before they ship. FamilyLogical unlocks only via
-	// LOCAL_BASE_EXTENDED=all; remote-mode builds never list it, so their
+	// Zero-token sweeper: with no remote insurance, ANY task still unanswered
+	// here ships a stale reject - or nothing at all (agreement-routing skips
+	// and unpartitioned tasks produced 5 empty wildcard answers). Every such
+	// task gets one assist-lane direct attempt under the classifier's
+	// category (Qwen direct: logic 5/6, maths 7/11 on variants - always
+	// better than empty). The fallback families unlock only via
+	// LOCAL_BASE_EXTENDED=all; remote-mode builds never list them, so their
 	// routing is untouched.
 	if os.Getenv("AGENT_NO_REMOTE") == "1" && baseCfgd {
-		var logicRetry []Task
+		var sweep []Task
 		kept := remaining[:0]
 		for _, t := range remaining {
-			if heuristicCategory(t.Prompt) == localllm.FamilyLogical && answers[t.TaskID] == "" {
-				logicRetry = append(logicRetry, t)
+			if answers[t.TaskID] == "" {
+				sweep = append(sweep, t)
 				continue
 			}
 			kept = append(kept, t)
 		}
 		remaining = kept
-		if len(logicRetry) > 0 {
+		if len(sweep) > 0 {
 			solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "logic fallback disabled:", err)
-				remaining = append(remaining, logicRetry...)
+				fmt.Fprintln(os.Stderr, "zero sweeper disabled:", err)
+				remaining = append(remaining, sweep...)
 			} else {
-				for _, t := range logicRetry {
+				for _, t := range sweep {
 					if ctx.Err() != nil || time.Now().After(localBudget) {
 						remaining = append(remaining, t)
 						continue
 					}
-					res := solver.SolveTask(ctx, t.Prompt, localllm.FamilyLogical)
+					cat := heuristicCategory(t.Prompt)
+					if cats := a.categories[t.TaskID]; len(cats) > 0 {
+						cat = cats[0] // semantics beat keywords for a last resort
+					}
+					res := solver.SolveTask(ctx, t.Prompt, sweeperFamily(cat))
 					if res.OK {
-						fmt.Fprintf(os.Stderr, "logic fallback %s: assist direct answer\n", t.TaskID)
+						fmt.Fprintf(os.Stderr, "zero sweeper %s: assist %s answer\n", t.TaskID, cat)
 						answers[t.TaskID] = res.Answer
 						a.metrics.LocalAnswers++
 						continue
@@ -493,6 +509,28 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		}
 	}
 	return remaining
+}
+
+// sweeperFamily maps a benchmark category to the assist family that answers
+// it directly in the zero-token sweeper.
+func sweeperFamily(cat string) string {
+	switch cat {
+	case "logical_deductive_reasoning":
+		return localllm.FamilyLogical
+	case "mathematical_reasoning":
+		return localllm.FamilyMaths
+	case "code_generation":
+		return localllm.FamilyCodeGen
+	case "named_entity_recognition":
+		return localllm.FamilyNER
+	case "sentiment_classification":
+		return localllm.FamilySentiment
+	case "text_summarisation":
+		return localllm.FamilySummarisation
+	case "code_debugging":
+		return localllm.FamilyCodeFix
+	}
+	return localllm.FamilyFactual
 }
 
 // remoteReserve is the context slice localFirstPass must leave for the remote

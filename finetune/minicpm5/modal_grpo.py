@@ -30,14 +30,17 @@ image = (
     .pip_install(
         "torch==2.7.1",
         "torchvision==0.22.1",
-        "transformers==4.57.3",
-        "trl==0.20.0",
-        "peft==0.11.1",
+        # Qwen3.5 (model_type qwen3_5) needs transformers>=5; keep peft/trl
+        # aligned with the SFT image so tool-lane GRPO can load the SFT merge.
+        "transformers==5.13.0",
+        "trl==0.24.0",
+        "peft==0.19.1",
         "datasets==3.6.0",
-        "accelerate==1.11.0",
-        "safetensors==0.6.2",
+        "accelerate>=1.11.0",
+        "safetensors>=0.6.2",
         "sentencepiece==0.2.1",
         "protobuf==6.33.0",
+        "huggingface_hub>=0.34",
     )
     .add_local_file("finetune/minicpm5/train_grpo.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/train_grpo.py"), copy=True)
     .add_local_file("finetune/minicpm5/rewards_rlvr.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/rewards_rlvr.py"), copy=True)
