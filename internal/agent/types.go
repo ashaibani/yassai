@@ -55,12 +55,15 @@ type Config struct {
 	// Code-exec batches always stay text: maths/logic need digit-exact reads.
 	TextImg string
 
-	// LocalModelPath enables the in-container MiniCPM5 GGUF for maths/logic
+	// LocalModelPath enables the in-container tool-lane GGUF for maths/logic
 	// tasks (local-first with verified fallback). Local answers count toward
 	// accuracy but not the token score, so each accepted answer is free.
-	// Empty disables. LocalLibPath is the llama.cpp shared-library directory.
-	LocalModelPath string
-	LocalLibPath   string
+	// Empty disables. LocalModelLoraPath optionally applies a serve-time LoRA
+	// (Qwen3.5 hybrid bases whose merged export the pinned converter cannot
+	// produce). LocalLibPath is the llama.cpp shared-library directory.
+	LocalModelPath     string
+	LocalModelLoraPath string
+	LocalLibPath       string
 
 	// LocalBaseModelPath enables the assist-lane GGUF as a second local lane
 	// for code_generation and gated NER plus the Extended families. Empty

@@ -18,10 +18,27 @@ import json
 import os
 from pathlib import Path
 
+import sys
+import types
+
 import torch
 from datasets import Dataset
 from peft import LoraConfig, PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# TRL's GRPOTrainer import graph optionally reaches vllm / mergekit. We train
+# with the transformers generate path only (no vLLM server, no mergekit).
+# Provide shallow stubs so the import succeeds on the Qwen3.5 image
+# (transformers 5 + peft 0.19) without those heavy optional deps.
+for _name in ("vllm", "mergekit", "mergekit.config"):
+    if _name not in sys.modules:
+        _mod = types.ModuleType(_name)
+        if _name == "mergekit.config":
+            class _MergeConfiguration:  # pragma: no cover
+                pass
+            _mod.MergeConfiguration = _MergeConfiguration
+        sys.modules[_name] = _mod
+
 from trl import GRPOConfig, GRPOTrainer
 
 from rewards_rlvr import reward_for

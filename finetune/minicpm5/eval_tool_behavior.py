@@ -37,14 +37,38 @@ def generate(model, tok, messages: list[dict], max_new_tokens: int = 512) -> str
     eos_token_id = [tok.eos_token_id]
     if isinstance(im_end_id, int) and im_end_id >= 0 and im_end_id not in eos_token_id:
         eos_token_id.append(im_end_id)
-    inputs = tok.apply_chat_template(
-        messages,
-        add_generation_prompt=True,
-        enable_thinking=False,
-        return_tensors="pt",
-    ).to(model.device)
-    out = model.generate(
-        inputs,
+    # transformers>=5 may return a BatchEncoding (dict-like) even with
+    # return_tensors="pt"; normalise to input_ids for generate() - the bare
+    # tensor path crashed the Qwen3.5 tool SFT gate (AttributeError on
+    # BatchEncoding.shape).
+    try:
+        rendered = tok.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            enable_thinking=False,
+            return_tensors="pt",
+        )
+    except TypeError:
+        rendered = tok.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        )
+    if hasattr(rendered, "input_ids"):
+        input_ids = rendered["input_ids"]
+        attn = rendered.get("attention_mask") if hasattr(rendered, "get") else (
+            rendered["attention_mask"] if "attention_mask" in rendered else None
+        )
+    elif isinstance(rendered, dict):
+        input_ids = rendered["input_ids"]
+        attn = rendered.get("attention_mask")
+    else:
+        input_ids = rendered
+        attn = None
+    device = next(model.parameters()).device
+    input_ids = input_ids.to(device)
+    gen_kwargs = dict(
+        input_ids=input_ids,
         max_new_tokens=max_new_tokens,
         do_sample=False,
         temperature=None,
@@ -52,9 +76,12 @@ def generate(model, tok, messages: list[dict], max_new_tokens: int = 512) -> str
         pad_token_id=tok.eos_token_id,
         eos_token_id=eos_token_id,
     )
+    if attn is not None:
+        gen_kwargs["attention_mask"] = attn.to(device)
+    out = model.generate(**gen_kwargs)
     # MiniCPM5 marks <tool_call> and </tool_call> as special tokens, so
     # skip_special_tokens=True erases the exact wrapper we need to evaluate.
-    text = tok.decode(out[0][inputs.shape[-1]:], skip_special_tokens=False).strip()
+    text = tok.decode(out[0][input_ids.shape[-1]:], skip_special_tokens=False).strip()
     return text.removesuffix("<|im_end|>").strip()
 
 
@@ -107,8 +134,17 @@ def main() -> None:
         raise SystemExit("ADAPTER is required")
 
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    tok = AutoTokenizer.from_pretrained(base, use_fast=True)
-    model = AutoModelForCausalLM.from_pretrained(base, torch_dtype=dtype, device_map="auto")
+    tok = AutoTokenizer.from_pretrained(base, use_fast=True, trust_remote_code=True)
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            base, torch_dtype=dtype, device_map="auto", trust_remote_code=True
+        )
+    except (ValueError, KeyError) as exc:
+        from transformers import AutoModel
+        print(f"AutoModelForCausalLM failed ({exc}); trying AutoModel")
+        model = AutoModel.from_pretrained(
+            base, torch_dtype=dtype, device_map="auto", trust_remote_code=True
+        )
     model = PeftModel.from_pretrained(model, adapter).eval()
 
     rows = load_rows(data)

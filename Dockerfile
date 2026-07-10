@@ -19,6 +19,10 @@ ARG LLAMA_VERSION=b9948
 # URLs authenticate via the BuildKit secret `hf_token` (never an ARG - ARGs
 # persist in image history).
 ARG LOCAL_MODEL_URL=""
+# Optional: LoRA adapter GGUF for the tool lane (Qwen3.5 base + serve-time
+# LoRA when merged export is incomplete). Missing file degrades to the
+# base/merged GGUF alone.
+ARG LOCAL_MODEL_LORA_URL=""
 # Optional: URL of the assist-lane base GGUF (second local lane:
 # code_generation + gated NER + LOCAL_BASE_EXTENDED families). Same auth
 # rules as LOCAL_MODEL_URL.
@@ -51,6 +55,9 @@ RUN --mount=type=secret,id=hf_token \
        } \
     && if [ -n "${LOCAL_MODEL_URL}" ]; then \
          fetch /localmodel/minicpm5-yassai.gguf "${LOCAL_MODEL_URL}"; \
+       fi \
+    && if [ -n "${LOCAL_MODEL_LORA_URL}" ]; then \
+         fetch /localmodel/tool-lora.gguf "${LOCAL_MODEL_LORA_URL}"; \
        fi \
     && if [ -n "${LOCAL_BASE_MODEL_URL}" ]; then \
          fetch /localmodel/assist-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
@@ -98,6 +105,7 @@ ENV ONNXRUNTIME_LIB=/opt/ort/libonnxruntime.so \
     TASKCLF_DIR=/assets/taskclf \
     YZMA_LIB=/opt/llama \
     LOCAL_MODEL_PATH=/assets/localmodel/minicpm5-yassai.gguf \
+    LOCAL_MODEL_LORA_PATH=/assets/localmodel/tool-lora.gguf \
     LOCAL_BASE_MODEL_PATH=/assets/localmodel/assist-base.gguf \
     LOCAL_BASE_LORA_PATH=/assets/localmodel/assist-lora.gguf \
     LOCAL_BASE_EXTENDED=${LOCAL_BASE_EXTENDED} \

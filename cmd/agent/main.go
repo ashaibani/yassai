@@ -76,6 +76,7 @@ func run() error {
 		TraceMessages:      envBool("AGENT_TRACE_MESSAGES", false),
 		TextImg:            getenv("AGENT_TEXTIMG", "auto"),
 		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
+		LocalModelLoraPath: os.Getenv("LOCAL_MODEL_LORA_PATH"),
 		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
 		LocalBaseLoraPath:  os.Getenv("LOCAL_BASE_LORA_PATH"),
 		LocalBaseExtended:  os.Getenv("LOCAL_BASE_EXTENDED"),

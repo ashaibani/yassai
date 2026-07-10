@@ -147,6 +147,7 @@ func main() {
 		TextImg:            getenv("AGENT_TEXTIMG", "auto"),
 		BatchIsolation:     getenv("AGENT_BATCH_ISOLATION", "none"), // match cmd/agent production default
 		LocalModelPath:     os.Getenv("LOCAL_MODEL_PATH"),
+		LocalModelLoraPath: os.Getenv("LOCAL_MODEL_LORA_PATH"),
 		LocalBaseModelPath: os.Getenv("LOCAL_BASE_MODEL_PATH"),
 		LocalBaseLoraPath:  os.Getenv("LOCAL_BASE_LORA_PATH"),
 		LocalBaseExtended:  os.Getenv("LOCAL_BASE_EXTENDED"),

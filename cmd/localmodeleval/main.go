@@ -18,13 +18,15 @@ import (
 
 func main() {
 	libPath := flag.String("lib", firstNonEmpty(os.Getenv("YZMA_LIB"), "/opt/llama"), "directory with llama-server and its shared libraries")
-	ftPath := flag.String("ft", "models/minicpm5/MiniCPM5-yassai-Q4_K_M.gguf", "fine-tuned GGUF model")
+	ftPath := flag.String("ft", "models/minicpm5/MiniCPM5-yassai-Q4_K_M.gguf", "base or fine-tuned GGUF model")
+	loraPath := flag.String("lora", firstNonEmpty(os.Getenv("LOCAL_MODEL_LORA_PATH"), ""), "optional serve-time LoRA GGUF")
 	threads := flag.Int("threads", 6, "decode threads")
 	timeout := flag.Duration("timeout", 120*time.Second, "per-task budget")
 	flag.Parse()
 
 	solver, err := localllm.New(localllm.Config{
 		ModelPath: *ftPath,
+		LoraPath:  *loraPath,
 		LibPath:   *libPath,
 		Threads:   *threads,
 		Timeout:   *timeout,
