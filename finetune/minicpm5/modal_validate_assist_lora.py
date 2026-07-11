@@ -26,6 +26,7 @@ DEFAULT_MODEL_URL = f"{REPO}/Qwen_Qwen3.5-2B-Q4_K_M.gguf"
 DEFAULT_LORA_URL = f"{REPO}/yassai-assist-e3-r32-q35-2b-lora-f16.gguf"
 
 app = modal.App(APP_NAME)
+ckpt_volume = modal.Volume.from_name("yassai-minicpm5-checkpoints", create_if_missing=False)
 
 image = (
     modal.Image.from_registry("python:3.12-slim", add_python=None)
@@ -59,14 +60,21 @@ def _chat(base: str, system: str, user: str, max_tok: int = 160) -> str:
 
 
 @app.function(image=image, cpu=2, memory=4096, timeout=20 * 60,
+              volumes={"/checkpoints": ckpt_volume},
               secrets=[modal.Secret.from_name("huggingface-secret")])
-def validate(model_url: str = DEFAULT_MODEL_URL, lora_url: str = DEFAULT_LORA_URL) -> str:
+def validate(model_url: str = DEFAULT_MODEL_URL, lora_url: str = DEFAULT_LORA_URL,
+             lora_volume_path: str = "") -> str:
     import os
 
     token = os.environ["HF_TOKEN"]
-    for url, dest in [(model_url, "/model.gguf"), (lora_url, "/lora.gguf")]:
+    for url, dest in [(model_url, "/model.gguf")]:
         subprocess.run(["curl", "-fsSL", "-H", f"Authorization: Bearer {token}",
                         "-o", dest, url], check=True)
+    if lora_volume_path:
+        subprocess.run(["cp", lora_volume_path, "/lora.gguf"], check=True)
+    else:
+        subprocess.run(["curl", "-fsSL", "-H", f"Authorization: Bearer {token}",
+                        "-o", "/lora.gguf", lora_url], check=True)
 
     # Production serve args (internal/localllm NewDirect) at judge-VM scale:
     # 2 threads, ctx 2048.
@@ -118,5 +126,7 @@ def validate(model_url: str = DEFAULT_MODEL_URL, lora_url: str = DEFAULT_LORA_UR
 
 
 @app.local_entrypoint()
-def main(model_url: str = DEFAULT_MODEL_URL, lora_url: str = DEFAULT_LORA_URL) -> None:
-    print(validate.remote(model_url=model_url, lora_url=lora_url))
+def main(model_url: str = DEFAULT_MODEL_URL, lora_url: str = DEFAULT_LORA_URL,
+         lora_volume_path: str = "") -> None:
+    print(validate.remote(model_url=model_url, lora_url=lora_url,
+                          lora_volume_path=lora_volume_path))

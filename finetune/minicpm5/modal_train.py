@@ -48,6 +48,8 @@ image = (
     # this image must not have) and shipped in as data.
     .add_local_file("finetune/minicpm5/data/assist_teacher_raw.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"), copy=True)
     .add_local_file("finetune/minicpm5/data/assist_claude_authored.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"), copy=True)
+    .add_local_file("finetune/minicpm5/data/assist_v2_summaries.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_summaries.jsonl"), copy=True)
+    .add_local_file("finetune/minicpm5/data/assist_v2_sentiment.jsonl", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_sentiment.jsonl"), copy=True)
     .add_local_file("finetune/minicpm5/train_trl.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/train_trl.py"), copy=True)
     .add_local_file("finetune/minicpm5/eval_tool_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_tool_behavior.py"), copy=True)
     .add_local_file("finetune/minicpm5/eval_assist_behavior.py", remote_path=str(REMOTE_ROOT / "finetune/minicpm5/eval_assist_behavior.py"), copy=True)
@@ -74,12 +76,16 @@ def train(dataset: str = "v2", epochs: float = 3.0, lr: float = 1.0e-4, rank: in
         build_cmd = ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
                      "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
                      "--claude", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"),
+                     "--v2-summaries", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_summaries.jsonl"),
+                     "--v2-sentiment", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_sentiment.jsonl"),
                      "--out", str(data_path), "--teacher-split", "train"]
         eval_path = data_dir / "minicpm5_yassai_assist_heldout.jsonl"
         subprocess.run(
             ["python", str(REMOTE_ROOT / "scripts/build_minicpm5_assist_data.py"),
              "--teacher", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_teacher_raw.jsonl"),
              "--claude", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_claude_authored.jsonl"),
+             "--v2-summaries", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_summaries.jsonl"),
+             "--v2-sentiment", str(REMOTE_ROOT / "finetune/minicpm5/data/assist_v2_sentiment.jsonl"),
              "--out", str(eval_path), "--seed", "20269998", "--ner", "24",
              "--teacher-split", "heldout"],
             check=True,

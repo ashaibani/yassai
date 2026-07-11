@@ -1,0 +1,192 @@
+[
+  {
+    "ID": "T01",
+    "Cat": "factual",
+    "Answer": "The three primary colors in the RGB color model are red, green, and blue. Displays use RGB because they are based on light emission, where combining red, green, and blue light in varying intensities can produce a wide range of colors, including white (when all three are fully lit), whereas RYB is a pigment-based model not applicable to self-emitting screens.",
+    "Via": "judge",
+    "Reason": "The candidate correctly names the three RGB primaries and explains the additive light-emitting nature of displays versus the pigment-based RYB model. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 77,
+    "GenMS": 1748
+  },
+  {
+    "ID": "T01b",
+    "Cat": "factual",
+    "Answer": "Machine learning is a broader field of study that includes various techniques for enabling systems to learn from data, such as supervised learning, unsupervised learning, and reinforcement learning. These methods use algorithms to identify patterns in data and make predictions or decisions without being explicitly programmed for every rule.\n\nDeep learning is a subset of machine learning that uses artificial neural networks with many layers (hence \"deep\") to automatically learn hierarchical features from data. Unlike traditional machine learning, deep learning models can handle large, unstructured datasets like images, text, and audio through layered transformations, often outperforming other methods on specific tasks.",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes ML as learning patterns from data via algorithms and deep learning as a subset using multi-layer neural networks to automatically learn representations. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 124,
+    "GenMS": 2586
+  },
+  {
+    "ID": "T01c",
+    "Cat": "factual",
+    "Answer": "RAM (Random Access Memory) is volatile memory that temporarily stores data and programs the CPU uses while it runs. It loses its contents when power is turned off. RAM is used for active work memory, holding running applications and data the processor needs quickly.\n\nROM (Read-Only Memory) is non-volatile memory that permanently stores firmware or boot instructions. It retains its data even when power is off. ROM is used for permanent system storage, such as the BIOS/UEFI firmware or storage drives like SSDs and HDDs.",
+    "Via": "judge",
+    "Reason": "The candidate correctly explains RAM and ROM but makes a factual error by listing SSDs and HDDs as examples of ROM. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 108,
+    "GenMS": 2234
+  },
+  {
+    "ID": "T02",
+    "Cat": "maths",
+    "Answer": "Start with the initial inventory: 2,400 units.\n\n- **Q1 sales:** 37% of 2,400 = 0.37 × 2,400 = 888 units sold.  \n  Remaining after Q1: 2,400 − 888 = 1,512 units.\n\n- **Q2 restock:** Add 800 units.  \n  Inventory after Q2: 1,512 + 800 = 2,312 units.\n\n- **Q3 sales:** 640 units sold.  \n  Inventory after Q3: 2,312 − 640 = 1,672 units.\n\n**1,672 units remain at the end of Q3.**",
+    "Via": "check",
+    "Reason": "expected 1672, got 2",
+    "Pass": false,
+    "GenTokens": 180,
+    "GenMS": 3765
+  },
+  {
+    "ID": "T02b",
+    "Cat": "maths",
+    "Answer": "First, find the amount of sugar needed for 30 cookies.\n\nThe recipe calls for 3/4 cup of sugar per 12 cookies. Set up a proportion:\n\n\\[\n\\frac{3/4 \\text{ cup}}{12 \\text{ cookies}} = \\frac{x \\text{ cup}}{30 \\text{ cookies}}\n\\]\n\nCross-multiply:\n\n\\[\n30 \\cdot \\frac{3}{4} = 12x\n\\]\n\n\\[\n\\frac{90}{4} = 12x \\quad \\Rightarrow \\quad 22.5 = 12x\n\\]\n\n\\[\nx = \\frac{22.5}{12} = 1.875 \\text{ cups}\n\\]\n\nSo you need **1.875 cups** of sugar for 30 cookies.\n\nNext, calculate the cost. Sugar costs $2.40 per cup:\n\n\\[\n1.875 \\text{ cups} \\times \\$2.40/\\text{cup} = \\$4.50\n\\]\n\n**Answer:** 1.875 cups of sugar, costing **$4.50**.",
+    "Via": "judge",
+    "Reason": "The candidate correctly computed both the sugar amount (1.875 cups) and total cost ($4.50). -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 266,
+    "GenMS": 5390
+  },
+  {
+    "ID": "T03",
+    "Cat": "sentiment",
+    "Answer": "Positive. Minor delivery issues are acknowledged and resolved quickly through excellent customer support.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 16,
+    "GenMS": 511
+  },
+  {
+    "ID": "T03b",
+    "Cat": "sentiment",
+    "Answer": "Positive. The packaging flaws are minor compared to the flawless device and quick setup.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as positive and provides a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 17,
+    "GenMS": 468
+  },
+  {
+    "ID": "T04",
+    "Cat": "summarisation",
+    "Answer": "Machine learning is rapidly transforming healthcare through applications in diagnosis, treatment planning, and patient monitoring, with systems capable of analysing medical images, predicting deterioration, and uncovering hidden patterns in electronic health records. Yet significant challenges persist, including model interpretability, data privacy, liability in the event of errors, and the risk of algorithmic bias that could exacerbate existing healthcare disparities, while regulatory frameworks continue to lag behind deployment speed.",
+    "Via": "judge",
+    "Reason": "The candidate provides a faithful two-sentence summary covering both the uses and concerns of ML in healthcare. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 86,
+    "GenMS": 1958
+  },
+  {
+    "ID": "T04b",
+    "Cat": "summarisation",
+    "Answer": "- Remote work has transformed how companies operate globally, offering employees flexibility and reduced commute times that improve work-life balance.\n- Challenges persist around collaboration, company culture, and the blurring of personal and professional boundaries.\n- Organisations are responding by investing in digital collaboration tools and rethinking office space as a hub for social and creative work rather than daily attendance.",
+    "Via": "judge",
+    "Reason": "The candidate provides three bullets covering the required content but fails the 15-word limit on the first and third bullets. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 74,
+    "GenMS": 1645
+  },
+  {
+    "ID": "T05",
+    "Cat": "ner",
+    "Answer": "PERSON: Sundar Pichai; ORGANIZATION: Google; LOCATION: Zurich; ORGANIZATION: ETH Zurich; DATE: March 15 2023",
+    "Via": "judge",
+    "Reason": "The candidate correctly extracted all named entities with accurate labels matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 35,
+    "GenMS": 906
+  },
+  {
+    "ID": "T05b",
+    "Cat": "ner",
+    "Answer": "PERSON: Elon Musk; ORGANIZATION: SpaceX; ORGANIZATION: NASA; DATE: September 2021; DATE: 2025; Outside the inventory: Artemis programme",
+    "Via": "judge",
+    "Reason": "The candidate correctly extracted and labeled all named entities matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 40,
+    "GenMS": 959
+  },
+  {
+    "ID": "T06",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that `nums.sort()` modifies the list in-place and then `nums[-1]` returns the largest element. The second largest must be found before sorting.\n\nHere's the corrected function:\n\n```python\ndef second_largest(nums):\n    \"\"\"Return the second largest number in nums.\"\"\"\n    largest = float('-inf')\n    second_largest = float('-inf')\n    for n in nums:\n        if n \u003e largest:\n            second_largest = largest\n            largest = n\n        elif n \u003e second_largest:\n            second_largest = n\n    return second_largest\n```",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the bug and provides a working corrected function that handles duplicates appropriately. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 132,
+    "GenMS": 2757
+  },
+  {
+    "ID": "T06b",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that `s.reverse()` returns a reversed string, but the comparison `s == s.reverse()` compares the original string with its reversed form element-wise, which fails for strings with different lengths (e.g., `'Aba'` becomes `'AbA'` and the lengths differ).\n\nThe corrected function should compare the string with its reversed version after stripping non-alphanumeric characters and lower-case (or upper-case) the comparison:\n\n```python\ndef is_palindrome(s):\n    s = s.strip().lower()\n    return s == s[::-1]\n```\n\nFor example, `'Aba'` becomes `'aba'`, which equals its reverse, so `is_palindrome('Aba')` is `True`.",
+    "Via": "judge",
+    "Reason": "The candidate fails to identify the actual bug (strings have no `reverse()` method) and introduces factual errors about length changes and element-wise comparison. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 153,
+    "GenMS": 3160
+  },
+  {
+    "ID": "T07",
+    "Cat": "logical",
+    "Answer": "Let’s deduce each person’s beverage step by step.\n\n**Step 1: List the four beverages and the people.**  \nBeverages: coffee, tea, water, juice.  \nPeople: Alice, Bob, Carol, Dave.\n\n**Step 2: Use the direct assignments.**  \n- Clue 3: Carol drinks tea.  \n- Clue 1: Alice drinks neither coffee nor juice → Alice drinks water or tea. Since Carol already has tea, Alice must drink **water**.  \n- Clue 2: Bob drinks neither water nor tea → Bob drinks coffee or juice.  \n- Clue 4: Dave does not drink juice → Dave drinks coffee or tea.\n\n**Step 3: Fill in the remaining assignments.**  \nCarol = tea (given).  \nAlice = water (from Step 2).  \nThat leaves Bob and Dave for coffee and juice.\n\nFrom Clue 2, Bob cannot drink water or tea, so Bob must drink **coffee** or **juice**.  \nFrom Clue 4, Dave cannot drink juice, so Dave must drink **coffee** or **tea**.\n\nCarol already has tea, so Dave cannot have tea. Therefore Dave must drink **coffee**.  \nConsequently, Bob must drink **juice**.\n\n**Final assignment:**\n- Alice: water  \n- Bob: juice  \n- Carol: tea  \n- Dave: coffee",
+    "Via": "judge",
+    "Reason": "The candidate correctly deduces all assignments, matching the rubric exactly. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 288,
+    "GenMS": 5924
+  },
+  {
+    "ID": "T07b",
+    "Cat": "logical",
+    "Answer": "Let’s deduce the pets step by step.\n\n**Step 1: Use the allergy clue.**  \nLiam is allergic to fur, so he cannot own a cat or a dog (both have fur). His only remaining option is the **parrot**.\n\n- Liam = parrot\n\n**Step 2: Use Emma’s clue.**  \nEmma does not own the parrot, and we already know Liam owns it, so Emma must own either the cat or the dog.\n\n**Step 3: Use Priya’s clue.**  \nPriya does not own the dog, so Priya must own the cat (since the parrot is with Liam and Emma cannot have it).\n\n- Priya = cat\n\n**Step 4: Fill in the last pet.**  \nEmma cannot have the parrot (Liam) or the cat (Priya), so Emma owns the **dog**.\n\n**Final assignment:**\n- Liam: parrot  \n- Priya: cat  \n- Emma: dog",
+    "Via": "judge",
+    "Reason": "The candidate correctly deduces all pet assignments. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 206,
+    "GenMS": 4331
+  },
+  {
+    "ID": "T08",
+    "Cat": "maths",
+    "Answer": "**Step 1: Determine the time difference between departures**\n\nThe first train leaves City A at 08:00 and the second train leaves City B at 09:30.  \nTime difference = 09:30 – 08:00 = **1 hour 30 minutes = 1.5 hours**.\n\n**Step 2: Calculate the relative speed**\n\nThe two trains are moving toward each other, so their speeds add:\n\n- Speed₁ = 90 km/h  \n- Speed₂ = 110 km/h  \n- Relative speed = 90 + 110 = **200 km/h**\n\n**Step 3: Find the meeting time**\n\nThe trains cover the 450 km distance together at 200 km/h, so the travel time until meeting is:\n\n- Travel time = Distance / Relative speed = 450 km / 200 km/h = **2.25 hours**\n\nAdd this to the first train’s departure time:\n\n- Meeting time = 08:00 + 2.25 hours = **10:25**\n\n**Step 4: Find the distance from City A**\n\nDistance from City A = Speed₁ × Travel time = 90 km/h × 2.25 h = **202.5 km**.\n\n(Alternatively, distance from City B = 110 × 2.25 = 247.5 km; 202.5 + 247.5 = 450 km, confirming the result.)\n\n---\n\n**Answer:** The trains meet at **10:25**, and the meeting point is **202.5 km from City A**.",
+    "Via": "judge",
+    "Reason": "The candidate fails to account for the 1.5 hours Train A travels alone before Train B starts, leading to an incorrect meeting time and distance. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 380,
+    "GenMS": 7730
+  },
+  {
+    "ID": "T09",
+    "Cat": "code_generation",
+    "Answer": "def merge_intervals(intervals):\n    \"\"\"Merge overlapping intervals.\"\"\"\n    if not intervals:\n        return []\n    intervals.sort()\n    merged = [intervals[0]]\n    for i, interval in enumerate(intervals[1:], start=1):\n        if interval[0] \u003c= merged[-1][1]:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n        else:\n            merged.append(interval)\n    return merged",
+    "Via": "judge",
+    "Reason": "The candidate correctly implements merge_intervals with proper handling of empty input, sorting, and merging logic, though merged intervals become tuples instead of lists. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 110,
+    "GenMS": 2439
+  },
+  {
+    "ID": "T09b",
+    "Cat": "code_generation",
+    "Answer": "def flatten(lst):\n    \"\"\"Flatten a nested list into one level.\"\"\"\n    out = []\n    for x in lst:\n        if isinstance(x, list):\n            out.extend(flatten(x))\n        else:\n            out.append(x)\n    return out",
+    "Via": "judge",
+    "Reason": "The candidate's recursive implementation correctly flattens arbitrarily nested lists and includes a docstring. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 59,
+    "GenMS": 1351
+  },
+  {
+    "ID": "T10",
+    "Cat": "maths",
+    "Answer": "Here are the calculations based on the provided monthly revenue figures.\n\n### 1. Average monthly revenue across all six months\nFirst, sum the six months' revenue:\n$142,000 + 138,500 + 157,200 + 163,800 + 151,400 + 168,900 = 961,800$\n\nDivide by 6 months:\n$961,800 / 6 = 160,300$\n\n**Average monthly revenue: $160,300**\n\n---\n\n### 2. Month-over-month growth rates (Feb–Jun)\nGrowth rate = $\\frac{\\text{Current Month} - \\text{Previous Month}}{\\text{Previous Month}} \\times 100\\%$\n\n- **Feb vs Jan**: $\\frac{138,500 - 142,000}{142,000} \\times 100 = -2.5\\%$\n- **Mar vs Feb**: $\\frac{157,200 - 138,500}{138,500} \\times 100 = 13.6\\%$\n- **Apr vs Mar**: $\\frac{163,800 - 157,200}{157,200} \\times 100 = 4.2\\%$\n- **May vs Apr**: $\\frac{151,400 - 163,800}{163,800} \\times 100 = -7.4\\%$\n- **Jun vs May**: $\\frac{168,900 - 151,400}{151,400} \\times 100 = 11.6\\%$\n\n**Growth rates: -2.5%, 13.6%, 4.2%, -7.4%, 11.6%**\n\n---\n\n### 3. Months with revenue decline\nRevenue decreased in **May** (from Apr to May) and **Feb** (from Jan to Feb).\n\n---\n\n### 4. Projected July revenue\nFirst, calculate the average of the last three months' growth rates (April, May, June):\n$(4.2\\% + (-7.4\\%) + 11.6\\%) / 3 = 8.4\\% / 3 = 2.8\\%$\n\nApply this growth rate to May's revenue:\n$151,400 \\times (1 + 0.028) = 151,400 \\times 1.028 = 155,639.2$\n\n**Projected July revenue: $155,639.20**",
+    "Via": "judge",
+    "Reason": "The candidate's average calculation is wrong (sum should be 921,800, not 961,800) and the July projection incorrectly applies the growth rate to May's revenue instead of June's. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 663,
+    "GenMS": 13530
+  }
+]

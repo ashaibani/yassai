@@ -1,0 +1,82 @@
+[
+  {
+    "ID": "sh_01",
+    "Cat": "sentiment",
+    "Answer": "Positive. A dead tracker is a lesson, not a complaint.",
+    "Via": "judge",
+    "Reason": "The candidate chose Positive, contradicting the correct Negative classification and misreading the sarcasm. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 14,
+    "GenMS": 498
+  },
+  {
+    "ID": "sh_02",
+    "Cat": "sentiment",
+    "Answer": "Positive. The reviewer starts with sarcasm but ends with genuine praise and a comparison to a more expensive product.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sentiment as Positive and gives an adequate reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 23,
+    "GenMS": 601
+  },
+  {
+    "ID": "sh_03",
+    "Cat": "sentiment",
+    "Answer": "Negative. Cleanliness and comfort are outweighed by repeated equipment failures and empty meals.",
+    "Via": "judge",
+    "Reason": "The candidate is incorrect because the rubric specifies Neutral or mixed, and confidently classifying it as Negative is wrong. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 18,
+    "GenMS": 499
+  },
+  {
+    "ID": "sh_04",
+    "Cat": "sentiment",
+    "Answer": "Positive. Setup issues are outweighed by exceptional espresso and the verdict that it is worth every penny.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 21,
+    "GenMS": 573
+  },
+  {
+    "ID": "sh_05",
+    "Cat": "sentiment",
+    "Answer": "Negative. The reviewer expresses clear dissatisfaction with the game, shelving it after just two rounds despite acknowledging its popularity.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and provides an adequate reason matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 620
+  },
+  {
+    "ID": "sh_06",
+    "Cat": "sentiment",
+    "Answer": "Positive. 'Not bad' is a deliberately positive understatement, followed by strong benefits (heats quickly, low bill) and an explicit purchase recommendation.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 32,
+    "GenMS": 786
+  },
+  {
+    "ID": "sh_07",
+    "Cat": "sentiment",
+    "Answer": "Positive. Low hopes turned out to be wrong - the review highlights reliability, cleanliness, honesty and no disappointment.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Positive and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 23,
+    "GenMS": 599
+  },
+  {
+    "ID": "sh_08",
+    "Cat": "sentiment",
+    "Answer": "Negative. Fast delivery is outweighed by immediate product failure.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the sentiment as Negative and gives a valid reason. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 13,
+    "GenMS": 395
+  }
+]

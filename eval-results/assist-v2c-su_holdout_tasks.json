@@ -1,0 +1,102 @@
+[
+  {
+    "ID": "su_h01",
+    "Cat": "summarisation",
+    "Answer": "- Libraries will lend thermal cameras to households\n- Demand exceeds supply and users need support reading the images\n- The council will add evening sessions and a college will assess areas needing grants",
+    "Via": "judge",
+    "Reason": "The third bullet point exceeds the 12-word limit. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 37,
+    "GenMS": 1020
+  },
+  {
+    "ID": "su_h02",
+    "Cat": "summarisation",
+    "Answer": "Electric bikes cut diesel deliveries and cut fuel costs. Heavy rain and damaged packaging restrict current operations.",
+    "Via": "judge",
+    "Reason": "The candidate omits the planned reusable boxes and battery swapping required by the rubric. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 20,
+    "GenMS": 576
+  },
+  {
+    "ID": "su_h03",
+    "Cat": "summarisation",
+    "Answer": "- Digitised drawings and free online copies\n- Remote access and family research benefit museums\n- Copyright checks and labels delayed work\n- Volunteers record data; a university team is building linking tools",
+    "Via": "judge",
+    "Reason": "The candidate meets the format and length requirements but misstates the beneficiary in bullet two as museums rather than researchers and families. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 39,
+    "GenMS": 975
+  },
+  {
+    "ID": "su_h04",
+    "Cat": "summarisation",
+    "Answer": "Pharmacy clinics will offer free blood-pressure checks. 37% of visitors with high readings lack clinician discussion. Pharmacists face paperwork and follow-up staffing challenges.",
+    "Via": "judge",
+    "Reason": "The candidate omits the digital and weekend remedies required by the rubric. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 35,
+    "GenMS": 900
+  },
+  {
+    "ID": "su_h05",
+    "Cat": "summarisation",
+    "Answer": "- A trial at three schools found morning breakfast clubs reduced late arrivals by 28%\n- Teachers report better lunch concentration, though kitchens face staffing and waste problems\n- Schools will add advance booking, donate unopened supplies and seek a longer-term sponsor",
+    "Via": "judge",
+    "Reason": "The first bullet exceeds the 11-word limit. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 52,
+    "GenMS": 1255
+  },
+  {
+    "ID": "su_h06",
+    "Cat": "summarisation",
+    "Answer": "- Soft lighting, sound and flexible seating appeal to families\n- Busy schedules prevent attendance; the theatre will double its schedule",
+    "Via": "judge",
+    "Reason": "The candidate omits the sensory guides, a required element from the rubric. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 25,
+    "GenMS": 685
+  },
+  {
+    "ID": "su_h07",
+    "Cat": "summarisation",
+    "Answer": "Willow planting reduces runoff from farms. Trees cool livestock and produce biomass. High costs and uncertain leases deter investment. A cooperative will share machines and contracts.",
+    "Via": "judge",
+    "Reason": "The candidate meets sentence count and length limits but omits the water-quality link in the cooperative sentence. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 32,
+    "GenMS": 851
+  },
+  {
+    "ID": "su_h08",
+    "Cat": "summarisation",
+    "Answer": "- A waiting room now holds bikes and repairs\n- Shift workers are excluded because opening times are late\n- Round-the-clock access and lower fees will be tested",
+    "Via": "judge",
+    "Reason": "The candidate misses the required detail about discounted fees being tied to employer referrals. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 33,
+    "GenMS": 878
+  },
+  {
+    "ID": "su_h09",
+    "Cat": "summarisation",
+    "Answer": "Shared vans cut costs while deliveries pool by postcode. Coordinating stock and schedules remains a practical challenge.",
+    "Via": "judge",
+    "Reason": "The candidate omits the required 46% figure and fails to mention shared labelling or booking plans. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 21,
+    "GenMS": 651
+  },
+  {
+    "ID": "su_h10",
+    "Cat": "summarisation",
+    "Answer": "- Smart sensors detect early mould\n- Poor broadband causes missed readings\n- Offline storage and privacy safeguards are being added",
+    "Via": "judge",
+    "Reason": "The candidate provides three paraphrased bullets within the word limit covering mould warnings, connectivity issues, and mitigation responses. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 686
+  }
+]

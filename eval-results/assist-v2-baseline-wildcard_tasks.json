@@ -1,0 +1,182 @@
+[
+  {
+    "ID": "f_w01",
+    "Cat": "factual",
+    "Answer": "The capital of Australia is Canberra, and it is near Lake Burley-Gilmore.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies Canberra but incorrectly names the lake as \"Lake Burley-Gilmore\" instead of Lake Burley Griffin. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 19,
+    "GenMS": 525
+  },
+  {
+    "ID": "m_w01",
+    "Cat": "maths",
+    "Answer": "First, calculate the number of items sold on Monday:\n- 15% of 240 = 0.15 × 240 = 36 items.\n\nNext, add the items sold on Tuesday:\n- 36 + 60 = 96 items sold in total.\n\nFinally, subtract the sold items from the starting stock to find what remains:\n- 240 - 96 = 144 items.\n\n**144 items remain.**",
+    "Via": "judge",
+    "Reason": "The candidate correctly computes Monday's sales, total sold, and remaining items to reach the correct answer of 144. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 109,
+    "GenMS": 2213
+  },
+  {
+    "ID": "s_w01",
+    "Cat": "sentiment",
+    "Answer": "Neutral. Praise for battery life is balanced by a complaint about screen durability.",
+    "Via": "judge",
+    "Reason": "The candidate correctly classifies the review as Neutral with accurate reasoning about both aspects. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 17,
+    "GenMS": 474
+  },
+  {
+    "ID": "su_w01",
+    "Cat": "summarisation",
+    "Answer": "A coalition of hospitals, cleaning firms and hospitality employers has funded a pilot to restore three night bus routes on weekends, with ridership data shared openly so the council can decide whether to make the service permanent.",
+    "Via": "judge",
+    "Reason": "The candidate omits that the night bus cuts hurt shift workers, missing a required rubric element. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 42,
+    "GenMS": 983
+  },
+  {
+    "ID": "n_w01",
+    "Cat": "ner",
+    "Answer": "Person: Maria Sanchez; Organization: Fireworks AI; Location: Berlin; Date: Last March",
+    "Via": "judge",
+    "Reason": "The candidate correctly extracted all named entities and types matching the rubric. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 20,
+    "GenMS": 534
+  },
+  {
+    "ID": "cd_w01",
+    "Cat": "code_debugging",
+    "Answer": "The function always returns the first element, so a different value can be present.\n\ndef get_max(nums):\n    return max(nums)",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the bug and provides the proper fix. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 29,
+    "GenMS": 639
+  },
+  {
+    "ID": "l_w01",
+    "Cat": "logical",
+    "Answer": "Jo owns the dog, and Sam does not own the bird, so Sam must own the cat.\n\nAnswer: Sam owns the cat.",
+    "Via": "judge",
+    "Reason": "The candidate correctly concludes that Sam owns the cat. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 29,
+    "GenMS": 640
+  },
+  {
+    "ID": "cg_w01",
+    "Cat": "code_generation",
+    "Answer": "def second_largest(nums):\n    \"\"\"Return the second-largest distinct value in nums.\"\"\"\n    distinct = sorted(set(nums), reverse=True)\n    return distinct[1]",
+    "Via": "judge",
+    "Reason": "The candidate correctly returns the second-largest distinct value using sorted(set(nums), reverse=True)[1], handling duplicates as required. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 37,
+    "GenMS": 832
+  },
+  {
+    "ID": "f_w02",
+    "Cat": "factual",
+    "Answer": "Onions contain sulfur compounds that, when cut, release volatile compounds like allicin. These compounds stimulate the tear glands in your eyes, producing a watery and salty reaction.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the sulfur-compound irritant mechanism, though allicin is more associated with garlic than onions. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 37,
+    "GenMS": 754
+  },
+  {
+    "ID": "f_w03",
+    "Cat": "factual",
+    "Answer": "Latitude measures how far north or south a point is from the Equator, while longitude measures how far east or west a point is from the Prime Meridian. Together, they form a grid system to pinpoint any location on Earth.",
+    "Via": "judge",
+    "Reason": "The candidate correctly distinguishes latitude and longitude in exactly two sentences. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 47,
+    "GenMS": 979
+  },
+  {
+    "ID": "m_w02",
+    "Cat": "maths",
+    "Answer": "First, determine the number of children. There are 12 rows × 18 seats = 216 total seats, and 150 adult tickets were sold, so 216 − 150 = 66 children tickets were sold.\n\nNow calculate revenue:\n- Adult revenue: 150 × £9.50 = £1,425\n- Child revenue: 66 × £6 = £396\n\nTotal revenue = £1,425 + £396 = **£1,821**.",
+    "Via": "judge",
+    "Reason": "The candidate correctly computes total seats, child tickets, and revenue to arrive at £1,821. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 124,
+    "GenMS": 2426
+  },
+  {
+    "ID": "m_w03",
+    "Cat": "maths",
+    "Answer": "To split £2,760 in the ratio 5:4:3, first find the total parts:\n\n5 + 4 + 3 = 12 parts\n\nEach part is:\n£2,760 ÷ 12 = £230\n\nThen multiply each part by its ratio:\n\n- 5 parts: 5 × £230 = **£1,150**\n- 4 parts: 4 × £230 = **£920**\n- 3 parts: 3 × £230 = **£690**\n\nCheck: £1,150 + £920 + £690 = £2,760.",
+    "Via": "judge",
+    "Reason": "The candidate correctly calculates the shares as £1,150, £920, and £690. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 158,
+    "GenMS": 3051
+  },
+  {
+    "ID": "s_w02",
+    "Cat": "sentiment",
+    "Answer": "Negative. The reviewer explicitly loves the prose but calls the book unfinished and too long, ending with a clear dismissal.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies the review as negative and adequately justifies it by noting the reviewer's dismissal despite praising the prose. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 24,
+    "GenMS": 556
+  },
+  {
+    "ID": "su_w02",
+    "Cat": "summarisation",
+    "Answer": "Allotment waiting lists have ballooned since the pandemic as interest in growing food surged, prompting councils to split existing plots in half or lease unused railway land, though gardeners' associations warn that half plots suit beginners but frustrate experienced growers needing space for rotation.",
+    "Via": "judge",
+    "Reason": "The candidate covers all rubric points in a single sentence with no factual errors. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 54,
+    "GenMS": 1182
+  },
+  {
+    "ID": "n_w02",
+    "Cat": "ner",
+    "Answer": "People: Priya Narayanan; Companies: Two Sigma, Glassbird Labs, Sequoia",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies all people and companies with appropriate types. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 20,
+    "GenMS": 475
+  },
+  {
+    "ID": "cg_w02",
+    "Cat": "code_generation",
+    "Answer": "def celsius_table(celsius):\n    \"\"\"Convert Celsius to Fahrenheit strings.\"\"\"\n    return ['{: .1°C} = {:.1°F}'.format(c, c * 9/5 + 32) for c in celsius]",
+    "Via": "judge",
+    "Reason": "The candidate's format string uses invalid format specifiers ('.1°C' instead of '.1f'), which would cause a runtime error. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 51,
+    "GenMS": 1061
+  },
+  {
+    "ID": "cd_w02",
+    "Cat": "code_debugging",
+    "Answer": "The bug is that the first character is checked with `w[0]`, which is a string. Comparing a string to a single character fails - the string `'a'` is never equal to `'a'` (it's always equal to itself, but the comparison logic is wrong).\n\nHere's the fixed version:\n\n```python\ndef count_vowel_words(words):\n    \"\"\"Count how many words start with a vowel.\"\"\"\n    return sum(1 for w in words if w[0] in 'aeiou')\n```\n\nThis works because `w[0]` is now a single character string, and `'a' in 'aeiou'` correctly returns `True`.",
+    "Via": "judge",
+    "Reason": "The candidate's explanation is factually wrong (claiming `w[0] in 'aeiou'` doesn't work) and their \"fix\" is identical to the broken original, addressing neither the case issue nor the empty-string crash. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 145,
+    "GenMS": 2803
+  },
+  {
+    "ID": "l_w02",
+    "Cat": "logical",
+    "Answer": "Cal came first.\n\nSince Ben didn't win, Ana couldn't have come first. And Cal beat Ana, so Ana came after Cal. That leaves Ben as last.",
+    "Via": "judge",
+    "Reason": "The candidate correctly identifies Cal as first and provides sound reasoning. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 36,
+    "GenMS": 770
+  }
+]

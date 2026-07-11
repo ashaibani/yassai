@@ -1,0 +1,62 @@
+[
+  {
+    "task_id": "su_h01",
+    "prompt": "Summarise the following passage in exactly three bullet points, each no longer than 12 words, using your own words:\n\n'Leeds libraries have begun lending thermal cameras so residents can find draughts and missing insulation at home. Demand has exceeded the initial supply, and some borrowers need help interpreting the colour images. The council is therefore adding evening demonstrations, while a local college will analyse anonymous findings to identify neighbourhoods that need grants most urgently.'",
+    "expected": "Exactly three bullet points, each at most 12 words, with no long verbatim copying. Together they must cover thermal-camera lending for home heat loss, demand or interpretation difficulties, and demonstrations plus data-led grant targeting.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h02",
+    "prompt": "Summarise the passage in exactly two sentences. Each sentence must contain at most 16 words and use your own words:\n\n'A coastal bakery replaced diesel deliveries with electric cargo bikes for nearby customers. Orders now arrive faster during summer traffic, and fuel spending has fallen, but heavy rain limits range and damages paper packaging. The owner is testing reusable boxes and a sheltered battery-swap point before expanding the service to neighbouring villages.'",
+    "expected": "Exactly two sentences of at most 16 words each, paraphrased. They must cover the electric-bike delivery benefits and the weather or packaging problems plus planned reusable boxes and battery swapping.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h03",
+    "prompt": "Condense the following into exactly four bullet points, each no longer than 14 words, in your own words:\n\n'A museum digitised thousands of fragile shipbuilding drawings and made low-resolution copies free online. Researchers welcomed remote access, while families used the archive to trace relatives who worked in local yards. Copyright checks and handwritten labels slowed publication. Volunteers are transcribing names, and a university team is building search tools that connect vessels, workers and construction dates.'",
+    "expected": "Exactly four paraphrased bullet points of at most 14 words. Cover digitisation and free access, research or family benefits, copyright or handwriting delays, and volunteer transcription plus linked search tools.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h04",
+    "prompt": "Summarise this report in exactly three sentences, each at most 15 words, without copying its wording:\n\n'Community pharmacies in Bristol are piloting blood-pressure checks without appointments. Early figures show that 37% of visitors with high readings had never discussed the issue with a clinician. Pharmacists value the reach of the scheme but report extra paperwork and difficulty arranging prompt follow-up appointments. Organisers plan shared digital referrals and weekend clinics to close those gaps.'",
+    "expected": "Exactly three sentences, at most 15 words each, and paraphrased. Mention pharmacy walk-in checks, the 37% figure, and follow-up or paperwork problems plus digital and weekend remedies.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h05",
+    "prompt": "Summarise in exactly three bullet points. Each bullet must use no more than 11 words, and the first bullet must mention 28%:\n\n'A trial at three secondary schools found that morning breakfast clubs reduced late arrivals by 28%. Teachers also noticed better concentration before lunch, although kitchens struggled with staffing and food waste on quieter days. The schools will introduce advance booking and donate unopened supplies while seeking a longer-term sponsor.'",
+    "expected": "Exactly three bullet points of at most 11 words, with 28% in the first. Cover improved punctuality, concentration plus operational problems, and booking, donation or sponsorship responses.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h06",
+    "prompt": "Rewrite the key points as exactly two bullet points, each at most 18 words and in your own words:\n\n'A theatre now offers relaxed performances with softer lighting, lower sound levels and permission to move around. Families praise the welcoming atmosphere, but some cannot attend because the limited shows sell out quickly. Next season the theatre will double the schedule and publish sensory guides before tickets go on sale.'",
+    "expected": "Exactly two paraphrased bullet points of at most 18 words. Cover accessible relaxed-performance features and popularity or scarcity plus expansion and advance sensory guides.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h07",
+    "prompt": "Summarise the following in exactly four sentences, no sentence longer than 13 words, using your own words:\n\n'Farmers beside the River Wye are planting strips of willow to slow fertiliser runoff. The trees also shelter livestock and may provide material for biomass heating. Establishment costs are high, and tenants hesitate to invest without longer leases. A cooperative is negotiating shared machinery, discounted saplings and contracts that reward measured improvements in water quality.'",
+    "expected": "Exactly four paraphrased sentences of at most 13 words. Cover runoff control, extra farm or energy benefits, cost and tenancy barriers, and cooperative support tied to water quality.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h08",
+    "prompt": "Provide exactly three bullet points, each no longer than 17 words, summarising the passage in your own words:\n\n'A railway station converted an unused waiting room into secure cycle storage with repair stands and charging sockets. Commuters value the convenience, yet membership is lower among shift workers because the staffed opening hours begin too late. The operator will trial round-the-clock card access and reduced monthly fees for workers referred by nearby employers.'",
+    "expected": "Exactly three paraphrased bullet points of at most 17 words. Cover the cycle facilities, the shift-worker access problem, and planned 24-hour cards plus discounted employer referrals.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h09",
+    "prompt": "Summarise in exactly two sentences of at most 20 words each. Mention 46% and avoid copying full phrases:\n\n'A survey of independent shops found that 46% had started pooling online deliveries by postcode. Shared vans cut costs and reduced repeated trips, but coordinating stock and customer time slots remained difficult. Traders are developing common labelling rules and a simple booking platform before inviting restaurants to join.'",
+    "expected": "Exactly two sentences of at most 20 words, paraphrased, including 46%. Cover pooled deliveries and benefits, then coordination barriers and shared labelling or booking plans.",
+    "validate": "llm"
+  },
+  {
+    "task_id": "su_h10",
+    "prompt": "Summarise the passage in exactly three bullet points, with each bullet limited to 13 words and written in your own words:\n\n'A housing association fitted smart humidity sensors in older flats to warn tenants before mould develops. Alerts have helped residents change ventilation habits, though unreliable broadband causes missed readings and some tenants worry about privacy. The association will add offline storage, publish a strict data-retention policy and fund independent advice for residents.'",
+    "expected": "Exactly three paraphrased bullet points of at most 13 words. Cover early mould warnings or behaviour change, connectivity and privacy concerns, and offline storage plus privacy or independent advice responses.",
+    "validate": "llm"
+  }
+]

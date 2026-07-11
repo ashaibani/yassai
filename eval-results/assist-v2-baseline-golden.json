@@ -1,0 +1,402 @@
+[
+  {
+    "ID": "f1",
+    "Cat": "factual",
+    "Answer": "Paris.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 199
+  },
+  {
+    "ID": "f2",
+    "Cat": "factual",
+    "Answer": "An API gateway is a central service that routes incoming requests to the appropriate backend APIs, enforces security policies, rate limiting, and versioning, and aggregates traffic before forwarding it to downstream services.",
+    "Via": "check",
+    "Reason": "expected to contain \"entry point\" (case-insensitive), got \"An API gateway is a central service that routes incoming requests to the appropriate backend APIs, enforces security policies, rate limiting, and versioning, and aggregates traffic before forwarding it to downstream services.\"",
+    "Pass": false,
+    "GenTokens": 40,
+    "GenMS": 844
+  },
+  {
+    "ID": "f3",
+    "Cat": "factual",
+    "Answer": "HyperText Transfer Protocol Secure.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 7,
+    "GenMS": 222
+  },
+  {
+    "ID": "f4",
+    "Cat": "factual",
+    "Answer": "Recursion is a programming technique where a function defines its own base case and calls itself with progressively simplified arguments until reaching the base case.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 28,
+    "GenMS": 621
+  },
+  {
+    "ID": "f5",
+    "Cat": "factual",
+    "Answer": "100",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 4,
+    "GenMS": 169
+  },
+  {
+    "ID": "m1",
+    "Cat": "maths",
+    "Answer": "391",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 4,
+    "GenMS": 161
+  },
+  {
+    "ID": "m2",
+    "Cat": "maths",
+    "Answer": "50",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 151
+  },
+  {
+    "ID": "m3",
+    "Cat": "maths",
+    "Answer": "80",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 158
+  },
+  {
+    "ID": "m4",
+    "Cat": "maths",
+    "Answer": "24",
+    "Via": "check",
+    "Reason": "expected 72, got 24",
+    "Pass": false,
+    "GenTokens": 3,
+    "GenMS": 147
+  },
+  {
+    "ID": "m5",
+    "Cat": "maths",
+    "Answer": "12",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 140
+  },
+  {
+    "ID": "s1",
+    "Cat": "sentiment",
+    "Answer": "Positive. The word \"loved\" is unambiguous enthusiasm.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 14,
+    "GenMS": 418
+  },
+  {
+    "ID": "s2",
+    "Cat": "sentiment",
+    "Answer": "Negative. The explicit refusal to recommend and \"worst experience ever\" are unambiguous negative indicators.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 21,
+    "GenMS": 493
+  },
+  {
+    "ID": "s3",
+    "Cat": "sentiment",
+    "Answer": "Neutral.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 183
+  },
+  {
+    "ID": "s4",
+    "Cat": "sentiment",
+    "Answer": "Neutral.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 3,
+    "GenMS": 146
+  },
+  {
+    "ID": "s5",
+    "Cat": "sentiment",
+    "Answer": "Positive. The word \"thrilled\" is unambiguous enthusiasm.",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 14,
+    "GenMS": 362
+  },
+  {
+    "ID": "su1",
+    "Cat": "summarisation",
+    "Answer": "The software update delivers security patches, a redesigned interface, and up to 30 percent faster load times, with users praising the smoother experience while reporting occasional compatibility issues with older plugins.",
+    "Via": "judge",
+    "Reason": "The candidate correctly summarizes the update with security patches, UI redesign, and performance improvements. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 38,
+    "GenMS": 925
+  },
+  {
+    "ID": "su2",
+    "Cat": "summarisation",
+    "Answer": "A 12 percent revenue increase, fueled by strong European sales and partially offset by a slight Asian decline from supply chain disruptions, is the key takeaway from the quarterly report.",
+    "Via": "judge",
+    "Reason": "The candidate accurately captures the 12 percent revenue increase driven by Europe and the Asian decline due to supply chain issues. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 36,
+    "GenMS": 902
+  },
+  {
+    "ID": "su3",
+    "Cat": "summarisation",
+    "Answer": "Researchers at a leading university have developed a new solar panel that converts 40 percent of sunlight into electricity, a significant improvement over the current average of 22 percent, using a novel multi-layer design that captures a broader spectrum of light.",
+    "Via": "judge",
+    "Reason": "The candidate accurately includes all key points from the rubric with no factual errors. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 50,
+    "GenMS": 1315
+  },
+  {
+    "ID": "su4",
+    "Cat": "summarisation",
+    "Answer": "The committee postponed its decision on the new zoning law until next month after several members raised concerns that the environmental impact study did not adequately address the potential effects on local wildlife habitats and water sources.",
+    "Via": "judge",
+    "Reason": "The candidate correctly condenses the original text into one sentence while preserving the key facts. -\u003e CORRECT",
+    "Pass": true,
+    "GenTokens": 39,
+    "GenMS": 1525
+  },
+  {
+    "ID": "su5",
+    "Cat": "summarisation",
+    "Answer": "A survey of 2000 remote workers shows that 65 percent prefer a hybrid work model, with 20 percent wanting to return to the office full-time for better collaboration and 15 percent preferring fully remote work.",
+    "Via": "judge",
+    "Reason": "The candidate omits the key reason (work-life balance) emphasized in the rubric. -\u003e INCORRECT",
+    "Pass": false,
+    "GenTokens": 49,
+    "GenMS": 1816
+  },
+  {
+    "ID": "n1",
+    "Cat": "ner",
+    "Answer": "{\n  \"entities\": [\n    { \"entity\": \"Tim Cook\", \"type\": \"Person\" },\n    { \"entity\": \"Apple Inc.\", \"type\": \"Organization\" },\n    { \"entity\": \"London\", \"type\": \"Location\" },\n    { \"entity\": \"January 2025\", \"type\": \"Date\" }\n  ]\n}",
+    "Via": "check",
+    "Reason": "all 4 entities found",
+    "Pass": true,
+    "GenTokens": 84,
+    "GenMS": 2757
+  },
+  {
+    "ID": "n2",
+    "Cat": "ner",
+    "Answer": "{\n  \"persons\": [\"Marie Curie\"],\n  \"locations\": [\"Warsaw\", \"University of Paris\"],\n  \"organisations\": [],\n  \"dates\": [\"1898\"]\n}",
+    "Via": "check",
+    "Reason": "all 4 entities found",
+    "Pass": true,
+    "GenTokens": 46,
+    "GenMS": 1516
+  },
+  {
+    "ID": "n3",
+    "Cat": "ner",
+    "Answer": "{\n  \"ORGANIZATION\": \"United Nations\",\n  \"ORGANIZATION\": \"General Assembly\",\n  \"LOCATION\": \"New York\",\n  \"DATE\": \"September\",\n  \"DOMAIN\": \"climate change\"\n}",
+    "Via": "check",
+    "Reason": "all 3 entities found",
+    "Pass": true,
+    "GenTokens": 52,
+    "GenMS": 1813
+  },
+  {
+    "ID": "n4",
+    "Cat": "ner",
+    "Answer": "{\n  \"entities\": [\n    { \"entity\": \"Person\", \"value\": \"Elon Musk\" },\n    { \"entity\": \"Organization\", \"value\": \"SpaceX\" },\n    { \"entity\": \"Year\", \"value\": \"2002\" }\n  ]\n}",
+    "Via": "check",
+    "Reason": "all 3 entities found",
+    "Pass": true,
+    "GenTokens": 67,
+    "GenMS": 2529
+  },
+  {
+    "ID": "n5",
+    "Cat": "ner",
+    "Answer": "{\n  \"entities\": [\n    {\n      \"text\": \"Treaty of Versailles\",\n      \"type\": \"LEGAL_DOCUMENT\"\n    },\n    {\n      \"text\": \"28 June 1919\",\n      \"type\": \"DATE\"\n    },\n    {\n      \"text\": \"Palace of Versailles\",\n      \"type\": \"LOCATION\"\n    },\n    {\n      \"text\": \"France\",\n      \"type\": \"LOCATION\"\n    }\n  ]\n}",
+    "Via": "check",
+    "Reason": "all 4 entities found",
+    "Pass": true,
+    "GenTokens": 116,
+    "GenMS": 5533
+  },
+  {
+    "ID": "cd1",
+    "Cat": "code_debugging",
+    "Answer": "The function subtracts b from a instead of adding them. Change the operator:\n\ndef add(a, b):\n    return a + b",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 30,
+    "GenMS": 1267
+  },
+  {
+    "ID": "cd2",
+    "Cat": "code_debugging",
+    "Answer": "def factorial(n):\n    \"\"\"Return n!.\"\"\"\n    if n == 0:\n        return 1\n    return n * factorial(n - 1)",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 36,
+    "GenMS": 1339
+  },
+  {
+    "ID": "cd3",
+    "Cat": "code_debugging",
+    "Answer": "The loop runs from 0 to arr.length, which is arr.length + 1 iterations and includes an extra element. Divide by arr.length instead.\n\nfunction getAverage(arr) {\n  let sum = 0;\n  for (let i = 0; i \u003c arr.length; i++) {\n    sum += arr[i];\n  }\n  return sum / arr.length;\n}",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 84,
+    "GenMS": 2979
+  },
+  {
+    "ID": "cd4",
+    "Cat": "code_debugging",
+    "Answer": "The condition n % 2 == 1 is the opposite of evenness - an odd number modulo 2 is 1, while an even number is 0.\n\ndef is_even(n):\n    return n % 2 == 0",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 51,
+    "GenMS": 1855
+  },
+  {
+    "ID": "cd5",
+    "Cat": "code_debugging",
+    "Answer": "def reverse_string(s): return s[::-1]",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 11,
+    "GenMS": 508
+  },
+  {
+    "ID": "l1",
+    "Cat": "logical",
+    "Answer": "Green",
+    "Via": "check",
+    "Reason": "expected to contain \"blue\" (case-insensitive), got \"Green\"",
+    "Pass": false,
+    "GenTokens": 2,
+    "GenMS": 273
+  },
+  {
+    "ID": "l2",
+    "Cat": "logical",
+    "Answer": "Yes",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 2,
+    "GenMS": 234
+  },
+  {
+    "ID": "l3",
+    "Cat": "logical",
+    "Answer": "4",
+    "Via": "check",
+    "Reason": "expected 7, got 4",
+    "Pass": false,
+    "GenTokens": 2,
+    "GenMS": 295
+  },
+  {
+    "ID": "l4",
+    "Cat": "logical",
+    "Answer": "E",
+    "Via": "check",
+    "Reason": "expected to contain \"C\" (case-insensitive), got \"E\"",
+    "Pass": false,
+    "GenTokens": 2,
+    "GenMS": 268
+  },
+  {
+    "ID": "l5",
+    "Cat": "logical",
+    "Answer": "No",
+    "Via": "check",
+    "Reason": "",
+    "Pass": true,
+    "GenTokens": 2,
+    "GenMS": 222
+  },
+  {
+    "ID": "cg1",
+    "Cat": "code_generation",
+    "Answer": "def is_palindrome(s):\n    \"\"\"Return True if s is a palindrome (ignoring case and spaces).\"\"\"\n    return s.lower().strip == s.lower().strip[::-1]",
+    "Via": "check",
+    "Reason": "function name \"is_palindrome\" found",
+    "Pass": true,
+    "GenTokens": 40,
+    "GenMS": 1539
+  },
+  {
+    "ID": "cg2",
+    "Cat": "code_generation",
+    "Answer": "def fibonacci(n):\n    \"\"\"Return the nth Fibonacci number (0-indexed).\"\"\"\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a",
+    "Via": "check",
+    "Reason": "function name \"fibonacci\" found",
+    "Pass": true,
+    "GenTokens": 53,
+    "GenMS": 1867
+  },
+  {
+    "ID": "cg3",
+    "Cat": "code_generation",
+    "Answer": "function debounce(fn, ms) {\n  let timer;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() =\u003e fn.apply(this, args), ms);\n  };\n}",
+    "Via": "check",
+    "Reason": "function name \"debounce\" found",
+    "Pass": true,
+    "GenTokens": 46,
+    "GenMS": 1237
+  },
+  {
+    "ID": "cg4",
+    "Cat": "code_generation",
+    "Answer": "def merge_sorted_lists(a, b):\n    \"\"\"Merge two sorted lists into one sorted list.\"\"\"\n    out = []\n    i = j = 0\n    while i \u003c len(a) and j \u003c len(b):\n        if a[i] \u003c= b[j]:\n            out.append(a[i])\n            i += 1\n        else:\n            out.append(b[j])\n            j += 1\n    out.extend(a[i:])\n    out.extend(b[j:])\n    return out",
+    "Via": "check",
+    "Reason": "function name \"merge_sorted_lists\" found",
+    "Pass": true,
+    "GenTokens": 106,
+    "GenMS": 2416
+  },
+  {
+    "ID": "cg5",
+    "Cat": "code_generation",
+    "Answer": "def count_vowels(s):\n    \"\"\"Return the number of vowels in s.\"\"\"\n    return sum(1 for c in s.lower() if c in 'aeiou')",
+    "Via": "check",
+    "Reason": "function name \"count_vowels\" found",
+    "Pass": true,
+    "GenTokens": 38,
+    "GenMS": 888
+  }
+]

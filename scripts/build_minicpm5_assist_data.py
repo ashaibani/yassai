@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -32,6 +33,26 @@ SYSTEM = {
     "factual": "Answer directly and concisely; explanations max 3 short sentences.",
     "code_fix": "State the one-line cause of the bug (what the buggy line actually does), then provide the minimal corrected function. Plain code, no fences, change only the bug.",
 }
+
+
+def forbidden_eval_material() -> tuple[set[str], set[str]]:
+    """Collect every eval task id and prompt without consuming any answers."""
+    ids: set[str] = set()
+    prompts: set[str] = set()
+    for path in Path("testdata").glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        tasks = data if isinstance(data, list) else data.get("tasks", [])
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            if isinstance(task.get("task_id"), str):
+                ids.add(task["task_id"])
+            if isinstance(task.get("prompt"), str):
+                prompts.add(task["prompt"])
+    return ids, prompts
 
 # ------------------------------------------------------------------------ ner
 
@@ -258,6 +279,8 @@ def main() -> None:
     ap.add_argument("--claude", default="finetune/minicpm5/data/assist_claude_authored.jsonl",
                     help="Claude-authored sentiment/code_fix rows (gen_assist_claude_data.py)")
     ap.add_argument("--out", default="finetune/minicpm5/data/minicpm5_yassai_assist.jsonl")
+    ap.add_argument("--v2-summaries", default="finetune/minicpm5/data/assist_v2_summaries.jsonl")
+    ap.add_argument("--v2-sentiment", default="finetune/minicpm5/data/assist_v2_sentiment.jsonl")
     ap.add_argument("--seed", type=int, default=20260711)
     ap.add_argument("--ner", type=int, default=120)
     # Teacher rows are a fixed cache, so train/heldout must partition them -
@@ -269,15 +292,13 @@ def main() -> None:
 
     rng = random.Random(args.seed)
     split = args.teacher_split if args.teacher_split != "all" else "train"
-    # cg appears twice: six families squeezed a rank-32 LoRA in v4 and cg
-    # regressed on basics (empty-string handling) as its data share halved.
+    # cg appears three times: the v2 compound-summary expansion otherwise
+    # diluted this execution-verified slice and regressed median handling.
     cg = build_cg(rng, split)
-    rows = build_ner(rng, args.ner) + cg + cg
-
-    import hashlib
+    rows = build_ner(rng, args.ner) + cg + cg + cg
 
     n_teacher = 0
-    for cache in (Path(args.teacher), Path(args.claude)):
+    for cache in (Path(args.teacher), Path(args.claude), Path(args.v2_summaries), Path(args.v2_sentiment)):
         if not cache.exists():
             print(f"WARNING: cache {cache} missing - skipping")
             continue
@@ -292,6 +313,11 @@ def main() -> None:
                 continue
             rows.append({"family": r["family"], "prompt": r["prompt"], "answer": r["answer"]})
             n_teacher += 1
+
+    forbidden_ids, forbidden_prompts = forbidden_eval_material()
+    for row in rows:
+        assert row.get("task_id") not in forbidden_ids, "training row id collides with eval material"
+        assert row["prompt"] not in forbidden_prompts, "training prompt collides with eval material"
 
     rng.shuffle(rows)
     out = Path(args.out)
