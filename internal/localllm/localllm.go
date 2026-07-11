@@ -248,6 +248,9 @@ func (s *Solver) SolveTask(ctx context.Context, prompt string) Result {
 			}
 		}
 	}
+	if a, ok := ratioDerivedAnswer(prompt); ok {
+		return Result{Answer: a, OK: true}
+	}
 	res := s.solveOnce(ctx, prompt)
 	if res.OK || res.Reason == "" || ctx.Err() != nil {
 		return res
@@ -372,38 +375,107 @@ var (
 // shares that did not match the stated ratio). Enforced only for exact
 // integer splits; anything else stays the model's problem.
 func ratioSplitBound(prompt, answer string) string {
-	tm := ratioTotalRe.FindStringSubmatch(prompt)
-	pm := ratioPartsRe.FindStringSubmatch(prompt)
-	if tm == nil || pm == nil {
+	parts, shares, _, ok := ratioShares(prompt)
+	if !ok {
 		return ""
 	}
-	totalStr := strings.NewReplacer("£", "", "$", "", "€", "", ",", "", " ", "").Replace(tm[1])
-	total, err := strconv.ParseFloat(totalStr, 64)
-	if err != nil || total <= 0 {
-		return ""
-	}
-	var parts []int
-	sum := 0
-	for _, p := range strings.Split(pm[1], ":") {
-		v, err := strconv.Atoi(strings.TrimSpace(p))
-		if err != nil || v <= 0 {
-			return ""
-		}
-		parts = append(parts, v)
-		sum += v
-	}
-	if sum == 0 || total != float64(int(total)) || int(total)%sum != 0 {
-		return "" // non-exact split: no deterministic expectation
-	}
-	unit := int(total) / sum
 	norm := strings.ReplaceAll(answer, ",", "")
-	for _, p := range parts {
-		share := strconv.Itoa(unit * p)
+	for i := range parts {
+		share := strconv.Itoa(shares[i])
 		if !strings.Contains(norm, share) {
 			return "ratio split: expected share " + share + " missing from answer"
 		}
 	}
 	return ""
+}
+
+// ratioShares derives the exact integer shares of a "split X in the ratio
+// a:b:c" prompt, plus the currency symbol if the total carried one. ok is
+// false whenever the split is not exactly derivable.
+func ratioShares(prompt string) (parts, shares []int, symbol string, ok bool) {
+	tm := ratioTotalRe.FindStringSubmatch(prompt)
+	pm := ratioPartsRe.FindStringSubmatch(prompt)
+	if tm == nil || pm == nil {
+		return nil, nil, "", false
+	}
+	raw := strings.TrimSpace(tm[1])
+	for _, s := range []string{"£", "$", "€"} {
+		if strings.HasPrefix(raw, s) {
+			symbol = s
+			break
+		}
+	}
+	totalStr := strings.NewReplacer("£", "", "$", "", "€", "", ",", "", " ", "").Replace(raw)
+	total, err := strconv.ParseFloat(totalStr, 64)
+	if err != nil || total <= 0 {
+		return nil, nil, "", false
+	}
+	sum := 0
+	for _, p := range strings.Split(pm[1], ":") {
+		v, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil || v <= 0 {
+			return nil, nil, "", false
+		}
+		parts = append(parts, v)
+		sum += v
+	}
+	if sum == 0 || total != float64(int(total)) || int(total)%sum != 0 {
+		return nil, nil, "", false // non-exact split: no deterministic expectation
+	}
+	unit := int(total) / sum
+	for _, p := range parts {
+		shares = append(shares, unit*p)
+	}
+	return parts, shares, symbol, true
+}
+
+// ratioDerivedAnswer composes the answer to an exact ratio-split question
+// directly from the derivation - the one maths class where the right values
+// are computable without any model. Zero-token runs previously REJECTED a
+// wrong model answer here and then shipped the reject anyway (m_w03: 13
+// parts instead of 12); deterministic-first makes the class immune and costs
+// no generation. Guarded to prompts that ask for the per-share amounts so an
+// unusual follow-on question ("how much more does A get?") still reaches the
+// model.
+func ratioDerivedAnswer(prompt string) (string, bool) {
+	lp := strings.ToLower(prompt)
+	if !strings.Contains(lp, "each") && !strings.Contains(lp, "respectively") &&
+		!strings.Contains(lp, "how much do") && !strings.Contains(lp, "what does each") {
+		return "", false
+	}
+	parts, shares, symbol, ok := ratioShares(prompt)
+	if !ok {
+		return "", false
+	}
+	ratioTxt := make([]string, len(parts))
+	shareTxt := make([]string, len(shares))
+	for i := range parts {
+		ratioTxt[i] = strconv.Itoa(parts[i])
+		shareTxt[i] = symbol + groupThousands(shares[i])
+	}
+	last := shareTxt[len(shareTxt)-1]
+	list := last
+	if len(shareTxt) > 1 {
+		list = strings.Join(shareTxt[:len(shareTxt)-1], ", ") + " and " + last
+	}
+	return "Splitting in the ratio " + strings.Join(ratioTxt, ":") +
+		", the shares are " + list + " respectively.", true
+}
+
+// groupThousands renders 1150 as 1,150 - the format the reference answers use.
+func groupThousands(n int) string {
+	s := strconv.Itoa(n)
+	if len(s) <= 3 {
+		return s
+	}
+	var out []byte
+	for i, c := range []byte(s) {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, c)
+	}
+	return string(out)
 }
 
 // magnitudeBound rejects answers whose largest value sits orders of magnitude

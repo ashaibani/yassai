@@ -383,3 +383,34 @@ func TestRatioSplitBoundInterveningWords(t *testing.T) {
 		t.Error("wrong shares with intervening words must be rejected")
 	}
 }
+
+func TestRatioDerivedAnswer(t *testing.T) {
+	// m_w03 class: exact split with an "each" ask composes deterministically.
+	a, ok := ratioDerivedAnswer("Split £2,760 between three flatmates in the ratio 5:4:3. How much does each flatmate get?")
+	if !ok {
+		t.Fatal("expected derivable answer for exact ratio split")
+	}
+	for _, want := range []string{"£1,150", "£920", "£690", "5:4:3"} {
+		if !strings.Contains(a, want) {
+			t.Fatalf("composed answer missing %q: %s", want, a)
+		}
+	}
+	// Follow-on questions the composition does not cover stay with the model.
+	if _, ok := ratioDerivedAnswer("Split £2,760 in the ratio 5:4:3. How much more does the largest share get than the smallest?"); ok {
+		t.Fatal("difference-style ask must not compose a shares-only answer")
+	}
+	// Non-exact splits carry no deterministic expectation.
+	if _, ok := ratioDerivedAnswer("Split £1,000 between three flatmates in the ratio 5:4:3. How much does each get?"); ok {
+		t.Fatal("non-exact split must not compose")
+	}
+	// Plain-number totals compose without a currency symbol.
+	b, ok := ratioDerivedAnswer("Divide 120 sweets among Ann, Ben and Cal in the ratio 3:2:1. How many does each child receive?")
+	if !ok {
+		t.Fatal("expected derivable answer for plain-number split")
+	}
+	for _, want := range []string{"60", "40", "20"} {
+		if !strings.Contains(b, want) {
+			t.Fatalf("plain composed answer missing %q: %s", want, b)
+		}
+	}
+}

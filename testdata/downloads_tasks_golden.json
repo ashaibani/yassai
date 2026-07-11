@@ -21,7 +21,7 @@
     "task_id": "T02",
     "prompt": "A warehouse starts with 2,400 units. In Q1 it sells 37% of stock. In Q2 it restocks 800 units. In Q3 it sells 640 units. How many units remain at the end of Q3?",
     "expected": "Correctly arrives at 1,672 units remaining. The calculation must follow: 2400 minus 888 (37% of 2400) equals 1512, plus 800 equals 2312, minus 640 equals 1672. Minor arithmetic shown or implied.",
-    "validate": "numeric"
+    "validate": "llm"
   },
   {
     "task_id": "T02b",

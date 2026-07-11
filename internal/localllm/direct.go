@@ -272,6 +272,14 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	if extendedFamilies[family] && !s.extended[family] {
 		return Result{Reason: "family " + family + " not unlocked (LOCAL_BASE_EXTENDED)"}
 	}
+	if family == FamilyMaths {
+		// Exact ratio splits are computable without the model - the sweep's
+		// last-resort maths family must never ship a rejected wrong answer
+		// for a class the gate can derive outright.
+		if a, ok := ratioDerivedAnswer(prompt); ok {
+			return Result{Answer: a, OK: true}
+		}
+	}
 	res := s.solveGated(ctx, prompt, family)
 	if res.OK && family == FamilySentiment {
 		// Self-consistency: sentiment labels are unverifiable by any cheap
