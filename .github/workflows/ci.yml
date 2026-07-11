@@ -189,6 +189,33 @@ jobs:
             hf_token=${{ secrets.HF_TOKEN }}
           provenance: false
 
+      - name: Build and push hybrid variant (sha-*-hybrid-remote)
+        # MiniCPM5-1B tool lane + Qwen assist lane, remote-default bake. The
+        # 1B tool lane is ~22% faster end-to-end (larger gap on 2 vCPU) with
+        # an identical wildcard miss profile - the contention-headroom
+        # candidate for runs that were timing out and ballooning tokens.
+        # AGENT_NO_REMOTE=1 can be injected at runtime to probe its zero mode.
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}:sha-${{ steps.short.outputs.sha }}-hybrid-remote
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            LOCAL_MODEL_URL=https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf
+            LOCAL_MODEL_LORA_URL=
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
+            LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
+            LOCAL_BASE_EXTENDED=text_summarisation,code_fix,sentiment_classification
+            AGENT_NO_REMOTE=
+            AGENT_ALLOW_SEMANTIC_CLUES=1
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}
+          provenance: false
+
   docker-test:
     name: Test Docker image
     needs: docker
@@ -385,6 +412,35 @@ jobs:
               sys.exit('FAIL: remote-variant run has missing or empty answers')
           PYEOF
           echo "Remote-variant rehearsal PASSED"
+
+      - name: Hybrid-variant dress rehearsal (sha-*-hybrid-remote)
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)-hybrid-remote"
+          docker pull "$IMAGE"
+          mkdir -p /tmp/hv-out
+          docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 2 \
+            -v /tmp/rehearsal-in:/input:ro \
+            -v /tmp/hv-out:/output \
+            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e CALLBACK_LABEL="ci-hybrid @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/hv-stderr.txt || true
+          grep -E 'local reject|fallback|disabled' /tmp/hv-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/hv-out/results.json'))
+          metrics = json.load(open('/tmp/hv-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: hybrid-variant run has missing or empty answers')
+          PYEOF
+          echo "Hybrid-variant rehearsal PASSED"
 
       - name: Zero-token rehearsal THROTTLED (--cpus 1 contention proxy)
         # Informational acceptance gate for any zero-token submission: the
