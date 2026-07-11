@@ -118,10 +118,11 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          # ONLY immutable sha-* tags. Floating tags (latest, main) are
+          # plagiarism handles - others pulled ghcr.io/ashaibani/yassai:latest
+          # and ran it (visible as broken "default @" runs on our telemetry).
+          # Submissions pin a sha, so nothing here needs a moving tag.
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=ref,event=pr
             type=sha
 
       - name: Build and push
