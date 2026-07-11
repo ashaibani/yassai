@@ -297,11 +297,12 @@ jobs:
           mkdir -p /tmp/zero-in /tmp/zero-out
           cp /tmp/rehearsal-in/tasks.json /tmp/zero-in/tasks.json
           START=$(date +%s)
+          # Deliberately NO FIREWORKS_API_KEY: a zero-token run must work with
+          # no key at all (nothing reaches Fireworks; the callback is keyless).
           docker run --rm --platform linux/amd64 \
             --memory 4g --memory-swap 4g --cpus 2 \
             -v /tmp/zero-in:/input:ro \
             -v /tmp/zero-out:/output \
-            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
             -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
             -e AGENT_NO_REMOTE=1 \
             -e LOCAL_BASE_EXTENDED=all \
