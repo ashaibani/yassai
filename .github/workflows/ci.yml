@@ -216,6 +216,30 @@ jobs:
             hf_token=${{ secrets.HF_TOKEN }}
           provenance: false
 
+      - name: Build and push hybrid zero variant (sha-*-hybrid)
+        # Same hybrid lanes with the zero-token mode baked (a submission
+        # cannot rely on runtime env - the judge injects only its own vars).
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}:sha-${{ steps.short.outputs.sha }}-hybrid
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            LOCAL_MODEL_URL=https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf
+            LOCAL_MODEL_LORA_URL=
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
+            LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
+            LOCAL_BASE_EXTENDED=all
+            AGENT_NO_REMOTE=1
+            AGENT_ALLOW_SEMANTIC_CLUES=1
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}
+          provenance: false
+
   docker-test:
     name: Test Docker image
     needs: docker
@@ -441,6 +465,39 @@ jobs:
               sys.exit('FAIL: hybrid-variant run has missing or empty answers')
           PYEOF
           echo "Hybrid-variant rehearsal PASSED"
+
+      - name: Hybrid zero-token rehearsal (sha-*-hybrid)
+        # Deliberately NO FIREWORKS_API_KEY - the baked zero mode must work
+        # with no key at all.
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)-hybrid"
+          docker pull "$IMAGE"
+          mkdir -p /tmp/hz-out
+          START=$(date +%s)
+          docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 2 \
+            -v /tmp/rehearsal-in:/input:ro \
+            -v /tmp/hz-out:/output \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e CALLBACK_LABEL="ci-hybrid-zero @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/hz-stderr.txt || true
+          WALL=$(( $(date +%s) - START ))
+          echo "=== wall clock: ${WALL}s (judge cap 600s) ==="
+          grep -E 'sweeper|fallback|disabled' /tmp/hz-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/hz-out/results.json'))
+          metrics = json.load(open('/tmp/hz-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: hybrid zero run has missing or empty answers')
+          if metrics.get('calls', 0) != 0 or metrics.get('total_tokens', 0) != 0:
+              sys.exit('FAIL: hybrid zero run spent tokens')
+          PYEOF
+          echo "Hybrid zero rehearsal PASSED (structural)"
 
       - name: Zero-token rehearsal THROTTLED (--cpus 1 contention proxy)
         # Informational acceptance gate for any zero-token submission: the
