@@ -305,3 +305,81 @@ func TestExampleCheckShapeStrict(t *testing.T) {
 		t.Fatalf("list-shaped correct code must pass, got %q", reason)
 	}
 }
+
+func TestSummaryEchoesSource(t *testing.T) {
+	prompt := "Summarize the following passage in exactly three bullet points, each no longer than 15 words:\n\n" +
+		"'Remote work has transformed how companies operate globally. Employees gain flexibility and reduced commute times, leading to reported improvements in work-life balance.'"
+	echo := []string{
+		"Remote work has transformed how companies operate globally",
+		"Employees gain flexibility and reduced commute times leading to reported improvements",
+		"work-life balance improved",
+	}
+	if summaryEchoesSource(prompt, echo) == "" {
+		t.Error("verbatim 8+ word run must be flagged as an echo")
+	}
+	paraphrased := []string{
+		"Remote setups reshaped global operations for firms",
+		"Staff enjoy freedom and shorter travel, boosting balance",
+		"Culture and boundary issues remain the main hurdles",
+	}
+	if r := summaryEchoesSource(prompt, paraphrased); r != "" {
+		t.Errorf("genuine paraphrase must pass, got %q", r)
+	}
+}
+
+func TestShapeFixCodeGen(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
+	}
+	prompt := "Write a Python function called merge_intervals that merges overlapping intervals. " +
+		"For example, merge_intervals([[1,3],[2,6],[8,10]]) should return [[1,6],[8,10]]."
+	tuples := "def merge_intervals(intervals):\n" +
+		"    intervals = sorted(intervals)\n" +
+		"    out = []\n" +
+		"    for s, e in intervals:\n" +
+		"        if out and s <= out[-1][1]:\n" +
+		"            out[-1] = (out[-1][0], max(out[-1][1], e))\n" +
+		"        else:\n" +
+		"            out.append((s, e))\n" +
+		"    return out\n"
+	fixed, ok := shapeFixCodeGen(context.Background(), prompt, tuples)
+	if !ok {
+		t.Fatal("tuples-for-lists with correct values must be repairable")
+	}
+	if reason := exampleCheck(context.Background(), prompt, fixed); reason != "" {
+		t.Fatalf("repaired code must pass the strict example check, got %q", reason)
+	}
+	wrongValues := strings.Replace(tuples, "max(out[-1][1], e)", "min(out[-1][1], e)", 1)
+	if _, ok := shapeFixCodeGen(context.Background(), prompt, wrongValues); ok {
+		t.Fatal("genuinely wrong values must NOT be repaired")
+	}
+}
+
+func TestRatioSplitBound(t *testing.T) {
+	prompt := "Split £2,760 in the ratio 5:4:3 between Ana, Ben, and Cal. State each share."
+	good := "Ana: £1,150; Ben: £920; Cal: £690."
+	if r := ratioSplitBound(prompt, good); r != "" {
+		t.Errorf("correct shares must pass, got %q", r)
+	}
+	bad := "Ana: £1,200; Ben: £900; Cal: £660."
+	if ratioSplitBound(prompt, bad) == "" {
+		t.Error("wrong shares must be rejected")
+	}
+	// Non-exact splits carry no deterministic expectation.
+	if r := ratioSplitBound("Split £100 in the ratio 3:7 fairly.", "£30 and £70"); r != "" {
+		t.Errorf("exact split must be checked, got %q", r)
+	}
+	if r := ratioSplitBound("Split £101 in the ratio 3:7 fairly.", "anything"); r != "" {
+		t.Errorf("non-exact split must be skipped, got %q", r)
+	}
+}
+
+func TestRatioSplitBoundInterveningWords(t *testing.T) {
+	prompt := "Split £2,760 between three flatmates in the ratio 5:4:3. State each share."
+	if r := ratioSplitBound(prompt, "Shares: £1,150, £920, £690."); r != "" {
+		t.Errorf("correct shares with intervening words must pass, got %q", r)
+	}
+	if ratioSplitBound(prompt, "Shares: £1,200, £900, £660.") == "" {
+		t.Error("wrong shares with intervening words must be rejected")
+	}
+}

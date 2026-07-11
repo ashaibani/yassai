@@ -336,6 +336,9 @@ func answerPlausible(prompt, answer string) string {
 	if reason := magnitudeBound(prompt, answer); reason != "" {
 		return reason
 	}
+	if reason := ratioSplitBound(prompt, answer); reason != "" {
+		return reason
+	}
 	// Currency fidelity: an answer must not invent a currency the prompt
 	// never used (observed: a £ revenue question answered in $ - the code
 	// mis-parsed the symbol AND the arithmetic; the wrong unit is the cheap
@@ -347,6 +350,52 @@ func answerPlausible(prompt, answer string) string {
 					return "answer uses " + cur + " but the prompt uses " + other
 				}
 			}
+		}
+	}
+	return ""
+}
+
+var (
+	ratioTotalRe = regexp.MustCompile(`(?i)(?:split|divide|share)[^.?]*?([£$€]\s?[\d,]+(?:\.\d+)?|\b[\d,]+(?:\.\d+)?)\b[^.?]*?\b(?:in|into)\s+the\s+ratio`)
+	ratioPartsRe = regexp.MustCompile(`(?i)ratio\s+(?:of\s+)?(\d+(?:\s*:\s*\d+)+)`)
+)
+
+// ratioSplitBound derives the exact shares of a "split X in the ratio a:b:c"
+// prompt and demands each appears in the answer. A wrong-shares answer is
+// grounded in its own stdout, so grounding cannot catch it - but the shares
+// are fully derivable from the prompt (observed: a ratio wildcard shipped
+// shares that did not match the stated ratio). Enforced only for exact
+// integer splits; anything else stays the model's problem.
+func ratioSplitBound(prompt, answer string) string {
+	tm := ratioTotalRe.FindStringSubmatch(prompt)
+	pm := ratioPartsRe.FindStringSubmatch(prompt)
+	if tm == nil || pm == nil {
+		return ""
+	}
+	totalStr := strings.NewReplacer("£", "", "$", "", "€", "", ",", "", " ", "").Replace(tm[1])
+	total, err := strconv.ParseFloat(totalStr, 64)
+	if err != nil || total <= 0 {
+		return ""
+	}
+	var parts []int
+	sum := 0
+	for _, p := range strings.Split(pm[1], ":") {
+		v, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil || v <= 0 {
+			return ""
+		}
+		parts = append(parts, v)
+		sum += v
+	}
+	if sum == 0 || total != float64(int(total)) || int(total)%sum != 0 {
+		return "" // non-exact split: no deterministic expectation
+	}
+	unit := int(total) / sum
+	norm := strings.ReplaceAll(answer, ",", "")
+	for _, p := range parts {
+		share := strconv.Itoa(unit * p)
+		if !strings.Contains(norm, share) {
+			return "ratio split: expected share " + share + " missing from answer"
 		}
 	}
 	return ""

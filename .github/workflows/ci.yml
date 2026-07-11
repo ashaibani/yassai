@@ -146,8 +146,8 @@ jobs:
           # LOCAL_BASE_EXTENDED: families unlocked in the assist lane; only
           # list families the (base+LoRA) pair has been probed safe on.
           build-args: |
-            LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/MiniCPM5-yassai-v2e3b-Q4_K_M.gguf' }}
-            LOCAL_MODEL_LORA_URL=${{ vars.LOCAL_MODEL_LORA_URL || '' }}
+            LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
+            LOCAL_MODEL_LORA_URL=${{ vars.LOCAL_MODEL_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-v2-e3-r32-q35-tool-v1-lora-f16.gguf' }}
             LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
             LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
             LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'all' }}

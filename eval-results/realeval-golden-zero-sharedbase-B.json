@@ -1,0 +1,20 @@
+{
+  "metrics": {
+    "model": "accounts/fireworks/models/minimax-m3",
+    "calls": 0,
+    "prompt_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0,
+    "tool_runs": 0,
+    "local_answers": 15,
+    "batch_count": 0,
+    "fallbacks": 4,
+    "started_at": "0001-01-01T00:00:00Z",
+    "finished_at": "0001-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "overall_pass": 17,
+  "overall_total": 19
+}

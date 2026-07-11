@@ -60,7 +60,11 @@ RUN --mount=type=secret,id=hf_token \
          fetch /localmodel/tool-lora.gguf "${LOCAL_MODEL_LORA_URL}"; \
        fi \
     && if [ -n "${LOCAL_BASE_MODEL_URL}" ]; then \
-         fetch /localmodel/assist-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
+         if [ "${LOCAL_BASE_MODEL_URL}" = "${LOCAL_MODEL_URL}" ] && [ -f /localmodel/minicpm5-yassai.gguf ]; then \
+           ln /localmodel/minicpm5-yassai.gguf /localmodel/assist-base.gguf; \
+         else \
+           fetch /localmodel/assist-base.gguf "${LOCAL_BASE_MODEL_URL}"; \
+         fi; \
        fi \
     && if [ -n "${LOCAL_BASE_LORA_URL}" ]; then \
          fetch /localmodel/assist-lora.gguf "${LOCAL_BASE_LORA_URL}"; \
