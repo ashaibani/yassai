@@ -275,6 +275,21 @@ func TestTrimToWordCap(t *testing.T) {
 	if trimToWordCap("no cap stated here", answer) != answer {
 		t.Fatal("prompts without a word cap must pass through unchanged")
 	}
+	// A hard cut landing on a function word must retreat to content:
+	// the 15-word cut of this 18-word bullet ends "as", which strips back
+	// to "...office space".
+	dangling := "- companies are responding by heavily investing in new digital tools and rethinking office space as a creative hub"
+	got = trimToWordCap(prompt, dangling)
+	if !strings.HasSuffix(got, "rethinking office space.") {
+		t.Fatalf("dangling function words must be stripped, got: %q", got)
+	}
+	// A relative clause the cap truncates is cut at its relativiser: the
+	// 15-word cut ends "that improve", which retreats to "...benefits".
+	relative := "- employees gain flexibility and reduced commute times plus several other major workplace benefits that improve daily lives"
+	got = trimToWordCap(prompt, relative)
+	if !strings.HasSuffix(got, "workplace benefits.") {
+		t.Fatalf("truncated relative clause must be cut at the relativiser, got: %q", got)
+	}
 }
 
 func TestExampleCheckShapeStrict(t *testing.T) {
@@ -428,6 +443,44 @@ func TestGateSentimentRubric(t *testing.T) {
 	// One-sided reviews carry no both-sides requirement.
 	if r := gateSentiment("Classify: 'Absolutely love it, flawless from day one.'", "Positive. The reviewer expresses unqualified praise for the product's performance."); r != "" {
 		t.Fatalf("single-sided review must not demand contrast, got: %s", r)
+	}
+	// The T03 failure shape: the review's contrast resolves into praise
+	// ("...but the item works perfectly"), so a Negative label must be
+	// rejected with the relabel instruction.
+	if r := gateSentiment(review, "Negative. The review contains both complaints and praise, but the complaints are explicit and the praise is minimal, making the overall sentiment negative."); !strings.Contains(r, "Mixed") {
+		t.Fatalf("Negative label on a praise-resolving review must demand Mixed, got: %s", r)
+	}
+	// The s_w02 shape: praise is conceded up front but the contrast resolves
+	// negative ("shelved unfinished") - Negative must STAND (relabelling this
+	// was measured as a wildcard regression).
+	if r := gateSentiment("Determine the sentiment: 'I wanted to love it - gorgeous prose, obviously - but 300 pages of nothing happening is 250 too many. Shelved unfinished.'", "Negative. The reviewer concedes gorgeous prose but abandoned the book, and the complaints dominate the verdict throughout."); r != "" {
+		t.Fatalf("negative-resolving contrast must keep Negative, got: %s", r)
+	}
+	// An incidental contrast word with no praise in its tail changes nothing.
+	if r := gateSentiment("Classify: 'I waited two hours while nobody helped, and the unit arrived broken.'", "Negative. The reviewer reports a long unattended wait and a broken product, but no redeeming aspects."); r != "" {
+		t.Fatalf("wholly negative review must keep Negative, got: %s", r)
+	}
+	// Negated praise in the tail ("nothing good") is not a positive resolution.
+	if r := gateSentiment("Classify: 'The screen is sharp, but honestly nothing good came after setup.'", "Negative. The sharp screen does not offset the failures after setup, but the complaints dominate the review."); r != "" {
+		t.Fatalf("negated praise tail must not trigger the relabel demand, got: %s", r)
+	}
+}
+
+func TestSuNeedsBudgetUpFront(t *testing.T) {
+	capped := "Summarise the passage in exactly three bullet points, each no more than 20 words."
+	if !suNeedsBudgetUpFront(capped) {
+		t.Fatal("capped bullet prompt must demand the budget up front")
+	}
+	if suNeedsBudgetUpFront("Summarise the passage in exactly two sentences, each no more than 25 words.") {
+		t.Fatal("sentence-shaped prompts must not be forced into bullets")
+	}
+	if suNeedsBudgetUpFront("Summarise the passage in exactly three bullet points.") {
+		t.Fatal("uncapped bullet prompts keep the untouched first draft")
+	}
+	// The injected nudge must echo the prompt's own numbers.
+	nudge := summariseRewriteNudge(capped)
+	if !strings.Contains(nudge, "three bullet points") || !strings.Contains(nudge, "at most 20 words") {
+		t.Fatalf("nudge must carry the prompt's own budget, got: %s", nudge)
 	}
 }
 

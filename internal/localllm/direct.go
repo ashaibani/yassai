@@ -280,6 +280,14 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 			return Result{Answer: a, OK: true}
 		}
 	}
+	if family == FamilySummarisation && suNeedsBudgetUpFront(prompt) {
+		// Capped bullet summaries (T04b class): the corrective nudge is what
+		// makes drafts land trim-friendly, but under a zero-mode deadline the
+		// retry attempts that carry it are shed and the hard cut ships bullets
+		// "cut off mid-sentence". Demand the budget in the FIRST draft instead
+		// - the gate and retry ladder below still backstop it unchanged.
+		prompt += summariseRewriteNudge(prompt)
+	}
 	res := s.solveGated(ctx, prompt, family)
 	if res.OK && family == FamilySentiment {
 		// Self-consistency: sentiment labels are unverifiable by any cheap
@@ -340,6 +348,13 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// trim finishes cleanly BECAUSE the text is now a paraphrase, not a
 		// verbatim fragment. (Lower word targets backfire into copying.)
 		nudge := summariseRewriteNudge(prompt)
+		if strings.Contains(prompt, suNudgeMarker) {
+			// The budget was already demanded up front and still missed:
+			// repeating the same words would re-decode the same answer, so
+			// name the exact violation instead.
+			nudge = "\n\nYour previous answer was rejected because: " + res.Reason +
+				". Rewrite obeying every stated limit; count the words in each bullet before finalising."
+		}
 		attempts := 2
 		if r := ctxRemaining(ctx); r < 90*time.Second {
 			attempts = 0 // straight to the mechanical trim
@@ -357,8 +372,9 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// A trimmed bullet can end ungrammatically ("...exposed the
 		// ecosystem's"). Polishing its OWN trimmed text into complete
 		// sentences at fixed content is well within the model - ship the
-		// polish only if it passes every summary gate.
-		if ctx.Err() == nil && ctxRemaining(ctx) > 90*time.Second {
+		// polish only if it passes every summary gate. One short generation
+		// against an already-resident server: affordable down to 45s.
+		if ctx.Err() == nil && ctxRemaining(ctx) > 45*time.Second {
 			polish, err := s.chat(ctx, prompt+"\n\nPolish these bullets into complete, grammatical sentences. Keep the SAME facts and the same number of bullets; each at most the stated word limit; do not add new claims:\n\n"+res.Answer, family)
 			if err == nil {
 				polish = strings.TrimSpace(polish)
@@ -381,6 +397,17 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	// Keep the first attempt as the fallback candidate: it failed one check,
 	// the retry failed too, and the first is the less-prompted of the two.
 	return res
+}
+
+// trailingFunctionWords never end a well-formed bullet: a hard cap cut that
+// leaves one dangling reads as "cut off mid-sentence" at the judge.
+var trailingFunctionWords = map[string]bool{
+	"a": true, "an": true, "the": true, "as": true, "to": true, "of": true,
+	"in": true, "on": true, "for": true, "with": true, "and": true, "or": true,
+	"but": true, "that": true, "which": true, "who": true, "by": true,
+	"from": true, "at": true, "into": true, "their": true, "its": true,
+	"is": true, "are": true, "was": true, "were": true, "be": true,
+	"been": true, "being": true, "has": true, "have": true, "had": true,
 }
 
 // trimToWordCap enforces the prompt's per-item word cap on bullet lines,
@@ -427,8 +454,24 @@ func trimToWordCap(prompt, answer string) string {
 				break
 			}
 		}
-		kept := strings.Join(words[:best], " ")
-		lines[i] = marker + strings.TrimRight(kept, ",;:") + "."
+		kept := words[:best]
+		// A hard cut can still end mid-phrase ("...office space as a",
+		// "...commute times that improve"). Two grammar-safe repairs: cut at
+		// a late relativiser whose clause the cap truncated, then strip
+		// trailing function words so the bullet ends on content.
+		if best == limit {
+			for j := len(kept) - 2; j >= len(kept)-3 && j >= 1; j-- {
+				w := strings.ToLower(kept[j])
+				if w == "that" || w == "which" || w == "who" {
+					kept = kept[:j]
+					break
+				}
+			}
+			for len(kept) > 1 && trailingFunctionWords[strings.ToLower(strings.Trim(kept[len(kept)-1], ",;:."))] {
+				kept = kept[:len(kept)-1]
+			}
+		}
+		lines[i] = marker + strings.TrimRight(strings.Join(kept, " "), ",;:") + "."
 	}
 	return strings.Join(lines, "\n")
 }
@@ -595,10 +638,38 @@ var wordNum = map[string]int{"two": 2, "three": 3, "four": 4, "five": 5}
 // answer, regardless of the chosen label.
 var contrastRe = regexp.MustCompile(`(?i)\b(but|however|although|though|despite|yet|while|outweigh|balanced|on the other hand)\b`)
 
+// praiseRe spots praise vocabulary. Negated praise ("nothing good", "not
+// helpful") is stripped first wherever this is applied.
+var praiseRe = regexp.MustCompile(`(?i)\b(praise[sd]?|positives?|good|great|excellent|perfect(?:ly)?|helpful|love[ds]?|liked|enjoy(?:ed)?|impress(?:ed|ive)|gorgeous|beautiful|brilliant|amazing|fantastic|wonderful|intuitive)\b`)
+
+var negatedPraiseRe = regexp.MustCompile(`(?i)\b(?:nothing|not|no|never|hardly|barely|lack(?:s|ed|ing)?(?: of)?)\s+(?:\w+\s+){0,2}?(?:praise\w*|positives?|good|great|excellent|perfect\w*|helpful|impressive)\b`)
+
+// negativeMislabelsTwoSided reports a review whose contrast resolves in
+// praise: the clause after the LAST contrast marker carries the reviewer's
+// net verdict, and when that tail praises, the published rubric fails a
+// Negative label (T03: "...but the item worked perfectly and support was
+// helpful" must be Mixed). A review whose contrast resolves negative
+// ("...but 300 pages of nothing happening. Shelved unfinished.") keeps its
+// Negative label - relabelling those was measured as a wildcard regression.
+func negativeMislabelsTwoSided(prompt string) bool {
+	review := prompt
+	if lo, hi := strings.Index(prompt, "'"), strings.LastIndex(prompt, "'"); lo >= 0 && hi > lo+1 {
+		review = prompt[lo+1 : hi]
+	}
+	locs := contrastRe.FindAllStringIndex(review, -1)
+	if len(locs) == 0 {
+		return false
+	}
+	tail := review[locs[len(locs)-1][1]:]
+	return praiseRe.MatchString(negatedPraiseRe.ReplaceAllString(tail, ""))
+}
+
 // gateSentiment: the label must lead and a justification must follow. The
 // published rubric accepts Mixed, Neutral, or Positive for two-sided reviews
 // - and fails ANY answer whose reason acknowledges only one side. When the
-// review itself carries contrast, the reason must too.
+// review itself carries contrast, the reason must too. And when the review's
+// contrast resolves into praise, a Negative label fails the judge outright
+// (T03 class) - the reject text doubles as the retry instruction to relabel.
 func gateSentiment(prompt, answer string) string {
 	for _, label := range []string{"Positive", "Negative", "Neutral", "Mixed"} {
 		if strings.HasPrefix(answer, label) {
@@ -608,6 +679,9 @@ func gateSentiment(prompt, answer string) string {
 			}
 			if contrastRe.MatchString(prompt) && !contrastRe.MatchString(answer) {
 				return "review is two-sided but the reason acknowledges only one side"
+			}
+			if label == "Negative" && negativeMislabelsTwoSided(prompt) {
+				return "the review's complaints resolve into praise, and such a review must not be labelled Negative - relabel it Mixed and keep both sides in the reason"
 			}
 			return ""
 		}
@@ -722,6 +796,19 @@ func summaryCoversPivot(prompt, answer string) string {
 		}
 	}
 	return ""
+}
+
+// suNudgeMarker identifies a prompt that already carries the rewrite nudge,
+// so the retry ladder swaps in the specific violation instead of doubling it.
+const suNudgeMarker = "Count the words in each bullet"
+
+// suNeedsBudgetUpFront reports whether the prompt demands capped bullet
+// points - the shape whose first draft must already respect the budget,
+// because zero-mode deadlines shed the corrective retries that used to
+// carry it (T04b shipped hard-cut bullets exactly this way).
+func suNeedsBudgetUpFront(prompt string) bool {
+	m := shapeRe.FindStringSubmatch(prompt)
+	return m != nil && m[2] == "bullet points" && wordCapRe.MatchString(prompt)
 }
 
 // summariseRewriteNudge builds the compound-constraint rewrite instruction,
