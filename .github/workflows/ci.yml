@@ -149,9 +149,9 @@ jobs:
             LOCAL_MODEL_LORA_URL=${{ vars.LOCAL_MODEL_LORA_URL || '' }}
             LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
             LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
-            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'text_summarisation,code_fix,sentiment_classification' }}
-            AGENT_NO_REMOTE=${{ vars.AGENT_NO_REMOTE || '' }}
-            AGENT_ALLOW_SEMANTIC_CLUES=${{ vars.AGENT_ALLOW_SEMANTIC_CLUES || '' }}
+            LOCAL_BASE_EXTENDED=${{ vars.LOCAL_BASE_EXTENDED || 'all' }}
+            AGENT_NO_REMOTE=${{ vars.AGENT_NO_REMOTE || '1' }}
+            AGENT_ALLOW_SEMANTIC_CLUES=${{ vars.AGENT_ALLOW_SEMANTIC_CLUES || '1' }}
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
           # Single-arch image -> keep a plain manifest (no provenance index), which
