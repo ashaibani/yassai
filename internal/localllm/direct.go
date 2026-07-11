@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -100,6 +101,25 @@ type DirectSolver struct {
 	timeout  time.Duration
 	extended map[string]bool // assist-tuned families unlocked for this model
 	mu       sync.Mutex      // -np 1 server: one request at a time
+	tight    atomic.Bool     // zero-sweep mode: cap generations so the tail fits
+}
+
+// SetTightBudget switches the solver into the zero sweeper's end-of-window
+// mode: long-form generation caps drop so every remaining task gets SOME
+// answer before the deadline (a contended judge VM shipped an empty T10 when
+// one 600-token generation ate the whole sweep slice).
+func (s *DirectSolver) SetTightBudget(v bool) { s.tight.Store(v) }
+
+// ctxRemaining is the wall clock left before the context's deadline; contexts
+// without a deadline (dev runs) report an effectively unlimited budget. The
+// zero-token lanes pass their budget as the ctx deadline so the quality
+// ladder below can shed optional generations before the window collapses (a
+// contended judge VM spent 538s on 19 tasks and judged 10/19).
+func ctxRemaining(ctx context.Context) time.Duration {
+	if d, ok := ctx.Deadline(); ok {
+		return time.Until(d)
+	}
+	return time.Duration(1 << 62)
 }
 
 // parseExtended expands Config.Extended into the family set it unlocks.
@@ -258,9 +278,12 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// gate, and the observed failure is a clean flip (a mixed-positive
 		// review labelled Negative). A second, verdict-focused phrasing takes
 		// a different greedy path; agreement is strong evidence, disagreement
-		// goes remote. Costs one local generation, zero tokens.
-		if reason := s.sentimentConsistent(ctx, prompt, res.Answer); reason != "" {
-			return Result{Answer: res.Answer, Reason: reason}
+		// goes remote. Costs one local generation, zero tokens - shed under
+		// deadline pressure and ship the gate-passed answer instead.
+		if ctxRemaining(ctx) > 90*time.Second {
+			if reason := s.sentimentConsistent(ctx, prompt, res.Answer); reason != "" {
+				return Result{Answer: res.Answer, Reason: reason}
+			}
 		}
 		return res
 	}
@@ -269,10 +292,14 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// stated clues ("Ben came first despite Ben did not win"). A
 		// verification pass over the answer catches self-contradiction;
 		// one re-solve with the violation named recovers or ships anyway.
-		if reason := s.logicConsistent(ctx, prompt, res.Answer); reason != "" {
-			retry := s.solveGated(ctx, prompt+"\n\nYour previous answer violated the clues ("+reason+"). Re-check every clue and answer again.", family)
-			if retry.OK && s.logicConsistent(ctx, prompt, retry.Answer) == "" {
-				return retry
+		// The audit plus retry is up to three extra generations - skipped
+		// under deadline pressure so the sweep tail still runs.
+		if ctxRemaining(ctx) > 2*time.Minute {
+			if reason := s.logicConsistent(ctx, prompt, res.Answer); reason != "" {
+				retry := s.solveGated(ctx, prompt+"\n\nYour previous answer violated the clues ("+reason+"). Re-check every clue and answer again.", family)
+				if retry.OK && s.logicConsistent(ctx, prompt, retry.Answer) == "" {
+					return retry
+				}
 			}
 		}
 		return res
@@ -280,9 +307,12 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 	if res.OK && family == FamilyNER {
 		// NER assignments wobble across runs (ETH Zurich has been labelled
 		// LOCATION, DATE, and omitted outright). A second phrasing must agree
-		// on the label:span pairs; disagreement goes remote.
-		if reason := s.nerConsistent(ctx, prompt, res.Answer); reason != "" {
-			return Result{Answer: res.Answer, Reason: reason}
+		// on the label:span pairs; disagreement goes remote - unless the
+		// window is nearly spent, when the gate-passed answer ships as-is.
+		if ctxRemaining(ctx) > 90*time.Second {
+			if reason := s.nerConsistent(ctx, prompt, res.Answer); reason != "" {
+				return Result{Answer: res.Answer, Reason: reason}
+			}
 		}
 		return res
 	}
@@ -302,7 +332,13 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// trim finishes cleanly BECAUSE the text is now a paraphrase, not a
 		// verbatim fragment. (Lower word targets backfire into copying.)
 		nudge := summariseRewriteNudge(prompt)
-		for attempt := 0; attempt < 2 && ctx.Err() == nil; attempt++ {
+		attempts := 2
+		if r := ctxRemaining(ctx); r < 90*time.Second {
+			attempts = 0 // straight to the mechanical trim
+		} else if r < 150*time.Second {
+			attempts = 1
+		}
+		for attempt := 0; attempt < attempts && ctx.Err() == nil; attempt++ {
 			r := s.solveGated(ctx, prompt+nudge, family)
 			if r.OK {
 				return r
@@ -314,7 +350,7 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 		// ecosystem's"). Polishing its OWN trimmed text into complete
 		// sentences at fixed content is well within the model - ship the
 		// polish only if it passes every summary gate.
-		if ctx.Err() == nil {
+		if ctx.Err() == nil && ctxRemaining(ctx) > 90*time.Second {
 			polish, err := s.chat(ctx, prompt+"\n\nPolish these bullets into complete, grammatical sentences. Keep the SAME facts and the same number of bullets; each at most the stated word limit; do not add new claims:\n\n"+res.Answer, family)
 			if err == nil {
 				polish = strings.TrimSpace(polish)
@@ -323,6 +359,11 @@ func (s *DirectSolver) SolveTask(ctx context.Context, prompt, family string) Res
 				}
 			}
 		}
+		return res
+	}
+	if ctxRemaining(ctx) < 60*time.Second {
+		// No time for a corrective generation: hand the reject back and let
+		// the caller's fallback ladder ship the better of what exists.
 		return res
 	}
 	retry := s.solveGated(ctx, prompt+"\n\nYour previous answer was rejected because: "+res.Reason+". Fix exactly that and answer again in full.", family)
@@ -669,13 +710,19 @@ func gateFactual(answer string) string {
 func (s *DirectSolver) chat(ctx context.Context, prompt, family string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	maxGen := directMaxGen[family]
+	if s.tight.Load() && maxGen > 300 {
+		// Sweep tail on a contended host: a capped answer for every task
+		// beats a full-length answer for half of them.
+		maxGen = 300
+	}
 	body, _ := json.Marshal(map[string]any{
 		"messages": []map[string]string{
 			{"role": "system", "content": directInstructions[family]},
 			{"role": "user", "content": prompt},
 		},
 		"temperature": 0,
-		"max_tokens":  directMaxGen[family],
+		"max_tokens":  maxGen,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+"/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {

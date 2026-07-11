@@ -159,6 +159,36 @@ jobs:
           # is simplest for the judge to pull.
           provenance: false
 
+      - name: Compute short sha
+        id: short
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push remote-insurance variant (sha-*-remote)
+        # Same code, remote-default bake. On a contended judge host the local
+        # lanes degrade in ACCURACY (a zero run judged 10/19) while the remote
+        # path only degrades in TOKENS - the endgame needs both images per
+        # push. Shares every layer with the main build except the env bake.
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}:sha-${{ steps.short.outputs.sha }}-remote
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            LOCAL_MODEL_URL=${{ vars.LOCAL_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
+            LOCAL_MODEL_LORA_URL=${{ vars.LOCAL_MODEL_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-v2-e3-r32-q35-tool-v1-lora-f16.gguf' }}
+            LOCAL_BASE_MODEL_URL=${{ vars.LOCAL_BASE_MODEL_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf' }}
+            LOCAL_BASE_LORA_URL=${{ vars.LOCAL_BASE_LORA_URL || 'https://huggingface.co/ashaibani/yassai-minicpm5-local/resolve/main/yassai-assist-e3-r32-q35-2b-lora-f16.gguf' }}
+            LOCAL_BASE_EXTENDED=text_summarisation,code_fix,sentiment_classification
+            AGENT_NO_REMOTE=
+            AGENT_ALLOW_SEMANTIC_CLUES=1
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}
+          provenance: false
+
   docker-test:
     name: Test Docker image
     needs: docker
@@ -326,3 +356,71 @@ jobs:
               sys.exit('FAIL: zero-token run spent tokens')
           PYEOF
           echo "Zero-token rehearsal PASSED (structural)"
+
+      - name: Zero-token rehearsal THROTTLED (--cpus 1 contention proxy)
+        # Acceptance gate for any zero-token submission: the judge runs
+        # parallel evals and a contended live run judged 10/19 (empty T10,
+        # starved lanes). Half the vCPU quota approximates that load; the
+        # deadline triage must still produce 19 non-empty answers at 0 calls
+        # and 0 tokens or the zero config is not safe to submit.
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)"
+          mkdir -p /tmp/zt-in /tmp/zt-out
+          cp /tmp/rehearsal-in/tasks.json /tmp/zt-in/tasks.json
+          START=$(date +%s)
+          docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 1 \
+            -v /tmp/zt-in:/input:ro \
+            -v /tmp/zt-out:/output \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e AGENT_NO_REMOTE=1 \
+            -e LOCAL_BASE_EXTENDED=all \
+            -e AGENT_ALLOW_SEMANTIC_CLUES=1 \
+            -e CALLBACK_LABEL="ci-zero-throttled @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/zt-stderr.txt || true
+          WALL=$(( $(date +%s) - START ))
+          echo "=== wall clock: ${WALL}s at --cpus 1 (judge cap 600s at 2 vCPU) ==="
+          grep -E 'sweeper|fallback|disabled' /tmp/zt-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/zt-out/results.json'))
+          metrics = json.load(open('/tmp/zt-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: throttled zero run has missing or empty answers')
+          if metrics.get('calls', 0) != 0 or metrics.get('total_tokens', 0) != 0:
+              sys.exit('FAIL: throttled zero run spent tokens')
+          PYEOF
+          echo "Throttled zero rehearsal PASSED (structural)"
+
+      - name: Remote-variant dress rehearsal (sha-*-remote)
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)-remote"
+          docker pull "$IMAGE"
+          mkdir -p /tmp/rv-out
+          docker run --rm --platform linux/amd64 \
+            --memory 4g --memory-swap 4g --cpus 2 \
+            -v /tmp/rehearsal-in:/input:ro \
+            -v /tmp/rv-out:/output \
+            -e FIREWORKS_API_KEY="$FIREWORKS_API_KEY" \
+            -e AGENT_MODEL=accounts/fireworks/models/minimax-m3 \
+            -e CALLBACK_LABEL="ci-remote @ sha-$(git rev-parse --short HEAD)" \
+            "$IMAGE" 2>/tmp/rv-stderr.txt || true
+          grep -E 'local reject|fallback|disabled' /tmp/rv-stderr.txt || true
+          python3 - << 'PYEOF'
+          import json, sys
+          results = json.load(open('/tmp/rv-out/results.json'))
+          metrics = json.load(open('/tmp/rv-out/metrics.json'))
+          empty = [r['task_id'] for r in results if not r['answer'].strip() or r['answer'] == 'Unable to answer.']
+          print(f"answers: {len(results)}  local: {metrics.get('local_answers')}  calls: {metrics.get('calls')}  "
+                f"tokens: {metrics.get('total_tokens')}  fallbacks: {metrics.get('fallbacks')}  empty: {empty}")
+          if len(results) != 19 or empty:
+              sys.exit('FAIL: remote-variant run has missing or empty answers')
+          PYEOF
+          echo "Remote-variant rehearsal PASSED"

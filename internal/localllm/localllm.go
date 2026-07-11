@@ -252,6 +252,11 @@ func (s *Solver) SolveTask(ctx context.Context, prompt string) Result {
 	if res.OK || res.Reason == "" || ctx.Err() != nil {
 		return res
 	}
+	if ctxRemaining(ctx) < 90*time.Second {
+		// Tool retries regenerate a full program; under deadline pressure the
+		// reject ships to the fallback ladder so later tasks still get a turn.
+		return res
+	}
 	retry := s.solveOnce(ctx, prompt+"\n\nCheck carefully before answering: "+res.Reason+".")
 	// Degeneracy guard: a retry that computed LESS than the first attempt
 	// (fewer values in stdout) dodged the gate rather than fixing the code -

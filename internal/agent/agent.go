@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -327,11 +328,12 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 	if !baseCfgd && !toolCfgd {
 		return pending
 	}
+	noRemote := os.Getenv("AGENT_NO_REMOTE") == "1"
 	// Reserve enough of the context for the remote batches + response
 	// assembly. Everything before deadline-reserve belongs to local solving,
 	// capped at 4 minutes so dev runs without deadlines stay bounded too.
 	reserve := remoteReserve
-	if os.Getenv("AGENT_NO_REMOTE") == "1" {
+	if noRemote {
 		// No remote phase to protect - keep only enough slack to assemble and
 		// write results, and let local solving use the rest of the window.
 		reserve = 30 * time.Second
@@ -373,7 +375,7 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 			// and race-inference wildcards were both classifier-right). Route
 			// disagreements by the classifier: maths/logic to the tool lane,
 			// everything else falls through to the sweeper's assist attempt.
-			if os.Getenv("AGENT_NO_REMOTE") == "1" && toolCfgd &&
+			if noRemote && toolCfgd &&
 				(cats[0] == "mathematical_reasoning" || cats[0] == localllm.FamilyLogical) {
 				fmt.Fprintf(os.Stderr, "zero route %s: classifier %s overrides heuristic %s -> tool lane\n", t.TaskID, cats[0], fam)
 				toolTasks = append(toolTasks, t)
@@ -416,7 +418,24 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		remaining = append(remaining, t)
 	}
 
-	if len(assistJobs) > 0 {
+	// The solvers shed their optional generations (consistency checks, nudge
+	// retries, polish) off the ctx deadline, so each lane carries its budget
+	// as a real deadline. Zero mode additionally holds back a slice of the
+	// window for the sweeper: on a contended judge VM the lane passes ate the
+	// whole 538s window and unanswered tasks shipped empty (judged 10/19).
+	// Quiet hosts never reach laneBudget, so their behaviour is unchanged.
+	laneBudget := localBudget
+	if noRemote {
+		laneBudget = localBudget.Add(-zeroSweepReserve)
+		if laneBudget.Before(time.Now()) {
+			laneBudget = time.Now()
+		}
+	}
+
+	runAssist := func(runCtx context.Context, budget time.Time, keepOpen bool) *localllm.DirectSolver {
+		if len(assistJobs) == 0 {
+			return nil
+		}
 		solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
 		if err != nil {
 			// Never fatal: the Fireworks path is the accuracy baseline.
@@ -424,37 +443,59 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 			for _, j := range assistJobs {
 				remaining = append(remaining, j.task)
 			}
-		} else {
-			for _, j := range assistJobs {
-				if ctx.Err() != nil || time.Now().After(localBudget) {
-					remaining = append(remaining, j.task)
-					continue
-				}
-				if j.family == "" {
-					record(j.task, solver.SolveCodeTrace(ctx, j.task.Prompt))
-				} else {
-					record(j.task, solver.SolveTask(ctx, j.task.Prompt, j.family))
-				}
-			}
-			solver.Close()
+			return nil
 		}
+		for _, j := range assistJobs {
+			if runCtx.Err() != nil || time.Now().After(budget) {
+				remaining = append(remaining, j.task)
+				continue
+			}
+			if j.family == "" {
+				record(j.task, solver.SolveCodeTrace(runCtx, j.task.Prompt))
+			} else {
+				record(j.task, solver.SolveTask(runCtx, j.task.Prompt, j.family))
+			}
+		}
+		if keepOpen {
+			return solver
+		}
+		solver.Close()
+		return nil
 	}
-	if len(toolTasks) > 0 {
+	runTool := func(runCtx context.Context, budget time.Time) {
+		if len(toolTasks) == 0 {
+			return
+		}
 		solver, err := localllm.New(localllm.Config{ModelPath: a.cfg.LocalModelPath, LoraPath: a.cfg.LocalModelLoraPath, LibPath: a.cfg.LocalLibPath})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "local model disabled:", err)
 			remaining = append(remaining, toolTasks...)
-		} else {
-			for _, t := range toolTasks {
-				if ctx.Err() != nil || time.Now().After(localBudget) {
-					remaining = append(remaining, t)
-					continue
-				}
-				record(t, solver.SolveTask(ctx, t.Prompt))
-			}
-			solver.Close()
+			return
 		}
+		for _, t := range toolTasks {
+			if runCtx.Err() != nil || time.Now().After(budget) {
+				remaining = append(remaining, t)
+				continue
+			}
+			record(t, solver.SolveTask(runCtx, t.Prompt))
+		}
+		solver.Close()
 	}
+
+	if !noRemote {
+		runAssist(ctx, localBudget, false)
+		runTool(ctx, localBudget)
+		return remaining
+	}
+
+	// Zero-token order: tool lane first (its executed-evidence answers are
+	// the ones worth protecting from the deadline), then the assist lane,
+	// which stays open so the sweeper reuses the warm server instead of
+	// paying a third spawn on a contended host.
+	laneCtx, cancelLane := context.WithDeadline(ctx, laneBudget)
+	runTool(laneCtx, laneBudget)
+	assistSolver := runAssist(laneCtx, laneBudget, true)
+	cancelLane()
 
 	// Zero-token sweeper: with no remote insurance, ANY task still unanswered
 	// here ships a stale reject - or nothing at all (agreement-routing skips
@@ -464,7 +505,7 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 	// better than empty). The fallback families unlock only via
 	// LOCAL_BASE_EXTENDED=all; remote-mode builds never list them, so their
 	// routing is untouched.
-	if os.Getenv("AGENT_NO_REMOTE") == "1" && baseCfgd {
+	if baseCfgd {
 		var sweep []Task
 		kept := remaining[:0]
 		for _, t := range remaining {
@@ -476,13 +517,30 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 		}
 		remaining = kept
 		if len(sweep) > 0 {
-			solver, err := localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "zero sweeper disabled:", err)
+			// Tasks holding no reject ship literally nothing if the window
+			// closes first - they sweep ahead of tasks that already carry a
+			// fallback answer (the contended run shipped an empty T10).
+			sort.SliceStable(sweep, func(i, j int) bool {
+				iEmpty := strings.TrimSpace(a.localRejects[sweep[i].TaskID]) == ""
+				jEmpty := strings.TrimSpace(a.localRejects[sweep[j].TaskID]) == ""
+				return iEmpty && !jEmpty
+			})
+			solver := assistSolver
+			if solver == nil {
+				var err error
+				solver, err = localllm.NewDirect(localllm.Config{ModelPath: a.cfg.LocalBaseModelPath, LoraPath: a.cfg.LocalBaseLoraPath, LibPath: a.cfg.LocalLibPath, Extended: a.cfg.LocalBaseExtended})
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "zero sweeper disabled:", err)
+					solver = nil
+				}
+			}
+			if solver == nil {
 				remaining = append(remaining, sweep...)
 			} else {
+				solver.SetTightBudget(true)
+				sweepCtx, cancelSweep := context.WithDeadline(ctx, localBudget)
 				for _, t := range sweep {
-					if ctx.Err() != nil || time.Now().After(localBudget) {
+					if sweepCtx.Err() != nil || time.Now().After(localBudget) {
 						remaining = append(remaining, t)
 						continue
 					}
@@ -490,7 +548,7 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 					if cats := a.categories[t.TaskID]; len(cats) > 0 {
 						cat = cats[0] // semantics beat keywords for a last resort
 					}
-					res := solver.SolveTask(ctx, t.Prompt, sweeperFamily(cat))
+					res := solver.SolveTask(sweepCtx, t.Prompt, sweeperFamily(cat))
 					if res.OK {
 						fmt.Fprintf(os.Stderr, "zero sweeper %s: assist %s answer\n", t.TaskID, cat)
 						answers[t.TaskID] = res.Answer
@@ -504,9 +562,12 @@ func (a *Agent) localFirstPass(ctx context.Context, pending []Task, answers map[
 					}
 					remaining = append(remaining, t)
 				}
-				solver.Close()
+				cancelSweep()
 			}
 		}
+	}
+	if assistSolver != nil {
+		assistSolver.Close()
 	}
 	return remaining
 }
@@ -536,6 +597,11 @@ func sweeperFamily(cat string) string {
 // remoteReserve is the context slice localFirstPass must leave for the remote
 // batches: one folded batch call plus recovery and output writing.
 const remoteReserve = 3 * time.Minute
+
+// zeroSweepReserve is the slice of the zero-token window held back from the
+// lane passes so the sweeper always runs: with the whole window spent on lane
+// retries, unanswered tasks ship empty and each one is a judged zero.
+const zeroSweepReserve = 100 * time.Second
 
 func (a *Agent) solveBatchWithRecovery(ctx context.Context, exec *pyexec.Executor, batch []Task) (map[string]string, BatchRun) {
 	run := BatchRun{TaskIDs: taskIDs(batch)}
