@@ -414,3 +414,55 @@ func TestRatioDerivedAnswer(t *testing.T) {
 		}
 	}
 }
+
+func TestGateSentimentRubric(t *testing.T) {
+	review := "Classify the sentiment: 'Delivery was late and the box was damaged, but the item works perfectly and support fixed everything fast.'"
+	// Mixed is an accepted label per the published rubric.
+	if r := gateSentiment(review, "Mixed. The negatives of late delivery are balanced by the working product and fast support."); r != "" {
+		t.Fatalf("Mixed label with two-sided reason must pass, got: %s", r)
+	}
+	// A one-sided reason fails regardless of label.
+	if r := gateSentiment(review, "Positive. The product works perfectly and support was excellent and quick to respond."); r == "" {
+		t.Fatal("one-sided reason on a two-sided review must be rejected")
+	}
+	// One-sided reviews carry no both-sides requirement.
+	if r := gateSentiment("Classify: 'Absolutely love it, flawless from day one.'", "Positive. The reviewer expresses unqualified praise for the product's performance."); r != "" {
+		t.Fatalf("single-sided review must not demand contrast, got: %s", r)
+	}
+}
+
+func TestNerPairsAgreeTolerance(t *testing.T) {
+	a := "PERSON: Sundar Pichai\nDATE: March 15 2023\nORGANIZATION: Google\nLOCATION: Zurich\nORGANIZATION: ETH Zurich"
+	oneLabelOff := "PERSON: Sundar Pichai\nDATE: March 15 2023\nORGANIZATION: Google\nLOCATION: Zurich\nLOCATION: ETH Zurich"
+	if r := nerPairsAgree(a, oneLabelOff); r != "" {
+		t.Fatalf("a single label disagreement must be tolerated, got: %s", r)
+	}
+	missingSpan := "PERSON: Sundar Pichai\nDATE: March 15 2023\nORGANIZATION: Google\nLOCATION: Zurich"
+	if r := nerPairsAgree(a, missingSpan); r == "" {
+		t.Fatal("a missing span must reject")
+	}
+	twoLabelsOff := "LOCATION: Sundar Pichai\nDATE: March 15 2023\nORGANIZATION: Google\nLOCATION: Zurich\nLOCATION: ETH Zurich"
+	if r := nerPairsAgree(a, twoLabelsOff); r == "" {
+		t.Fatal("two label disagreements must reject")
+	}
+}
+
+func TestSummaryCoversPivot(t *testing.T) {
+	prompt := "Summarise in exactly two sentences: 'Remote work brought employees flexibility and better balance across their working weeks. However, serious challenges persist around collaboration, culture, and blurred professional boundaries for organisations.'"
+	if r := summaryCoversPivot(prompt, "Remote work gave employees flexibility and balance. Challenges persist around collaboration, culture, and blurred boundaries."); r != "" {
+		t.Fatalf("two-sided summary must pass, got: %s", r)
+	}
+	if r := summaryCoversPivot(prompt, "Remote work gave employees flexibility and much better balance during their weeks."); r == "" {
+		t.Fatal("summary omitting the post-pivot side must reject")
+	}
+}
+
+func TestGateFactualDifferenceTerms(t *testing.T) {
+	prompt := "Explain the difference between RAM and ROM in a computer. What is each used for?"
+	if r := gateFactual(prompt, "RAM is volatile working memory for active programs. ROM is non-volatile storage holding firmware."); r != "" {
+		t.Fatalf("answer naming both terms must pass, got: %s", r)
+	}
+	if r := gateFactual(prompt, "One is volatile working memory for active programs; the other permanently stores the firmware."); r == "" {
+		t.Fatal("answer never naming RAM/ROM must reject")
+	}
+}

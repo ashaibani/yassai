@@ -468,10 +468,18 @@ func (s *DirectSolver) nerConsistent(ctx context.Context, prompt, answer string)
 	if err != nil {
 		return "ner consistency check failed: " + err.Error()
 	}
-	pairs := func(text string) map[string]bool {
-		out := map[string]bool{}
+	return nerPairsAgree(answer, check)
+}
+
+// nerPairsAgree compares two LABEL: span extractions. The published rubric
+// fails a MISSING entity but tolerates a single mislabel ("mislabelling more
+// than one does not pass") - so span disagreements reject, while exactly one
+// label disagreement on an agreed span set is accepted.
+func nerPairsAgree(answer, check string) string {
+	pairs := func(text string) map[string]string {
+		out := map[string]string{}
 		for _, m := range nerPairRe.FindAllStringSubmatch(text, -1) {
-			out[m[1]+"|"+strings.TrimSpace(m[2])] = true
+			out[strings.TrimSpace(m[2])] = m[1]
 		}
 		return out
 	}
@@ -480,12 +488,20 @@ func (s *DirectSolver) nerConsistent(ctx context.Context, prompt, answer string)
 		return "ner: no LABEL: span pairs found in answer"
 	}
 	if len(first) != len(second) {
-		return fmt.Sprintf("ner extractions disagree across phrasings (%d vs %d pairs)", len(first), len(second))
+		return fmt.Sprintf("ner extractions disagree across phrasings (%d vs %d spans)", len(first), len(second))
 	}
-	for k := range first {
-		if !second[k] {
-			return "ner extractions disagree across phrasings on " + k
+	labelDiffs := 0
+	for span, label := range first {
+		other, ok := second[span]
+		if !ok {
+			return "ner extractions disagree across phrasings on span " + span
 		}
+		if other != label {
+			labelDiffs++
+		}
+	}
+	if labelDiffs > 1 {
+		return fmt.Sprintf("ner labels disagree across phrasings on %d spans", labelDiffs)
 	}
 	return ""
 }
@@ -536,11 +552,11 @@ func (s *DirectSolver) solveGated(ctx context.Context, prompt, family string) Re
 	case FamilyNER:
 		reason = gateNER(prompt, answer)
 	case FamilySentiment:
-		reason = gateSentiment(answer)
+		reason = gateSentiment(prompt, answer)
 	case FamilySummarisation:
 		reason = gateSummarisation(prompt, answer)
 	case FamilyFactual:
-		reason = gateFactual(answer)
+		reason = gateFactual(prompt, answer)
 	case FamilyCodeFix:
 		reason = gateCodeFix(tctx, prompt, answer)
 	case FamilyLogical:
@@ -574,19 +590,29 @@ var shapeRe = regexp.MustCompile(`exactly (two|three|four|five|\d+) (sentences|b
 
 var wordNum = map[string]int{"two": 2, "three": 3, "four": 4, "five": 5}
 
-// gateSentiment: format only - the label must lead and a justification must
-// follow. Label correctness rests on the assist SFT; a malformed answer goes
-// remote rather than gambling the judge.
-func gateSentiment(answer string) string {
-	for _, label := range []string{"Positive", "Negative", "Neutral"} {
+// contrastRe marks two-sided source text: reviews and passages whose rubric
+// (published 11 Jul Judging FAQ) demands BOTH sides acknowledged in the
+// answer, regardless of the chosen label.
+var contrastRe = regexp.MustCompile(`(?i)\b(but|however|although|though|despite|yet|while|outweigh|balanced|on the other hand)\b`)
+
+// gateSentiment: the label must lead and a justification must follow. The
+// published rubric accepts Mixed, Neutral, or Positive for two-sided reviews
+// - and fails ANY answer whose reason acknowledges only one side. When the
+// review itself carries contrast, the reason must too.
+func gateSentiment(prompt, answer string) string {
+	for _, label := range []string{"Positive", "Negative", "Neutral", "Mixed"} {
 		if strings.HasPrefix(answer, label) {
-			if len(strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(answer, label), "."))) < 15 {
+			reason := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(answer, label), "."))
+			if len(reason) < 15 {
 				return "sentiment answer lacks a justification sentence"
+			}
+			if contrastRe.MatchString(prompt) && !contrastRe.MatchString(answer) {
+				return "review is two-sided but the reason acknowledges only one side"
 			}
 			return ""
 		}
 	}
-	return "sentiment answer does not start with a Positive/Negative/Neutral label"
+	return "sentiment answer does not start with a Positive/Negative/Neutral/Mixed label"
 }
 
 var wordCapRe = regexp.MustCompile(`(?i)(?:at most|no more than|no longer than|max(?:imum)?(?: of)?|within|under) (\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty) words`)
@@ -642,6 +668,58 @@ func gateSummarisation(prompt, answer string) string {
 	}
 	if reason := summaryEchoesSource(prompt, units); reason != "" {
 		return reason
+	}
+	if reason := summaryCoversPivot(prompt, answer); reason != "" {
+		return reason
+	}
+	return ""
+}
+
+// summaryCoversPivot enforces the published rubric's two-sided coverage
+// ("captures both the opportunity ... and the key challenges. Omitting
+// either side ... does not pass"): when the source passage turns on a
+// contrast pivot, the summary must draw content from both halves. Zero
+// shared content words with either half is an omission of that whole side.
+func summaryCoversPivot(prompt, answer string) string {
+	lo, hi := strings.Index(prompt, "'"), strings.LastIndex(prompt, "'")
+	if lo < 0 || hi <= lo+1 {
+		return ""
+	}
+	src := prompt[lo+1 : hi]
+	pivot := -1
+	for _, marker := range []string{"However", "Yet ", "Despite", "challenges persist", "concerns remain", "But "} {
+		if i := strings.Index(src, marker); i > len(src)/5 && i < len(src)*4/5 {
+			pivot = i
+			break
+		}
+	}
+	if pivot < 0 {
+		return ""
+	}
+	content := func(s string) map[string]bool {
+		out := map[string]bool{}
+		for _, w := range normWords(s) {
+			if len(w) >= 5 {
+				out[w] = true
+			}
+		}
+		return out
+	}
+	ansWords := content(answer)
+	for i, half := range []string{src[:pivot], src[pivot:]} {
+		overlap := 0
+		for w := range content(half) {
+			if ansWords[w] {
+				overlap++
+			}
+		}
+		if overlap == 0 {
+			side := "before"
+			if i == 1 {
+				side = "after"
+			}
+			return "summary omits the passage's whole side " + side + " its contrast pivot"
+		}
 	}
 	return ""
 }
@@ -701,13 +779,38 @@ func summaryEchoesSource(prompt string, units []string) string {
 
 var sentenceRe = regexp.MustCompile(`[.!?]\s+`)
 
-func gateFactual(answer string) string {
+var differenceRe = regexp.MustCompile(`(?i)\bdifference between ([\w-]+(?: [\w-]+){0,2}) and ([\w-]+(?: [\w-]+){0,2})`)
+
+// trimTermContext drops trailing context words a difference-prompt capture
+// drags along ("ROM in a computer" -> "ROM").
+func trimTermContext(term string) string {
+	words := strings.Fields(term)
+	stop := map[string]bool{"in": true, "a": true, "an": true, "the": true, "for": true, "of": true, "on": true, "used": true, "and": true}
+	for len(words) > 1 && stop[strings.ToLower(words[len(words)-1])] {
+		words = words[:len(words)-1]
+	}
+	return strings.Join(words, " ")
+}
+
+func gateFactual(prompt, answer string) string {
 	if len(sentenceRe.Split(strings.TrimSpace(answer), -1)) > 4 {
 		return "factual answer exceeds 4 sentences"
 	}
 	low := strings.ToLower(answer)
 	if strings.Contains(low, "i don't know") || strings.Contains(low, "i cannot") {
 		return "factual answer refuses"
+	}
+	// The published rubrics for difference prompts require both compared
+	// terms distinguished - an answer that never names one of them cannot
+	// pass ("Must make the subset relationship clear", "Must correctly
+	// distinguish ... for both types").
+	if m := differenceRe.FindStringSubmatch(prompt); m != nil {
+		for _, raw := range m[1:] {
+			term := trimTermContext(raw)
+			if term != "" && !strings.Contains(low, strings.ToLower(term)) {
+				return "difference answer never mentions '" + term + "'"
+			}
+		}
 	}
 	return ""
 }
