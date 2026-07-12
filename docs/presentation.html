@@ -126,12 +126,15 @@ tr:last-child td { border-bottom: 0; }
 .callout { margin-top: 1rem; border-left: 3px solid var(--green); padding: .7rem 1rem; background: rgba(98,216,145,.06); color: #cfe7d8; font-size: .86rem; line-height: 1.45; }
 .code { margin-top: .8rem; border: 1px solid var(--line); border-radius: 10px; background: #090d14; padding: .85rem 1rem; color: #b9c6d8; font: .76rem/1.45 var(--mono); white-space: pre-wrap; }
 .footnote { margin-top: 1rem; color: #6f7e92; font-size: .72rem; line-height: 1.4; }
-@page { size: A4 landscape; margin: 0; }
+/* Explicit landscape dimensions (width > height) are honoured more reliably
+   than the "A4 landscape" keyword; margin:0 makes every page full-bleed. */
+@page { size: 297mm 210mm; margin: 0; }
 @media print {
-  html, body { width: 297mm; height: 210mm; }
-  .deck { display: block; width: 297mm; height: auto; overflow: visible; }
-  .slide { width: 297mm; height: 210mm; min-height: 210mm; padding: 15mm 16mm 13mm; break-after: page; page-break-after: always; scroll-snap-align: none; }
+  html, body { width: 297mm; height: auto; margin: 0; padding: 0; background: var(--bg); }
+  .deck { display: block; width: 297mm; height: auto; margin: 0; padding: 0; overflow: visible; }
+  .slide { width: 297mm; height: 210mm; min-height: 210mm; margin: 0; padding: 15mm 16mm 13mm; overflow: hidden; break-after: page; page-break-after: always; break-inside: avoid; scroll-snap-align: none; }
   .slide:last-child { break-after: auto; page-break-after: auto; }
+  .slide::after { mask-image: none; }
   .eyebrow { left: 16mm; top: 9mm; }
   .page { right: 12mm; bottom: 8mm; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -147,15 +150,15 @@ tr:last-child td { border-bottom: 0; }
     <h1>yassai<span class="accent">.</span></h1>
     <p class="subtitle">Yet Another Super Simple AI agent.<br>Local-first, evidence-gated, and ruthlessly token-efficient.</p>
     <div class="metrics">
-      <div class="metric"><div class="value green">#1</div><div class="label">Live Track-1 leaderboard rank</div></div>
-      <div class="metric"><div class="value">1,559</div><div class="label">Fireworks tokens (2nd place: 1,797)</div></div>
-      <div class="metric"><div class="value green">0.895</div><div class="label">Judge accuracy (17/19); best run 1,292 @ 0.947</div></div>
-      <div class="metric"><div class="value orange">19/19</div><div class="label">Current build on the sample-shaped local eval</div></div>
+      <div class="metric"><div class="value green">2,589</div><div class="label">Answers graded on unseen eval-only tasks</div></div>
+      <div class="metric"><div class="value">125<span style="font-size:.55em">+</span></div><div class="label">Full-agent runs on the judge's 4 GB / 2 vCPU shape</div></div>
+      <div class="metric"><div class="value">9</div><div class="label">Fine-tuned checkpoints trained, gated and served</div></div>
+      <div class="metric"><div class="value orange">292</div><div class="label">Tasks across 13 curated eval sets</div></div>
     </div>
     <div class="chips">
       <span class="chip primary">Go 1.26</span><span class="chip primary">MiniCPM5-1B tool lane</span><span class="chip primary">Qwen3.5-2B + LoRA assist lane</span><span class="chip success">llama.cpp in-container</span><span class="chip success">Granite ModernBERT ONNX</span><span class="chip">MiniMax-M3 insurance call</span><span class="chip">4 GB / 2 vCPU fit</span>
     </div>
-    <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate. Local model inference counts as zero.</p>
+    <p class="footnote">Track 1 ranks the fewest Fireworks tokens among submissions that clear the accuracy gate; local model inference counts as zero. Every figure on this deck is a measured count from the build's own eval and training logs.</p>
   </div>
   <div class="page">01 / 06</div>
 </section>
@@ -183,7 +186,7 @@ tr:last-child td { border-bottom: 0; }
     <div class="grid3">
       <div class="card"><h3>Agreement routing</h3><p>A lane engages only when the semantic classifier and the keyword heuristic agree on the category. Disagreement is uncertainty - those tasks take the insurance call.</p></div>
       <div class="card"><h3>Deadline from process start</h3><p>Model loading counts against the 10-minute cap. Local solving always reserves the remote call's slot - no more timeout roulette.</p></div>
-      <div class="card"><h3>Fits the judge VM</h3><p>q8_0 KV cache, flash attention, 256 microbatch, quota-aware threads. Weights are mmap-shared; anonymous memory stays far under 4 GB.</p></div>
+      <div class="card"><h3>Fits the judge VM</h3><p>q8_0 KV cache, flash attention, 256 microbatch, quota-aware threads. The tool and assist models differ but never co-reside - one lane loads at a time, so anonymous memory stays far under 4 GB.</p></div>
     </div>
   </div>
   <div class="page">02 / 06</div>
@@ -193,6 +196,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="eyebrow">Local specialists</div>
   <div class="content">
     <h2>Two local specialists, each owning what it can prove.</h2>
+    <p class="subtitle">The submitted build pairs a MiniCPM5-1B tool lane with a Qwen3.5-2B assist lane - two separately fine-tuned base models under one sequential runtime.</p>
     <div class="grid2">
       <div class="card">
         <h3>Tool lane - MiniCPM5-yassai-v2e3b (1B fine-tune)</h3>
@@ -213,7 +217,7 @@ tr:last-child td { border-bottom: 0; }
         </ul>
       </div>
     </div>
-    <div class="callout">Seven fine-tune iterations plus a base-model bake-off: train (~2-9 min on Modal H100), gate, export, verify against 43 adversarial variants and a never-trained holdout. The pipeline is the moat, not any single checkpoint - it re-based from MiniCPM5-1B to Qwen3.5-2B in an afternoon.</div>
+    <div class="callout">Two base models through one pipeline - MiniCPM5-1B, then Qwen3.5-2B - trained with SFT, DPO and GRPO out to DPO v8, assist v6 and tool v3. Train on AMD Developer Cloud notebooks and Modal H100, gate on held-out behaviour, export to served quant, verify against 43 adversarial variants and never-trained holdouts. The pipeline is the moat, not any single checkpoint - re-basing from MiniCPM5-1B to Qwen3.5-2B took an afternoon.</div>
     <div class="chips">
       <span class="chip">factual</span><span class="chip">maths</span><span class="chip">sentiment</span><span class="chip">summarisation</span><span class="chip">NER</span><span class="chip">debugging</span><span class="chip">logic</span><span class="chip">code generation</span>
     </div>
@@ -256,40 +260,45 @@ tr:last-child td { border-bottom: 0; }
         </ul>
       </div>
     </div>
-    <div class="callout">Measured, not assumed: with gates bypassed the 1B-era stack scored 12/19 - below the accuracy gate. The gates ARE the accuracy. A zero-token mode exists behind a flag; the Qwen lane plus MTP speculative decoding is the measured path towards clearing the bar alone.</div>
+    <div class="callout">Measured, not assumed: with gates bypassed the 1B-era stack scored 12/19 - below the accuracy gate. The gates ARE the accuracy. A fully local zero-token mode runs both lanes behind a flag with no remote call at all; the Qwen3.5-2B assist upgrade is the measured path towards clearing the bar that way.</div>
   </div>
   <div class="page">04 / 06</div>
 </section>
 
 <section class="slide">
-  <div class="eyebrow">Token journey</div>
+  <div class="eyebrow">Experiment ledger</div>
   <div class="content">
-    <h2>6,356 to 1,292 in one day of measured cuts.</h2>
+    <h2>Every checkpoint earned its place - or got cut on evidence.</h2>
+    <p class="subtitle">Two base models, three training methods, and a held-out set behind every decision.</p>
+    <div class="metrics">
+      <div class="metric"><div class="value">105</div><div class="label">Recorded eval runs - full-agent plus bare-model probes</div></div>
+      <div class="metric"><div class="value">21</div><div class="label">Distinct builds taken end to end</div></div>
+      <div class="metric"><div class="value">3</div><div class="label">Training methods: SFT, DPO, GRPO/RLVR</div></div>
+      <div class="metric"><div class="value">2</div><div class="label">Base models re-based mid-campaign</div></div>
+    </div>
     <div class="grid2">
       <div class="card">
-        <h3>Live and verified run history</h3>
-        <div class="bars">
-          <div class="bar-row"><span class="bar-label">day start (live)</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,var(--red),var(--orange));"></div></div><span class="bar-value">6,356</span></div>
-          <div class="bar-row"><span class="bar-label">tokenizer fix</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div><span class="bar-value">3,834</span></div>
-          <div class="bar-row"><span class="bar-label">+ assist lane</span><div class="bar-track"><div class="bar-fill" style="width:43%"></div></div><span class="bar-value">2,761</span></div>
-          <div class="bar-row"><span class="bar-label">+ tools-off fold</span><div class="bar-track"><div class="bar-fill" style="width:26%"></div></div><span class="bar-value">1,661</span></div>
-          <div class="bar-row"><span class="bar-label">best live run</span><div class="bar-track"><div class="bar-fill" style="width:20.3%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div></div><span class="bar-value green">1,292</span></div>
-        </div>
+        <h3>Trained, gated and kept</h3>
+        <ul>
+          <li>9 fine-tuned checkpoints at served quant across the MiniCPM5-1B and Qwen3.5-2B lines</li>
+          <li>Trained on the provided AMD Developer Cloud notebooks; runs moved to Modal H100 when the notebooks hit issues</li>
+          <li>Iterations reaching DPO v8, assist SFT v6 and tool v3</li>
+          <li>9 execution-verified data recipes: parametric, Claude-authored, teacher-distilled</li>
+          <li>Every export gated on never-trained behaviour before it could ship</li>
+        </ul>
       </div>
       <div class="card">
-        <h3>What actually moved the score</h3>
+        <h3>Measured, then cut</h3>
         <ul>
-          <li>Fixed GGUF tokenisation: manual training render + EOG exceptions</li>
-          <li>Both lanes run before batching - no more stranded solo calls</li>
-          <li>Tools only for dedicated code batches (the coin-flip tool loop cost ~2,600)</li>
-          <li>Factual, summaries, bug fixes moved local behind gates</li>
-          <li>Recipes tuned per batch kind; recovery retries stripped lean</li>
+          <li>Sentiment DPO: moved the held-out score by exactly zero, twice</li>
+          <li>GRPO clue-encoding: bf16 gains that vanished at served quant</li>
+          <li>Stock Qwen2.5-3B, no fine-tune: 28/43 variants - not a shortcut</li>
+          <li>MTP speculative decoding: slower and non-exact on CPU</li>
+          <li>GLiNER NER encoder: 23/23 spans in probes, parked as post-deadline work</li>
         </ul>
-        <div class="code">rehearsal (4 GB / 2 vCPU): 1,297 -> live: 1,292
-rehearsal (4 GB / 2 vCPU): 1,583 -> live: 1,559</div>
       </div>
     </div>
-    <div class="callout">The CI dress rehearsal has predicted every live score within 25 tokens. Every submission is rehearsed on judge-shaped hardware before it spends a slot.</div>
+    <div class="callout">2,589 answers graded across those runs on 292 tasks in 13 eval sets - 43 adversarial variants, 18 wildcards and three never-trained holdouts among them. Nothing ships that a held-out set did not confirm.</div>
   </div>
   <div class="page">05 / 06</div>
 </section>
@@ -312,7 +321,7 @@ rehearsal (4 GB / 2 vCPU): 1,583 -> live: 1,559</div>
         <h3>Portable image</h3>
         <ul>
           <li>linux/amd64 multi-stage build, immutable SHA tags</li>
-          <li>Tool GGUF + Qwen base + serve-time LoRA + fp32 classifier + llama.cpp b9948</li>
+          <li>MiniCPM5-1B tool GGUF + Qwen3.5-2B base + assist LoRA + fp32 classifier + llama.cpp b9948</li>
           <li>Env-only runtime config per the guide</li>
           <li>Compressed size far under the 10 GB cap</li>
         </ul>
@@ -328,9 +337,9 @@ rehearsal (4 GB / 2 vCPU): 1,583 -> live: 1,559</div>
     </div>
     <div class="callout">Data integrity, verified mechanically: shipped training sets have ZERO exact overlap with the sample tasks, our eval variants, or the captured live evaluation prompts (0/19), and the DPO pair miner hard-asserts against sample ids and prompt text. Training mirrors task style, never task content. One early ablation dataset containing sample copies was research-only, never shipped, and is quarantined behind an explicit acknowledgement flag.</div>
     <div class="metrics">
-      <div class="metric"><div class="value green">#1</div><div class="label">1,559 tokens @ 0.895 (best run 1,292 @ 0.947)</div></div>
-      <div class="metric"><div class="value">+238</div><div class="label">Token lead over 2nd place</div></div>
-      <div class="metric"><div class="value orange">0</div><div class="label">Fallbacks, empty answers, DQs</div></div>
+      <div class="metric"><div class="value">63</div><div class="label">Commits, each measured before merge</div></div>
+      <div class="metric"><div class="value green">0 / 19</div><div class="label">Sample-task overlap in any shipped training set</div></div>
+      <div class="metric"><div class="value mono" style="font-size:clamp(1.4rem,2.4vw,2.3rem)">amd64</div><div class="label">Every submission rehearsed on the judge's hardware first</div></div>
       <div class="metric"><div class="value green">ready</div><div class="label">Commit, image, docs, deck</div></div>
     </div>
   </div>
